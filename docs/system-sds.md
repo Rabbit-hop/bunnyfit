@@ -1,9 +1,9 @@
 ### System-Level Software Design Specification (System-Level SDS)
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.0.0
+**Document Version:**  1.1.0
 **SRS Baseline Version:**  1.0.0
-**Date:**  4 November 2026
+**Date:**  6 November 2026
 **Status:**  Approved Baseline
 
 --------------------------------------------------------------------------------
@@ -13,6 +13,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial draft derived from SRS 1.0.0, Feature Inventory 1.0.0 and RTM 1.0.0: architecture and stack, data model, UI structure, API conventions, role/permission matrix, authentication design, configuration, delivery and deployment plan, testability design | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Synchronized error codes (`NOT_FOUND`, `CATEGORY_HAS_TEMPLATES`, `INTERNAL_ERROR`, `QUICK_COMPLETE_NOT_AVAILABLE`), explicit backend HTTP 400 validation for Quick Complete on Rest Days, retained `ReminderSetting` fields (`label`, `enabled`), and added explicit AC references for template snapshot isolation (AC-27) and historical `WeightLog` lookup (AC-28a–c). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.0** | 6 Nov 2026 | Endpoint catalog corrected against the Sprint 1 contracts (v0.2.0), Section 5.2: removed the non-existent `GET/POST /api/exercises` and `GET /api/exercises/:id`, added `GET /api/plan-items/:id` (F-03), `GET /api/user-exercises`, `GET /api/plan?date=` (F-03) and `GET /api/entries/:id` (F-04). Added the API representation of `repeatDays` (ISO weekday array exchanged at the boundary, stored as the Section 3.2 Monday–Sunday bitmask), which resolves contract pending item F-03 P3-9. Schema and Section 3.3 unchanged (already matched by contracts 0.2.0). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 
 --------------------------------------------------------------------------------
 
@@ -243,6 +244,7 @@ Route guards hide screens a role cannot use, but this is **not** authorization; 
 - **Authentication:** `Authorization: Bearer <JWT>` on every endpoint except `POST /api/auth/login` and `GET /api/health`.
 - **Identity comes from the token only.** Participant-owned data is never addressed by a user ID in the path. Self-scoped endpoints (profile, progress, history, summary, schedule) reject a `userId` query parameter that differs from the authenticated user with 403.
 - **Formats:** dates `YYYY-MM-DD`; times `HH:mm`; durations in seconds; distance in km; weight in kg.
+- **Plan weekdays:** `repeatDays` is exchanged as a non-empty array of unique ISO weekdays (1 = Monday … 7 = Sunday) and stored as the Section 3.2 Monday–Sunday bitmask (`127` = every day); `GET /api/plan?date=` returns the resolved `isRestDay` and `items`.
 - **Validation:** every request body/query is validated against a schema before reaching a service; unknown fields are rejected.
 - **Status codes:** 200/201/204 success; 400 validation or business-rule input errors (`QUICK_COMPLETE_NOT_AVAILABLE`, `LOG_DATE_MISMATCH`, `VALIDATION_ERROR`); 401 unauthenticated; 403 forbidden; 404 resource does not exist (`NOT_FOUND`); 409 state conflict (`ENTRY_NOT_EDITABLE`, `CATEGORY_HAS_TEMPLATES`); 500 unexpected (`INTERNAL_ERROR`).
 - **Error envelope (SRS Appendix A.5):** `{ "code": string, "message": string, "fields": [{ "field": string, "limit": string }] }`. Messages never include stack traces, SQL, tokens or other users' data. Unknown/internal errors are logged server-side only.
@@ -256,10 +258,10 @@ Exact request/response shapes are defined in each feature contract; this catalog
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | F-01 | 1 |
 | `GET /api/categories`, `GET /api/templates`, `GET /api/templates/:id` | F-02 | 1 |
 | `POST/PUT/DELETE /api/categories`, `POST/PUT/DELETE /api/templates` | F-02 | 1 |
-| `GET/POST /api/exercises`, `GET /api/exercises/:id` | F-03 | 1 |
-| `GET/POST /api/plan-items` | F-03 | 1 |
+| `GET/POST /api/plan-items`, `GET /api/plan-items/:id` | F-03 | 1 |
+| `GET /api/user-exercises`, `GET /api/plan?date=` | F-03 | 1 |
 | `PUT /api/plan-items/:id` (creates a new version) | F-07 | 2 |
-| `GET/POST /api/entries`, `POST /api/entries/quick-complete` | F-04 | 1 |
+| `GET/POST /api/entries`, `GET /api/entries/:id`, `POST /api/entries/quick-complete` | F-04 | 1 |
 | `PUT/DELETE /api/entries/:id` | F-05 | 2 |
 | `GET /api/progress/daily?date=`, `GET /api/progress/monthly?month=` | F-06 (kcal fields: F-11) | 1 (2) |
 | `GET/PUT /api/profile` | F-04 | 1 |

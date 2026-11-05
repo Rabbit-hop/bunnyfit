@@ -2,9 +2,9 @@
 
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.0.0
+**Document Version:**  1.1.0
 **SRS Baseline Version:**  1.0.0
-**Date:**  4 November 2026
+**Date:**  6 November 2026
 **Status:**  Approved Baseline
 **Team:**  Nakagamon (67070501064) & Onsinee (67070501078)
 
@@ -15,11 +15,12 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial draft: sprint goals, feature allocation, dependencies, schedule against the course calendar, Lab alignment, risks, Product Definition of Done | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Clarified FR-03 allocation across Sprint 1 (F-03: initial goal setting) and Sprint 2 (F-07: mid-month reconfiguration & plan versioning). Aligned RTM AC coverage, error codes, and persisted `ReminderSetting` scope with SRS 1.0.0 and SDS 1.0.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 
 --------------------------------------------------------------------------------
 
 #### 1. Purpose and Inputs
-This plan allocates every baseline requirement to one of three sprints and states, for each sprint, its **goal, included feature IDs, dependencies and completion outcome**. It is built from the Feature Inventory 1.0.0 (features F-01 – F-11, SYS-01), the RTM 1.0.0 (28 AC groups, 75 atomic AC) and the System-Level SDS 1.0.0. Dates come from the course calendar; owners are agreed upon by the team.
+This plan allocates every baseline requirement to one of three sprints and states, for each sprint, its **goal, included feature IDs, dependencies and completion outcome**. It is built from the Feature Inventory 1.0.0 (features F-01 – F-11, SYS-01), the RTM 1.1.0 (28 AC groups, 80 atomic AC) and the System-Level SDS 1.1.0. Dates come from the course calendar; owners are agreed upon by the team.
 
 --------------------------------------------------------------------------------
 
@@ -28,6 +29,7 @@ This plan allocates every baseline requirement to one of three sprints and state
 | ------ | ------ | ------ |
 | Wed 4 Nov | SRS, FI, RTM, SDS, and Plan baselined (v1.0.0) | Sprint 1 opened with 4 days left (5 – 8 Nov) |
 | Thu 5 Nov | Workshop and Lab 5 session | Contracts and CI/Docker groundwork |
+| **Fri 6 Nov** | Scope checkpoint executed: all 14 Tier B AC moved to Sprint 2 (CHANGE-03 … CHANGE-08); RTM, SDS and plan baselined at 1.1.0 | Sprint 1 scope = 38 atomic AC (Section 4.7) |
 | **Sun 8 Nov** | **Deliverable 1 due (80 points)** | Sprint 1 release on `main` |
 | Tue 10, Thu 12 Nov | Lab 6 sessions (cross-team UAT) | A deployed (or at least runnable) Sprint 1 build is needed for testers |
 | Sun 15 Nov | Lab 5 due (Docker, CI/CD, GCP) | Sprint 1 release deployed through the pipeline |
@@ -43,8 +45,8 @@ This plan allocates every baseline requirement to one of three sprints and state
 #### 3. Sprint Overview
 | Sprint | Window | Goal | Features | Atomic AC (first introduced) | Checkpoint |
 | :---: | ------ | ------ | ------ | :---: | ------ |
-| **1** | 4 – 8 Nov | Small working domain slice with authentication, permissions and persistence | F-01, F-02, F-03, F-04, F-06 | 47 | Deliverable 1, 8 Nov |
-| **2** | 9 – 29 Nov | Completed core expansion under engineering contracts | F-07, F-11, F-05, F-08 | 20 | Deliverable 2, 29 Nov |
+| **1** | 4 – 8 Nov | Small working domain slice with authentication, permissions and persistence | F-01, F-02, F-03, F-04, F-06 | 38 | Deliverable 1, 8 Nov |
+| **2** | 9 – 29 Nov | Completed core expansion under engineering contracts | F-07, F-11, F-05, F-08 | 34 | Deliverable 2, 29 Nov |
 | **3** | contracts by 29 Nov; build to 11 Dec | Remaining features, integration and product hardening | F-09, F-10, SYS-01 | 8 (+ extensions of AC-12c, AC-22c, AC-23, AC-21b for F-06 re-verification) | Progress 29 Nov; complete 13 Dec |
 
 All 24 requirements are covered by the three sprints (Section 7), and every feature appears in exactly one sprint.
@@ -70,7 +72,7 @@ Deliberately **moved out** of Sprint 1 and recorded as CHANGE-01 / CHANGE-02: F-
 
 ##### 4.3 Included Requirements and AC
 - **Requirements:** FR-01, FR-02, FR-03 (initial goal setting), FR-04, FR-05, FR-08 (profile); BR-01 to BR-08; NFR-01 (progress/ledger endpoints), NFR-02, NFR-03, NFR-04.
-- **AC groups (47 atomic):** AC-01, 02, 03, 04, 06, 10, 11, 12, 13, 14, 15, 16, 17, 21a, 22, 23, 24a, 25, 27.
+- **AC groups (38 atomic):** AC-01, 02, 03, 04, 06, 10, 11, 12, 13, 14, 22, 23, 24a, 25, 27. (AC-15, AC-16, AC-17 and AC-21a moved wholly to Sprint 2; the deferred members of the remaining groups are AC-02d, AC-03d, AC-04c–d, AC-06g and AC-10c — CHANGE-03 … CHANGE-08.)
 
 ##### 4.4 Dependencies and Build Order
 `Foundation (schema, migrations, seed, route-policy registry, test harness, Clock)` → `F-01` → `F-02` → `F-03` → `F-04` → `F-06` → UI integration → `AC-25` journey.
@@ -92,12 +94,14 @@ Each feature contract (AC + STS + DoD) is written and committed **before** its i
 - RTM Section 3.1 register updated for Sprint 1 AC (actual test names, results, commit).
 
 ##### 4.7 Feasibility and Contingency
-47 atomic AC in four days for two people is demanding, so the scope has a **pre-agreed cut line**. At the checkpoint on **Fri 6 Nov** (end of day), if the Tier A tests are not at least half written and passing, the Tier B items below are moved to Sprint 2 in this order, each recorded as an approved change (CHANGE-03 …) with the RTM updated the same day:
+38 atomic AC in four days for two people is demanding, so the scope has a **pre-agreed cut line**. At the checkpoint on **Fri 6 Nov** (end of day), if the Tier A tests are not at least half written and passing, the Tier B items below are moved to Sprint 2 in this order, each recorded as an approved change (CHANGE-03 …) with the RTM updated the same day:
 
 | Tier | AC | Count | Notes |
 | ------ | ------ | :---: | ------ |
-| **A (must)** | All Sprint 1 AC not in Tier B — auth, roles, ownership, templates, goal, logging, Quick Complete, no-backdating, boundaries, scoring, persistence, journey AC-25 | 37 | Needed for the course's minimum Sprint 1 outcome |
-| **B (cut candidates, in order)** | 1. AC-21a (Sprint 1 latency, re-verified in Sprint 3) · 2. AC-17a–d (profile endpoints, move with F-11) · 3. AC-16a–b (custom exercise defaults) · 4. AC-15 (monthly average) · 5. AC-10c and AC-04c (edge cases) | 10 | Each is already covered again or can start in Sprint 2 without breaking the journey |
+| **A (must)** | All Sprint 1 AC not in Tier B — auth, roles, ownership, templates, goal, logging, Quick Complete, no-backdating, boundaries, scoring, persistence, journey AC-25; plus AC-01f (login validation, added 6 Nov, Tier A) | 38 | Needed for the course's minimum Sprint 1 outcome |
+| **B (cut candidates, in order)** | 1. AC-21a (Sprint 1 latency, re-verified in Sprint 3) · 2. AC-17a–d (profile endpoints, move with F-11) · 3. AC-16a–b (custom exercise defaults) · 4. AC-15 (monthly average) · 5. AC-10c and AC-04c (edge cases) · 6. AC-02d, AC-03d, AC-04d, AC-06g (AC proposed by the Sprint 1 contracts, added 6 Nov) | 14 | Each is already covered again or can start in Sprint 2 without breaking the journey |
+
+**Executed at the checkpoint on Fri 6 Nov 2026:** no Tier A test had been written yet, so **all 14 Tier B AC moved to Sprint 2** and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0. Sprint 1 therefore runs with **38 atomic AC**; the deferred AC keep their STS in the Sprint 1 contracts and are verified with their features (F-02, F-03, F-04, F-06) during Sprint 2.
 
 --------------------------------------------------------------------------------
 
@@ -113,7 +117,9 @@ Complete the core expansion under engineering contracts: same-day goal reconfigu
 | 3 | **F-05** Same-day entry edit/delete | FR-04, BR-09 | AC-05a–c, AC-18a–b | F-04 |
 | 4 | **F-08** Personal history & streak | FR-06, BR-10 | AC-08a–b, AC-19a–d | F-03, F-04, F-06, F-07 |
 
-F-07 comes first because F-08 and F-09 depend on plan versions. 20 atomic AC in total.
+**Deferred from Sprint 1 (CHANGE-03 … CHANGE-08, 6 Nov):** AC-02d, AC-03d, AC-04c–d, AC-06g, AC-10c, AC-15, AC-16a–b, AC-17a–d, AC-21a — 14 atomic AC, verified with their Sprint 1 features (F-02, F-03, F-04, F-06) during Sprint 2.
+
+F-07 comes first because F-08 and F-09 depend on plan versions. 34 atomic AC in total (20 originally planned + 14 deferred from Sprint 1 by CHANGE-03 … CHANGE-08).
 
 ##### 5.3 Schedule (overlapping Labs 5, 6 and 7)
 | Dates | Work |
@@ -162,26 +168,26 @@ Generated from the Feature Inventory audit matrix (single source of truth).
 | Requirement | Summary | Feature(s) | Sprint(s) |
 | ------ | ------ | ------ | ------ |
 | **FR-01** | User Authentication, JWT `jti` Denylist, Logout & Server-side Authorization | F-01 | Sprint 1 |
-| **FR-02** | Activity Category & Base Exercise Management (Manager CRUD & Read-Only Participant) | F-02 | Sprint 1 |
-| **FR-03** | Participant Initial Goal Configuration & UserExercise Snapshot Architecture ($\text{Target} > 0$) | F-03 | Sprint 1 |
+| **FR-02** | Activity Category & Base Exercise Management (Manager CRUD & Read-Only Participant) | F-02 | Sprint 1, 2 |
+| **FR-03** | Participant Initial Goal Configuration & UserExercise Snapshot Architecture ($\text{Target} > 0$) | F-03 | Sprint 1, 2 |
 | **FR-04** | Daily Activity Logging, Profile Integration, Ledger UX & Rest Day Logging | F-04, F-05 | Sprint 1 (F-04), Sprint 2 (F-05) |
 | **FR-05** | Real-time Computed Progress Display & Calorie Estimation Display | F-06, F-10, F-11 | Sprint 1 (F-06), Sprint 2 (F-11), Sprint 3 (F-10) |
 | **FR-06** | Personal History & Streak Tracking | F-08, F-10 | Sprint 2 (F-08), Sprint 3 (F-10) |
 | **FR-07** | Schedule Representation & Persisted Reminder Settings (display only, no external delivery) | F-09 | Sprint 3 |
-| **FR-08** | User Profile & Body Weight Management (`GET/PUT /api/profile`, `WeightLog` Append-Only) | F-04, F-11 | Sprint 1 (F-04), Sprint 2 (F-11) |
-| **BR-01** | Strictly No Backdating (Asia/Bangkok Timezone, Optional `logDate` Input Validation) | F-04 | Sprint 1 |
+| **FR-08** | User Profile & Body Weight Management (`GET/PUT /api/profile`, `WeightLog` Append-Only) | F-04, F-11 | Sprint 2 (F-04, F-11) |
+| **BR-01** | Strictly No Backdating (Asia/Bangkok Timezone, Optional `logDate` Input Validation) | F-04 | Sprint 1, 2 |
 | **BR-02** | Valid Range & Boundary Enforcement ($\text{Target} > 0, \text{Max Weight} = 500\text{ kg}, \text{Max Distance} = 100\text{ km}, \text{Body Weight} = 1 - 800\text{ kg}$) | F-02, F-03, F-04 | Sprint 1 |
 | **BR-03** | Ratio-Based Score Formulas (6 Tracking Modes) & Daily Overall % | F-06 | Sprint 1 |
 | **BR-04** | 100% Data Privacy & Access Isolation Policy (HTTP 401 Unauthorized / HTTP 403 Forbidden), extended to every protected route | F-01, SYS-01 | Sprint 1, 2, 3 |
 | **BR-05** | Ledger Accumulation, Quick Complete Mechanics ($\sum \text{Actual} = \text{Target}$) & No-op Handling | F-04 | Sprint 1 |
 | **BR-06** | Direct Completed Value Counting Logic | F-04 | Sprint 1 |
-| **BR-07** | Targeted-Days-Only Monthly Progress Calculation (Rest days excluded) | F-06, F-10 | Sprint 1, 3 |
-| **BR-08** | Custom Exercise Defaults Boundaries | F-03, F-04 | Sprint 1 |
+| **BR-07** | Targeted-Days-Only Monthly Progress Calculation (Rest days excluded) | F-06, F-10 | Sprint 1, 2, 3 |
+| **BR-08** | Custom Exercise Defaults Boundaries | F-03, F-04 | Sprint 2 |
 | **BR-09** | Daily Entry Modification Limits (Current Date Only) | F-05 | Sprint 2 |
 | **BR-10** | Streak Eligibility Threshold ($\ge 70\%$) & Strict Midnight Reset Rule | F-08 | Sprint 2 |
 | **BR-11** | Same-Day Goal Reconfiguration & Plan Versioning (`PlanItem` with `effectiveFrom`) | F-07 | Sprint 2 |
 | **BR-12** | Estimated Duration & Calorie Calculation via METs (Historical `WeightLog` Lookup) | F-11 | Sprint 2 |
-| **NFR-01** | Performance ($p95 < 500\text{ ms}$ under 50 concurrency; login measured separately) | F-06, SYS-01 | Sprint 1, 3 |
+| **NFR-01** | Performance ($p95 < 500\text{ ms}$ under 50 concurrency; login measured separately) | F-06, SYS-01 | Sprint 2, 3 |
 | **NFR-02** | Security & Access Control (HTTP 401 Unauthorized / HTTP 403 Forbidden), Endpoint Access Matrix grows each sprint | F-01, SYS-01 | Sprint 1, 2, 3 |
 | **NFR-03** | Usability & Validation Feedback (Clear UI Error Notices) | F-04, SYS-01 | Sprint 1, 3 |
 | **NFR-04** | Data Persistence & Durability (Survives Application Restart and GCP Redeployment) | F-04, SYS-01 | Sprint 1, 3 |
@@ -228,7 +234,7 @@ Issue (linked to requirement, feature and contract) → `feature/F-xx-…` or `f
 #### 11. Risks and Mitigations
 | # | Risk | Impact | Mitigation |
 | ------ | ------ | ------ | ------ |
-| R1 | Sprint 1 has only 4 days for 47 atomic AC | Deliverable 1 incomplete | Tier A/B cut line (Section 4.7); contracts first; checkpoint Fri 6 Nov |
+| R1 | Sprint 1 has only 4 days for 38 atomic AC (after the 6 Nov cut) | Deliverable 1 incomplete | Tier A/B cut line (Section 4.7), executed at the Fri 6 Nov checkpoint (CHANGE-03 … CHANGE-08); contracts first |
 | R2 | Sprint 1 build must be testable in Lab 6 (10 Nov) before Lab 5 is due (15 Nov) | Late UAT | Deploy by 10 Nov; fall back to a documented runnable build and the temporary access arranged with the instructor |
 | R3 | Labs 5–7 overlap Sprint 2 | Sprint 2 slips past 29 Nov | Sprint 2 contracts before Lab 5; release candidate frozen 25 Nov; Lab 7 change kept small |
 | R4 | Date-dependent rules (BR-09, BR-10, BR-11) are hard to test under no-backdating | Weak evidence | Injectable Clock and dated seed rows from day one (SDS Section 2.6) |
