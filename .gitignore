@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets (never commit real values)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Internal working notes — never commit
+docs/local/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
