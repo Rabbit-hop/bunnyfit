@@ -3,9 +3,9 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-06
 **Sprint:**  1 (calories are F-11, Sprint 2; Monthly Progress Summary is F-10, Sprint 3)
-**Contract Version:**  0.1.0
-**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.2.0, System-Level SDS 0.1.0, F-01 to F-04 contracts 0.1.0)
-**Date:**  4 November 2026
+**Contract Version:**  0.2.0
+**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.0.0, System-Level SDS 1.0.0, F-01 contract 0.1.2, F-02 to F-04 contracts 0.2.0)
+**Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-06-progress-display.md`
@@ -16,6 +16,7 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/UI specification, AC (AC-06a–c, AC-15, AC-21a; proposed AC-06d), STS, Definition of Done, list of pending baseline changes (§12). No new tables | Nakagamon | Draft |
+| **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citations corrected (RTM 1.0.0, SDS 1.0.0 — neither "RTM 1.2.0" nor "SDS 0.1.0" exists; F-01 0.1.2, F-02–F-04 0.2.0); AC restored to the RTM 1.0.0 numbering — AC-06a–f are back to their approved meanings (item score, cap, time/distance ratio, Daily Overall %, 0%/null, load and body weight invariance), AC-15 keeps the monthly-average criterion with the RTM example, and the only genuinely new criterion (real-time, private, unaffected scores) is re-suffixed as proposed AC-06g; every test ID realigned to its AC suffix (old TEST-06b→06d/06e, old TEST-06c→15, old TEST-06d→06f/06g, plus new TEST-06b-1, TEST-06c-1); `entry source` renamed to `entry kind` to match SDS §3.2; pending item P6-8 removed because its premise was false (RTM §3 already lists AC-06a–f under Unit Testing) | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-06 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -79,7 +80,7 @@ flowchart LR
 | R6 | Rest Day (no item occurs): `overallPercent = null` (not 0) and `items = []` | Baseline Q24 |
 | R7 | Targeted day with no entries: every ratio 0 and `overallPercent = 0` | Baseline BR-03 |
 | R8 | Over-achievement is capped: actual above target gives ratio 1.0 | Baseline BR-03 (`min(1.0, …)`) |
-| R9 | Weight load (`loadKg`), body weight and entry `source` do not influence any score | Baseline Decision 11 |
+| R9 | Weight load (`loadKg`), body weight and entry `kind` do not influence any score | Baseline Decision 11 |
 | R10 | **Monthly average** for month M: take each **targeted day** (a day that is not a Rest Day) from `max(first day of M, first `effectiveFrom` of the user)` up to and including **today** (or the month end for a past month); average their Daily Overall % arithmetically. Future days are excluded, Rest Days are excluded, a targeted day without entries counts 0% (Appendix A.3). The current day is included with its current percentage. If there are no targeted days the average is `null` | Baseline BR-07 / A.3 |
 | R11 | Percentages are returned **unrounded**; displays round half up to 1 decimal place. Calculation uses decimal arithmetic (not binary floating point) so that F-08's unrounded comparison `≥ 0.70` is exact at the boundary | Baseline Appendix A.4 + design decision |
 | R12 | Scores for past dates are computed from the plan versions and entries that existed for that date (via `resolvePlan`, which picks the version by `effectiveFrom`) | Baseline B8 / BR-11 |
@@ -194,74 +195,79 @@ UI behavior is verified through the journey (AC-25: after logging, the progress 
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-06a–c, AC-15 and AC-21a refine criteria already in the RTM 1.2.0. AC-06d is **proposed**.
+AC-06a–f, AC-15 and AC-21a restore the RTM 1.0.0 IDs and wording (refined with the concrete formulas, endpoints and limits). AC-06g is **proposed** (not yet in the RTM).
 
 | AC | Observable outcome |
 | ------ | ------ |
-| **AC-06a** | For each of the 6 `trackingMode` values the Item Score equals `min(1, actual ÷ target) × priorityWeight`; over-achievement is capped at the weight |
-| **AC-06b** | Daily Overall Progress equals Σ Item Score ÷ Σ Priority Weight × 100 for the planned items of the day; a targeted day without logs gives 0%; a Rest Day gives `null` (not 0) |
-| **AC-06c** | The monthly average is the arithmetic mean of Daily Overall % over targeted days from `max(month start, first effectiveFrom)` up to and including today; future days are excluded; a targeted day without logs counts 0% |
-| **AC-06d** *(proposed)* | The scores returned by `GET /api/progress/daily` change immediately after a new ledger entry or Quick Complete (no stale value), are private to the owner, and are not changed by body weight, load, or entries of non-planned exercises |
-| **AC-15** | Rest Days (and days before the first `effectiveFrom`) are completely excluded from the monthly average, including their free-form entries; a month with no targeted days returns `null` |
+| **AC-06a** | For each of the 6 `trackingMode` values the Item Score equals `min(1, actual ÷ target) × priorityWeight` (RTM example: `WEIGHT`, target 30 reps, actual 15, Priority Weight 4 → ratio 0.5, Item Score 2.0) |
+| **AC-06b** | Actual above the target is capped: RTM example — actual 45 reps against a target of 30 → ratio 1.0, i.e. the score equals the Priority Weight |
+| **AC-06c** | Time-based: target 1,200 s, actual 600 s → 0.5; distance-based: target 5 km, actual 2 km → 0.4 |
+| **AC-06d** | Daily Overall Progress (%) = Σ Item Score ÷ Σ Priority Weight × 100 over the items that occur on the date (RTM example: (weight 4, ratio 0.5) and (weight 1, ratio 1.0) → (2.0 + 1.0) / 5 × 100 = 60%); decimal arithmetic keeps the value exact (R11) |
+| **AC-06e** | A targeted day without any log → 0%; a day with no `PlanItem` → `null` (not 0%) |
+| **AC-06f** | The same reps with a different `loadKg`, or a different body weight, produce an identical score (Decision 11) |
+| **AC-06g** *(proposed)* | The scores returned by `GET /api/progress/daily` change immediately after a new ledger entry or Quick Complete (no stale value), are private to the owner, and are not changed by body weight, `loadKg` or entries of exercises that are not planned on that date |
+| **AC-15** | Rest Days (and days before the first `effectiveFrom`) are excluded from the monthly average, including their free-form entries; a month with no targeted days returns `null` (RTM example: targeted days at 100%, 50% and 0% plus two Rest Days that have logs → 50% = 150 / 3) |
 | **AC-21a** | Under a documented seed dataset, 500 requests per endpoint at concurrency 50 give p95 < 500 ms for `GET /api/progress/daily`, `GET /api/progress/monthly`, `POST /api/entries`, `POST /api/entries/quick-complete` and `GET /api/entries` (the Sprint 1 subset of NFR-01; login is measured separately at p95 < 1,000 ms and the full endpoint set is Sprint 3) |
 
-**Shared AC with other features.** AC-14 (F-04): `cumulativeFor` is the input of AC-06. AC-12a/b/c and AC-22c (Endpoint Access Matrix): F-06 routes are covered in stage 2 (see F-01 §7); F-06 has only `self-scoped` routes. AC-25 (journey): "Verify Progress" is the last step. AC-23 is owned by F-04.
+**Shared AC with other features.** AC-14a (F-04): `cumulativeFor` is the input of AC-06. AC-12a/b/c and AC-22c (Endpoint Access Matrix): F-06 routes are covered in stage 2 (see F-01 §7); F-06 has only `self-scoped` routes. AC-25 (journey): "Verify Progress" is the last step. AC-23 is owned by F-04.
 
 --------------------------------------------------------------------------------
 
 #### 8. Software Test Specification (STS)
-Files: `tests/unit/progress_calc.test.ts` (AC-06a, AC-06b, AC-06c formulas, AC-15), `tests/integration/progress_api.test.ts` (API tests for AC-06 and AC-15; **new file, not yet in the RTM**), `tests/performance/latency.test.ts` (AC-21a). Fixtures: seeded Manager, Alice, Bob; plans created through F-03; entries through F-04; real PostgreSQL test database; injectable Clock fixed at **Thu 5 Nov 2026 10:00 Asia/Bangkok** unless stated. Weights and targets below are chosen so every expected value is exact.
+Files: `tests/unit/progress_calc.test.ts` (AC-06a–f and AC-15 unit tests), `tests/integration/progress_api.test.ts` (API tests for AC-06d, AC-06e, AC-06f, AC-06g and AC-15; **new file, not yet in the RTM**), `tests/performance/latency.test.ts` (AC-21a). Fixtures: seeded Manager, Alice, Bob; plans created through F-03; entries through F-04; real PostgreSQL test database; injectable Clock fixed at **Thu 5 Nov 2026 10:00 Asia/Bangkok** unless stated. Weights and targets below are chosen so every expected value is exact.
 
 | Test ID | AC | Level | Precondition / Input | Action | Expected result |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| **TEST-06a-1** | AC-06a | Unit | `calcItem`; `WEIGHT` target 40 reps, weight 3 | Actual 0, 20, 40, 80 | ratio 0, 0.5, 1, 1; itemScore 0, 1.5, 3, 3 |
-| TEST-06a-2 | AC-06a | Unit | `BODYWEIGHT_REPS` target 50, weight 2 | Actual 25, 60 | ratio 0.5, 1; score 1, 2 |
-| TEST-06a-3 | AC-06a | Unit | `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`: target 120 s, 600 s, 1,800 s; weight 4 | Actual 60 s, 600 s, 2,400 s | ratio 0.5, 1, 1; score 2, 4, 4 |
-| TEST-06a-4 | AC-06a | Unit | `CARDIO_DISTANCE` target 5 km, weight 5 | Actual 1.25 km, 5 km, 7 km | ratio 0.25, 1, 1; score 1.25, 5, 5 |
-| TEST-06a-5 | AC-06a | Unit | Reps target built from 4 sets × 10 reps | Actual 28 | target 40, ratio 0.7, score 2.1 for weight 3 (decimal exact) |
-| TEST-06a-6 | AC-06a | Unit | Priority weights 1 and 5 | Same ratio | Score scales linearly with weight (1 : 5) |
-| **TEST-06b-1** | AC-06b | Unit | `calcDaily`: item A weight 3 ratio 1.0, item B weight 2 ratio 0 | Calculate | `totalScore` 3, `totalWeight` 5, `overallPercent` 60 |
-| TEST-06b-2 | AC-06b | Unit | Three items (weights 3, 2, 5) with ratios 0.7, 1, 0.5 | Calculate | score 6.6 / 10 → 66 |
-| TEST-06b-3 | AC-06b | Unit | One item weight 4, no entries | Calculate | `overallPercent` 0 (targeted day without log) |
-| TEST-06b-4 | AC-06b | Unit | No planned item (Rest Day), free-form entries exist | Calculate | `isRestDay` true; `overallPercent` null; not 0 |
-| TEST-06b-5 | AC-06b | Unit | Items giving exactly 70% (7 of 10) and 69.99… (6.999 of 10 with decimal inputs) | Calculate | 70 exactly and < 70 (no floating-point drift, R11) |
-| TEST-06b-6 | AC-06b | API/DB Integration | Alice: Squat 4 × 10 weight 3, Plank 120 s weight 2; entries Squat 28 reps, Plank 120 s | `GET /api/progress/daily` | 200; items ratio 0.7 and 1; scores 2.1 and 2; `overallPercent` 82; `isRestDay` false |
-| TEST-06b-7 | AC-06b | API/DB Integration | Alice with an item that does not occur on Tue 2026-11-10 and nothing else | `GET /api/progress/daily?date=2026-11-10` | `isRestDay` true; `overallPercent` null; `items` empty |
-| TEST-06b-8 | AC-06b | API/DB Integration | Alice's plan has an item that starts tomorrow and one that ended yesterday | `GET /api/progress/daily` | Neither item appears; their weights are not in the denominator |
-| **TEST-06c-1** | AC-06c | Unit | `calcMonthly`: days with 80, 60, 100 and an explicit 0 | Calculate | targetedDays 4; average 60 |
-| TEST-06c-2 | AC-06c | API/DB Integration | Historical helpers: Alice targeted Mon–Fri from 2026-11-02; daily results 100 (Nov 2), 50 (Nov 3), no log (Nov 4); today is Thu 2026-11-05 with 30% | `GET /api/progress/monthly` | `from` 2026-11-02; `to` 2026-11-05; targetedDays 4; average (100 + 50 + 0 + 30) ÷ 4 = 45; future days absent from `days` |
-| TEST-06c-3 | AC-06c | API/DB Integration | Same | Clock moved to 23:59 and then to 00:00 the next day (Fri 2026-11-06) | Thu is counted as a closed day with its final value; Fri added as a new targeted day with 0% until logged |
-| TEST-06c-4 | AC-06c | API/DB Integration | Alice's first `effectiveFrom` is 2026-11-04 (earlier days are not part of the plan) | `GET /api/progress/monthly` | `from` 2026-11-04; Nov 1–3 not counted |
-| TEST-06c-5 | AC-06c | API/DB Integration | Past month fixture (October, 31 days, some Rest Days) | `GET /api/progress/monthly?month=2026-10` | `to` 2026-10-31; average over targeted days of the whole month |
-| **TEST-06d-1** | AC-06d | API/DB Integration | Alice; Squat 4 × 10 weight 3, nothing logged | `GET /daily` (0%); `POST /api/entries/quick-complete`; `GET /daily` | 0, then 100 (no cache, same request cycle) |
-| TEST-06d-2 | AC-06d | API/DB Integration | Alice logged 20 of 40 reps | `PUT /api/profile` `{ weightKg: 120 }` and compare `GET /daily` before and after | `overallPercent` unchanged (Decision 11) |
-| TEST-06d-3 | AC-06d | API/DB Integration | Same | Create a second plan with a different `loadKg` for the same template; compare ratio of the first | Ratio unchanged by `loadKg` |
-| TEST-06d-4 | AC-06d | API/DB Integration | Alice has a free-form entry for an exercise not planned today | `GET /daily` | The entry does not appear in `items` and does not change `overallPercent` |
-| TEST-06d-5 | AC-06d | API/DB Integration | Bob has his own plan and entries | `GET /daily` as Alice | Only Alice's items and percentages |
-| TEST-06d-6 | AC-06d | API/DB Integration | `GET /daily?date=2026-11-06` (future), `?date=2026-13-40`; `GET /monthly?month=2026-12`, `?month=2026-13`, `?month=2026-11-05` | Requests | 400 `VALIDATION_ERROR` each (R13); no rows written |
-| **TEST-15-1** | AC-15 | Unit | `calcMonthly`: days 100, Rest Day (null), 50, Rest Day (null) | Calculate | targetedDays 2; `restDaysExcluded` 2; average 75 (not 37.5) |
-| TEST-15-2 | AC-15 | Unit | Only Rest Days | Calculate | `averagePercent` null; `targetedDays` 0 |
-| TEST-15-3 | AC-15 | API/DB Integration | Alice: Rest Day Tue 2026-11-10 with a large free-form entry; targeted days 100 and 50 | `GET /monthly` | Rest Day entry has no effect; average 75 |
-| TEST-15-4 | AC-15 | API/DB Integration | New Participant with no plan | `GET /monthly` | 200; `targetedDays` 0; `averagePercent` null |
-| **TEST-21a-1** | AC-21a | Performance | Seed dataset (§5): 3 Participants × 8 plan items × 30 days of entries; Alice token | 500 requests at concurrency 50 on `GET /api/progress/daily` | p95 < 500 ms; dataset size, run date and commit recorded |
-| TEST-21a-2 | AC-21a | Performance | Same | Same load on `GET /api/progress/monthly` | p95 < 500 ms |
-| TEST-21a-3 | AC-21a | Performance | Same | Same load on `GET /api/entries`, `POST /api/entries`, `POST /api/entries/quick-complete` (valid bodies, distinct exercises per request to avoid limit rejections) | p95 < 500 ms each |
-| TEST-21a-4 | AC-21a | Performance | Same | 500 sequential `POST /api/auth/login` at concurrency 50 | Recorded separately: p95 < 1,000 ms (SRS NFR-01) |
-| **TEST-22c (F-06 routes)** | AC-22c | Security | Registry contains the 2 F-06 routes | No token; then a Manager token on each | 401; then 403 (stage 2) |
-| **TEST-12a (F-06 routes)** | AC-12a | Security | Manager token | Both F-06 routes | 403 each; no data in body (stage 2) |
-| **TEST-12b (F-06 routes)** | AC-12b | Security | Alice and Bob each have progress data | Alice `GET /api/progress/daily?userId=<Bob>`, `GET /api/progress/monthly?userId=<Bob>` | 403 each; no data (stage 2); Bob's own request → 200 |
+| `TEST-06a-1` | AC-06a | Unit | `calcItem`; `WEIGHT` target 40 reps, weight 3 | Actual 0, 20, 40, 80 | ratio 0, 0.5, 1, 1; itemScore 0, 1.5, 3, 3 |
+| `TEST-06a-2` | AC-06a | Unit | `BODYWEIGHT_REPS` target 50, weight 2 | Actual 25, 60 | ratio 0.5, 1; score 1, 2 |
+| `TEST-06a-3` | AC-06a | Unit | `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`: target 120 s, 600 s, 1,800 s; weight 4 | Actual 60 s, 600 s, 2,400 s | ratio 0.5, 1, 1; score 2, 4, 4 |
+| `TEST-06a-4` | AC-06a | Unit | `CARDIO_DISTANCE` target 5 km, weight 5 | Actual 1.25 km, 5 km, 7 km | ratio 0.25, 1, 1; score 1.25, 5, 5 |
+| `TEST-06a-5` | AC-06a | Unit | Reps target built from 4 sets × 10 reps | Actual 28 | target 40, ratio 0.7, score 2.1 for weight 3 (decimal exact) |
+| `TEST-06a-6` | AC-06a | Unit | Priority weights 1 and 5 | Same ratio | Score scales linearly with weight (1 : 5) |
+| `TEST-06b-1` | AC-06b | Unit | `calcItem`; `WEIGHT` target 30 reps, weight 4 | Actual 15 and 45 | ratio 0.5 → itemScore 2.0; then ratio capped at 1.0 → itemScore 4 |
+| `TEST-06c-1` | AC-06c | Unit | `calcItem`; `CARDIO_TIME` target 1,200 s and `CARDIO_DISTANCE` target 5 km | Actual 600 s and 2 km | ratio 0.5 and 0.4 |
+| `TEST-06d-1` | AC-06d | Unit | `calcDaily`: item A weight 3 ratio 1.0, item B weight 2 ratio 0 | Calculate | `totalScore` 3, `totalWeight` 5, `overallPercent` 60 |
+| `TEST-06d-2` | AC-06d | Unit | Three items (weights 3, 2, 5) with ratios 0.7, 1, 0.5 | Calculate | score 6.6 / 10 → 66 |
+| `TEST-06d-3` | AC-06d | Unit | Items giving exactly 70% (7 of 10) and 69.99… (6.999 of 10 with decimal inputs) | Calculate | 70 exactly and < 70 (no floating-point drift, R11) |
+| `TEST-06d-4` | AC-06d | API/DB Integration | Alice: Squat 4 × 10 weight 3, Plank 120 s weight 2; entries Squat 28 reps, Plank 120 s | `GET /api/progress/daily` | 200; items ratio 0.7 and 1; scores 2.1 and 2; `overallPercent` 82; `isRestDay` false |
+| `TEST-06d-5` | AC-06d | API/DB Integration | Alice's plan has an item that starts tomorrow and one that ended yesterday | `GET /api/progress/daily` | Neither item appears; their weights are not in the denominator |
+| `TEST-06e-1` | AC-06e | Unit | One item weight 4, no entries | Calculate | `overallPercent` 0 (targeted day without log) |
+| `TEST-06e-2` | AC-06e | Unit | No planned item (Rest Day), free-form entries exist | Calculate | `isRestDay` true; `overallPercent` null; not 0 |
+| `TEST-06e-3` | AC-06e | API/DB Integration | Alice with an item that does not occur on Tue 2026-11-10 and nothing else | `GET /api/progress/daily?date=2026-11-10` | `isRestDay` true; `overallPercent` null; `items` empty |
+| `TEST-06f-1` | AC-06f | API/DB Integration | Alice logged 20 of 40 reps | `PUT /api/profile` `{ weightKg: 120 }` and compare `GET /daily` before and after | `overallPercent` unchanged (Decision 11) |
+| `TEST-06f-2` | AC-06f | API/DB Integration | Same | Create a second plan with a different `loadKg` for the same template; compare ratio of the first | Ratio unchanged by `loadKg` |
+| `TEST-06g-1` | AC-06g | API/DB Integration | Alice; Squat 4 × 10 weight 3, nothing logged | `GET /daily` (0%); `POST /api/entries/quick-complete`; `GET /daily` | 0, then 100 (no cache, same request cycle) |
+| `TEST-06g-2` | AC-06g | API/DB Integration | Alice has a free-form entry for an exercise not planned today | `GET /daily` | The entry does not appear in `items` and does not change `overallPercent` |
+| `TEST-06g-3` | AC-06g | API/DB Integration | Bob has his own plan and entries | `GET /daily` as Alice | Only Alice's items and percentages |
+| `TEST-06g-4` | AC-06g | API/DB Integration | `GET /daily?date=2026-11-06` (future), `?date=2026-13-40`; `GET /monthly?month=2026-12`, `?month=2026-13`, `?month=2026-11-05` | Requests | 400 `VALIDATION_ERROR` each (R13); no rows written |
+| `TEST-15-1` | AC-15 | Unit | `calcMonthly`: days 100, Rest Day (null), 50, Rest Day (null) | Calculate | targetedDays 2; `restDaysExcluded` 2; average 75 (not 37.5) |
+| `TEST-15-2` | AC-15 | Unit | Only Rest Days | Calculate | `averagePercent` null; `targetedDays` 0 |
+| `TEST-15-3` | AC-15 | API/DB Integration | Alice: Rest Day Tue 2026-11-10 with a large free-form entry; targeted days 100 and 50 | `GET /monthly` | Rest Day entry has no effect; average 75 |
+| `TEST-15-4` | AC-15 | API/DB Integration | New Participant with no plan | `GET /monthly` | 200; `targetedDays` 0; `averagePercent` null |
+| `TEST-15-5` | AC-15 | Unit | `calcMonthly`: days with 80, 60, 100 and an explicit 0 | Calculate | targetedDays 4; average 60 |
+| `TEST-15-6` | AC-15 | API/DB Integration | Historical helpers: Alice targeted Mon–Fri from 2026-11-02; daily results 100 (Nov 2), 50 (Nov 3), no log (Nov 4); today is Thu 2026-11-05 with 30% | `GET /api/progress/monthly` | `from` 2026-11-02; `to` 2026-11-05; targetedDays 4; average (100 + 50 + 0 + 30) ÷ 4 = 45; future days absent from `days` |
+| `TEST-15-7` | AC-15 | API/DB Integration | Same | Clock moved to 23:59 and then to 00:00 the next day (Fri 2026-11-06) | Thu is counted as a closed day with its final value; Fri added as a new targeted day with 0% until logged |
+| `TEST-15-8` | AC-15 | API/DB Integration | Alice's first `effectiveFrom` is 2026-11-04 (earlier days are not part of the plan) | `GET /api/progress/monthly` | `from` 2026-11-04; Nov 1–3 not counted |
+| `TEST-15-9` | AC-15 | API/DB Integration | Past month fixture (October, 31 days, some Rest Days) | `GET /api/progress/monthly?month=2026-10` | `to` 2026-10-31; average over targeted days of the whole month |
+| `TEST-21a-1` | AC-21a | Performance | Seed dataset (§5): 3 Participants × 8 plan items × 30 days of entries; Alice token | 500 requests at concurrency 50 on `GET /api/progress/daily` | p95 < 500 ms; dataset size, run date and commit recorded |
+| `TEST-21a-2` | AC-21a | Performance | Same | Same load on `GET /api/progress/monthly` | p95 < 500 ms |
+| `TEST-21a-3` | AC-21a | Performance | Same | Same load on `GET /api/entries`, `POST /api/entries`, `POST /api/entries/quick-complete` (valid bodies, distinct exercises per request to avoid limit rejections) | p95 < 500 ms each |
+| `TEST-21a-4` | AC-21a | Performance | Same | 500 sequential `POST /api/auth/login` at concurrency 50 | Recorded separately: p95 < 1,000 ms (SRS NFR-01) |
+| `TEST-22c (F-06 routes)` | AC-22c | Security | Registry contains the 2 F-06 routes | No token; then a Manager token on each | 401; then 403 (stage 2) |
+| `TEST-12a (F-06 routes)` | AC-12a | Security | Manager token | Both F-06 routes | 403 each; no data in body (stage 2) |
+| `TEST-12b (F-06 routes)` | AC-12b | Security | Alice and Bob each have progress data | Alice `GET /api/progress/daily?userId=<Bob>`, `GET /api/progress/monthly?userId=<Bob>` | 403 each; no data (stage 2); Bob's own request → 200 |
 
-**Coverage check.** Every AC in §7 has at least one test. Boundary cases (ratio 0 / 0.5 / 1 / above 1, exact 70% without floating-point drift, midnight rollover, first `effectiveFrom` mid-month, future date/month rejected) and role/ownership cases are included. The 6 modes are all covered by unit tests; API tests use the most common modes, and the AC-25 journey exercises the real UI.
+**Coverage check.** Every AC in §7 has at least one test (AC-06a–f, AC-15, AC-21a, proposed AC-06g). Boundary cases (ratio 0 / 0.5 / 1 / above 1, exact 70% without floating-point drift, midnight rollover, first `effectiveFrom` mid-month, future date/month rejected) and role/ownership cases are included. The 6 modes are all covered by unit tests; API tests use the most common modes, and the AC-25 journey exercises the real UI.
 
 --------------------------------------------------------------------------------
 
 #### 9. TDD Plan and Commit Sequence
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.1.0 (spec-only) | Commit ID |
-| 2 | `test` (red) | TEST-06a, TEST-06b-1 to 06b-5, TEST-06c-1, TEST-15-1/15-2 (unit) with module absent | Failing run |
+| 1 | `docs` | This contract v0.2.0 (spec-only) | Commit ID |
+| 2 | `test` (red) | TEST-06a, TEST-06b-1, TEST-06c-1, TEST-06d-1 to 06d-3, TEST-06e-1/06e-2, TEST-15-1, TEST-15-2, TEST-15-5 (unit) with module absent | Failing run |
 | 3 | `feat` (green) | `calcItem`, `calcDaily`, `calcMonthly` with decimal arithmetic | Passing run |
-| 4 | `test` (red) | TEST-06b-6 to 06b-8, TEST-06c-2 to 06c-5, TEST-06d, TEST-15-3/15-4 (API) | Failing run showing e.g. Rest Day returned as 0% or future days counted |
+| 4 | `test` (red) | TEST-06d-4/06d-5, TEST-06e-3, TEST-06f, TEST-06g, TEST-15-3, TEST-15-4, TEST-15-6 to 15-9 (API) | Failing run showing e.g. Rest Day returned as 0% or future days counted |
 | 5 | `feat` (green) | `GET /api/progress/daily` and `/monthly`, service using `resolvePlan` and `cumulativeFor`, route policies | Passing run |
 | 6 | `test` / `feat` | TEST-22c / 12a / 12b (F-06 routes), progress panel and month card UI | Passing run |
 | 7 | `test` | TEST-21a latency runs on the seed dataset | Output with p95 values, dataset size and commit |
@@ -277,7 +283,7 @@ Files: `tests/unit/progress_calc.test.ts` (AC-06a, AC-06b, AC-06c formulas, AC-1
 | 3 | No migration needed; indexes of F-03 and F-04 present | Schema check on a clean database |
 | 4 | All tests in §8 implemented and enabled (none skipped); each AC mapped | Test names match STS IDs |
 | 5 | Tests executed on the merge commit with counts | Passed / failed / skipped counts |
-| 6 | TDD red/green evidence for AC-06b (Rest Day `null`, exact 70%) and AC-15 | Failing and passing runs with commit IDs |
+| 6 | TDD red/green evidence for AC-06d (exact 70% without drift), AC-06e (Rest Day `null`) and AC-15 | Failing and passing runs with commit IDs |
 | 7 | AC-21a latency run recorded (dataset size, p95 per endpoint, run date, commit) | Output of `latency.test.ts` |
 | 8 | F-06 routes included in the Endpoint Access Matrix run at Sprint 1 integration | Integration output |
 | 9 | Teammate-reviewed PR with a substantive comment; integrated on staging | PR link, reviewer, comment |
@@ -303,14 +309,13 @@ Used in this contract as **proposed** rules. Baseline documents are deliberately
 
 | # | Pending item | Baseline document(s) affected |
 | ------ | ------ | ------ |
-| P6-1 | AC-06d added (RTM: +1 atomic AC; Sprint 1 count; Tier B). AC-06 split into AC-06a–c and AC-15 already present | RTM, sprint plan |
+| P6-1 | AC-06g added (RTM: +1 atomic AC; Sprint 1 count; Tier B). AC-06a–f are restored to the RTM 1.0.0 numbering, so no approved AC is dropped | RTM, sprint plan |
 | P6-2 | Concrete endpoints `GET /api/progress/daily` and `GET /api/progress/monthly` and their response shapes | SDS §5 (API) |
 | P6-3 | Future `date` / `month` rejected with 400; reading past dates is allowed | SRS (Q8 / A.3 clarification) |
 | P6-4 | Entries of non-planned exercises are ignored in scores (Q24 made explicit); monthly `from` uses the first `effectiveFrom` of any plan item of the user | SRS (Q24 / A.3 clarification) |
 | P6-5 | Decimal arithmetic for scores; percentages unrounded in API, rounded half up to 1 decimal in UI | SRS Appendix A.4, SDS |
-| P6-6 | Test file `tests/integration/progress_api.test.ts` (new); RTM currently lists only `tests/unit/progress_calc.test.ts` for AC-06 | RTM §2 |
+| P6-6 | Test files `tests/integration/progress_api.test.ts` (new) and the API-level rows of AC-15; RTM §2 lists only `tests/unit/progress_calc.test.ts` for AC-06 and for AC-15 | RTM §2 |
 | P6-7 | AC-21a defined as the Sprint 1 subset of AC-21 (progress, ledger endpoints; login separately < 1,000 ms) with a documented seed dataset | RTM, sprint plan |
-| P6-8 | RTM §3 test-level table lists AC-06 as UI E2E while §2 lists it as Unit Test; this contract uses Unit + API Integration, with the UI covered by AC-25 | RTM §2 / §3 |
 
 --------------------------------------------------------------------------------
 

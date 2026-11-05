@@ -3,9 +3,9 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.1.1
+**Contract Version:**  0.1.2
 **SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.0.0, System-Level SDS 1.0.0)
-**Date:**  4 November 2026
+**Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-01-authentication.md`
@@ -17,6 +17,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/data/UI specification, AC (AC-01a–f, AC-12a–c, AC-22a–c), STS, Definition of Done. Proposes new AC-01f (login input validation), not yet in RTM | Nakagamon | Draft |
 | **0.1.1** | 5 Nov 2026 | Cross-review fixes against the baselines: §2 limited to the three requirements Feature Inventory 1.0.0 maps to F-01 (removed the NFR-01/NFR-04 partial rows); §3.2 completed with SDS §6.2 steps 4–5; §6 no longer cites AC-23 (its three cases are domain cases of F-04/F-05 and contain no login case); AC-12b and AC-22c restored to the exact RTM 1.0.0 wording; §7 register status aligned to the RTM §3.1 vocabulary (`INCOMPLETE` instead of an invented "stage 1 only"); §8 gains TEST-25 (AC-25, sprint-level), the SUP-01 file path and the missing e-mail length case; DoD items 7 and 9 qualified with their real evidence; §11 corrected (SRS 1.0.0 Appendix A.5 already contains `NOT_FOUND` and `INTERNAL_ERROR`), counts made provisional across contracts, and the login field-error gap recorded; R10 aligned to SDS §8 (bytes) | Nakagamon | Draft |
+| **0.1.2** | 6 Nov 2026 | Baseline reconciliation (SRS / RTM / SDS / plan 1.0.0): §11 item 4 updated for the corrected proposed-AC IDs after renumbering — the Sprint 1 proposals are now AC-01f (F-01), AC-02d (F-02), AC-03d (F-03), AC-04d (F-04) and AC-06g (F-06); F-06's former "AC-06d" is restored to the RTM 1.0.0 meaning, so it is no longer a proposal. Baseline citations confirmed (RTM 1.0.0 and SDS 1.0.0 — no "RTM 1.2.0" or "SDS 0.1.0" exists in any baseline document) | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -322,7 +323,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.1.1 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.1.2 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-01a/01b/01c written; routes absent | Failing run output |
 | 3 | `feat` (green) | Login and `/me`; migration and seed | Passing run output |
 | 4 | `test` (red) | TEST-22a (all cases) and TEST-01d | Failing run showing e.g. `alg:none` accepted or logout not revoking |
@@ -359,6 +360,6 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 | 1 | No login rate limiting or account lockout | Out of scope for the course baseline; recorded as a known limitation and possible Sprint 3 hardening |
 | 2 | Token kept in `sessionStorage` (XSS exposure) instead of an HttpOnly cookie | Accepted trade-off (SDS §12 item 4) |
 | 3 | 403 for another user's existing record vs 404 for a missing one reveals that an ID exists | Required by SRS BR-04; accepted (SDS §12 item 3) |
-| 4 | Proposed AC-01f is not yet in RTM / sprint plan counts | Needs team approval. The RTM has 75 atomic AC and Sprint 1 has 47 today, so AC-01f **alone** would give 76 / 48 — but the other Sprint 1 contracts also propose new AC (F-02 AC-02d, F-03 AC-03d, F-04 AC-04d, F-06 AC-06d), so all proposals must be consolidated first and the final RTM total, Sprint 1 total, Tier A count and distribution table recomputed together, applied in the same baseline batch as the other contracts (F-02 §12) and recorded as a new RTM revision-history row — never a silent rewrite |
+| 4 | Proposed AC-01f is not yet in RTM / sprint plan counts | Needs team approval. The RTM has 75 atomic AC and Sprint 1 has 47 today; the five Sprint 1 proposals after reconciliation are **AC-01f** (F-01), **AC-02d** (F-02), **AC-03d** (F-03), **AC-04d** (F-04) and **AC-06g** (F-06), so approving all five gives 80 atomic AC / 52 in Sprint 1. All proposals must be consolidated first and the final RTM total, Sprint 1 total, Tier A count and distribution table recomputed together, applied in the same baseline batch as the other contracts (F-02 §12) and recorded as a new RTM revision-history row — never a silent rewrite |
 | 5 | Timing-equalization behavior (R5) is a design measure, not directly asserted by a test | Verified by code review; no timing-based test, to avoid flaky tests |
 | 6 | The login field-error display (§6) is not covered by any baseline AC: RTM AC-23 contains only sets 21, Quick Complete disabled on a Rest Day and editing an old entry (F-04 / F-05 cases), and Deliverable 1 §3.6 / §4.2 requires only valid/invalid login checks and login/logout screenshots | Verified in the meantime by TEST-01f-1 (the `fields` array the UI renders) and the DoD #9 screenshots; extend AC-23 or add an AC only through an approved baseline change, decided with the team |

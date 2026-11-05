@@ -3,9 +3,9 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-03
 **Sprint:**  1 (plan creation only; goal reconfiguration is F-07, Sprint 2)
-**Contract Version:**  0.1.0
-**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.2.0, System-Level SDS 1.0.0, F-01 contract 0.1.0, F-02 contract 0.1.0)
-**Date:**  4 November 2026
+**Contract Version:**  0.2.0
+**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.0.0, System-Level SDS 1.0.0, F-01 contract 0.1.2, F-02 contract 0.2.0)
+**Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-03-goal-setting.md`
@@ -16,6 +16,7 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/data/UI specification, AC (AC-03a–c, AC-16a–b, AC-27; proposed AC-03d), STS, Definition of Done, list of pending baseline changes (§12) | Nakagamon | Draft |
+| **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citation corrected from the nonexistent "RTM 1.2.0" to RTM 1.0.0 (F-01 contract 0.1.2, F-02 contract 0.2.0); AC restored to the RTM 1.0.0 numbering — AC-03b is again the validation criterion and AC-03c again the `repeatDays` / `endDate` occurrence criterion, the plan-resolution endpoint is folded into AC-03c as its observable, and the only genuinely new criterion (custom exercise for each of the 6 `trackingMode` values) is proposed as AC-03d; test IDs realigned to the AC suffix (old TEST-03b→03d, old TEST-03c→03b, old TEST-03d→03c); schema aligned with SDS §3.2/§3.3 (`planKey`, `version`, `@@unique([planKey, version])`, `repeatDays` stored as the Monday–Sunday bitmask, plan resolution tie-break by `version`); a well-formed `templateId` that does not exist now returns 404 `NOT_FOUND` instead of 400 | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-03 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -84,17 +85,18 @@ sequenceDiagram
 | R8 | `priorityWeight`: required integer 1–5 | Baseline FR-03 |
 | R9 | `effectiveFrom`: `YYYY-MM-DD`; optional, default = today (Asia/Bangkok, Clock); must be today or later, otherwise 400 `VALIDATION_ERROR` (not `LOG_DATE_MISMATCH`) | Baseline (Appendix A.2) |
 | R10 | `endDate`: optional; if present must not precede `effectiveFrom` | Baseline Q21 |
-| R11 | `repeatDays`: ISO weekdays 1 = Monday … 7 = Sunday; optional, default `[1,2,3,4,5,6,7]`; non-empty, unique, each 1–7 | Baseline (Appendix A.2) |
-| R12 | **Plan resolution** for user U and date D: for each of U's `UserExercise`, take the `PlanItem` with the greatest `effectiveFrom` ≤ D (tie → latest `createdAt`); it *occurs* on D if (`endDate` is null or D ≤ `endDate`) and the ISO weekday of D is in `repeatDays`. `isRestDay` = no item occurs on D (Q24). Sprint 1 has one version per exercise; F-07 adds versions without changing this rule | Baseline B5 / Q24 / B8 |
+| R11 | `repeatDays`: the API accepts a non-empty array of unique ISO weekdays 1 = Monday … 7 = Sunday (default `[1,2,3,4,5,6,7]`); it is **stored** as the SDS §3.2 Monday–Sunday bitmask (`127` = every day, bit 0 = Mon … bit 6 = Sun) and converted at the API boundary | Baseline SDS §3.2 + pending (API format, P3-9) |
+| R12 | **Plan resolution** for user U and date D (SDS §3.3): for each `planKey` of U take the version with the greatest `effectiveFrom` ≤ D (ties: highest `version`); it *occurs* on D if (`endDate` is null or D ≤ `endDate`) and the weekday of D is in `repeatDays`. `isRestDay` = no item occurs on D (Q24). Sprint 1 always inserts `version = 1` with a fresh `planKey`; F-07 adds higher versions without changing this rule | Baseline SDS §3.3 / Q24 / B8 |
 | R13 | `UserExercise` and `PlanItem` belong to exactly one Participant (`userId`); the owner never changes | Design decision |
 | R14 | Creation is atomic: both rows or neither | Design decision |
+| R15 | Every `PlanItem` insert creates a new `planKey` (UUID) with `version = 1`; `PlanItem` rows are never updated in place (SDS §3.2). The response exposes `planKey` and `version` | Baseline SDS §3.2 |
 
 ##### 3.3 Failure and Boundary Cases
 | Case | Expected behavior |
 | ------ | ------ |
 | Manager calls any F-03 route | 403 `FORBIDDEN`, even with an invalid body |
 | No token / expired / revoked | 401 `UNAUTHENTICATED` |
-| `templateId` does not exist | 400 `VALIDATION_ERROR` naming `templateId`; nothing stored |
+| `templateId` does not exist (well-formed UUID) | 404 `NOT_FOUND` naming `templateId` in `fields`; nothing stored |
 | `templateId` not a UUID | 400 `VALIDATION_ERROR` |
 | `source: TEMPLATE` with an `exercise` object, or `source: CUSTOM` with `templateId` | 400 naming the offending field |
 | `targetSets` 20 / 21; `targetRepsPerSet` 200 / 201; `targetSets` 0 | Accepted / 400; accepted / 400; 400 |
@@ -127,7 +129,7 @@ Conventions follow SDS §5.1 (JSON, error envelope of SRS Appendix A.5, dates as
 ##### 4.1 Endpoints
 | Endpoint | Roles | Success | Errors |
 | ------ | ------ | ------ | ------ |
-| `POST /api/plan-items` | Participant | 201 `{ planItem, userExercise }` | 400, 401, 403 |
+| `POST /api/plan-items` | Participant | 201 `{ planItem, userExercise }` | 400, 401, 403, 404 |
 | `GET /api/plan-items` | Participant | 200 list of plan items, each with its exercise snapshot, ordered by `effectiveFrom` then `createdAt` | 400, 401, 403 |
 | `GET /api/plan-items/:id` | Participant (owner) | 200 plan item with snapshot | 400, 401, 403, 404 |
 | `GET /api/user-exercises` | Participant | 200 list of own exercises (snapshots), sorted by name | 401, 403 |
@@ -159,6 +161,7 @@ No `PUT` or `DELETE` exists in Sprint 1 (F-07). Lists are not paginated.
 }
 ```
 `effectiveFrom`, `endDate`, `repeatDays` are optional (R9–R11). Unknown fields are rejected.
+* `repeatDays` is sent and returned as an ISO weekday array and stored as the SDS §3.2 bitmask (R11).*
 
 ##### 4.4 Create Response (`201`)
 ```json
@@ -169,7 +172,8 @@ No `PUT` or `DELETE` exists in Sprint 1 (F-07). Lists are not paginated.
     "cardioCategory": null, "metValue": 3.5, "rangeMin": 1, "rangeMax": 4000
   },
   "planItem": {
-    "id": "uuid", "userExerciseId": "uuid", "priorityWeight": 3,
+    "id": "uuid", "userExerciseId": "uuid", "planKey": "uuid", "version": 1,
+    "priorityWeight": 3,
     "targetSets": 4, "targetRepsPerSet": 10, "loadKg": 40,
     "targetDurationSec": null, "targetDistanceKm": null,
     "effectiveFrom": "2026-11-05", "endDate": "2026-11-30", "repeatDays": [1, 3, 5],
@@ -221,6 +225,8 @@ model UserExercise {
 
 model PlanItem {
   id                String        @id @default(uuid())
+  planKey           String        @default(uuid())
+  version           Int           @default(1)
   userId            String
   user              User          @relation(fields: [userId], references: [id])
   userExerciseId    String
@@ -233,8 +239,9 @@ model PlanItem {
   targetDistanceKm  Decimal?      @db.Decimal(6, 2)
   effectiveFrom     DateTime      @db.Date
   endDate           DateTime?     @db.Date
-  repeatDays        Int[]
+  repeatDays        Int           @default(127)   // SDS §3.2 Monday–Sunday bitmask: bit 0 = Mon … bit 6 = Sun; 127 = every day
   createdAt         DateTime      @default(now())
+  @@unique([planKey, version])
   @@index([userId, effectiveFrom])
   @@index([userExerciseId, effectiveFrom])
 }
@@ -243,10 +250,12 @@ model PlanItem {
 
 Constraints added by raw SQL in the migration (table-local only):
 - `CHECK (priorityWeight BETWEEN 1 AND 5)`;
-- `CHECK (cardinality(repeatDays) BETWEEN 1 AND 7)`;
+- `CHECK (repeatDays BETWEEN 1 AND 127)` (a non-empty Monday–Sunday bitmask);
 - `CHECK (endDate IS NULL OR endDate >= effectiveFrom)`;
 - `CHECK (targetSets IS NULL OR targetSets BETWEEN 1 AND 20)`, `targetRepsPerSet` 1–200, `targetDurationSec` 1–10,800, `targetDistanceKm > 0 AND <= 100`, `loadKg > 0 AND <= 500`;
 - `CHECK (rangeMin > 0 AND rangeMin <= rangeMax)` on `UserExercise`.
+
+Sprint 1 always inserts a fresh `planKey` with `version = 1`; the pair is unique (SDS §3.2). The API converts the ISO weekday array of R11 to and from this bitmask.
 
 The mode-to-target-field consistency (R6), the Valid Range check (R7) and "today or later" (R9) need data from another table or the Clock, so they are enforced in the service layer (BR-02 validation module shared with F-02 and F-04). Dates are stored as `DATE`; "today" and the weekday come from the injectable Clock in Asia/Bangkok.
 
@@ -275,19 +284,19 @@ UI behavior is verified through the journey (AC-25: Participant selects the temp
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-03a–c, AC-16a–b and AC-27 refine criteria already in the RTM / sprint plan (RTM AC-03, AC-16; F-02 contract AC-27 reference). AC-03d is **proposed**.
+AC-03a–c restore the RTM 1.0.0 IDs and wording (the contract only makes each one observable through a named endpoint or a named field); AC-16a–b and AC-27 are RTM criteria owned by F-03. AC-03d is **proposed** (not yet in the RTM).
 
 | AC | Observable outcome |
 | ------ | ------ |
-| **AC-03a** | Participant selects a template with valid target, Priority Weight, `effectiveFrom` and repeat days → 201; one `UserExercise` snapshot (all template fields copied, `sourceTemplateId` set) and one `PlanItem` are stored and returned |
-| **AC-03b** | Participant creates a Custom Exercise for each of the 6 `trackingMode` values (4 domains) → 201; `CARDIO_DISTANCE` requires `cardioCategory`; both rows stored |
-| **AC-03c** | Invalid goal data is rejected with 400 `VALIDATION_ERROR` naming the field, and nothing is stored: target ≤ 0 or above a boundary, target outside the template Valid Range, Priority Weight outside 1–5, `effectiveFrom` in the past, `endDate` before `effectiveFrom`, invalid `repeatDays`, target fields not matching the mode |
-| **AC-03d** *(proposed)* | `GET /api/plan?date=` returns exactly the items that occur on the date according to `repeatDays`, `effectiveFrom` and `endDate`, and `isRestDay = true` with no items when none occurs (R12) |
+| **AC-03a** | Selecting a template creates a `UserExercise` snapshot (all template fields copied, `sourceTemplateId` set, **no foreign key**) and a `PlanItem` (target, `priorityWeight`, `effectiveFrom`, `repeatDays`, `endDate`) → 201; one row in each table, owned by the Participant, `planKey` / `version` present, and no `userId` in the response |
+| **AC-03b** | Invalid goal data is rejected with 400 `VALIDATION_ERROR` naming the field, and nothing is stored: target ≤ 0 or above a boundary, `priorityWeight` outside 1–5 or non-integer, `effectiveFrom` in the past, `endDate` before `effectiveFrom`, invalid `repeatDays`, target fields not matching the `trackingMode`, target outside the template Valid Range |
+| **AC-03c** | A `PlanItem` occurs only on days matching `repeatDays` (default: every day) and never after `endDate`; `GET /api/plan?date=` returns exactly the items that occur on that date (R12) and `isRestDay = true` with an empty `items` when none occurs |
+| **AC-03d** *(proposed)* | Creating a Custom Exercise works for each of the 6 `trackingMode` values (4 domains) → 201 for each; `CARDIO_DISTANCE` requires `cardioCategory`; both rows are stored with `isCustom = true` and `sourceTemplateId = null` |
 | **AC-16a** | A Custom Exercise receives the default `metValue` of its `trackingMode` / `cardioCategory` (Appendix A.1) and a `unit` derived from the mode; the Participant cannot set `metValue` |
 | **AC-16b** | A Custom Exercise receives default Valid Range `rangeMin` = minimum value and `rangeMax` = central limit; boundary values of custom targets (e.g. 20 sets, 10,800 s, 100 km) are accepted and the first value above each is rejected |
 | **AC-27** | After the Manager updates or deletes a template, the Participant's `UserExercise` and `PlanItem` created from it are unchanged and `GET /api/plan` still returns them |
 
-**Shared AC with other features.** AC-11 (boundary table): F-03 contributes target-boundary cases. AC-12a/b/c and AC-22c (Endpoint Access Matrix): F-03 routes are covered in stage 2 (see F-01 §7); `GET /api/plan-items/:id` is the owner-scoped route of this feature. AC-24 (persistence): plan rows are included in the restart check owned by F-04. AC-25 (journey) uses F-03 for "Select Template → Set Goal".
+**Shared AC with other features.** AC-11 (boundary table): F-03 contributes target-boundary cases. AC-12a/b/c and AC-22c (Endpoint Access Matrix): F-03 routes are covered in stage 2 (see F-01 §7); `GET /api/plan-items/:id` is the owner-scoped route of this feature. AC-24a (persistence): plan rows are included in the restart check owned by F-04. AC-25 (journey) uses F-03 for "Select Template → Set Goal".
 
 --------------------------------------------------------------------------------
 
@@ -301,23 +310,24 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/snaps
 | TEST-03a-3 | AC-03a | API/DB Integration | Same | Create without `effectiveFrom`, `repeatDays`, `endDate` | 201; `effectiveFrom` = 2026-11-05, `repeatDays` = `[1..7]`, `endDate` null (defaults) |
 | TEST-03a-4 | AC-03a | API/DB Integration | Same | Select the same template twice | 201 twice; two distinct `UserExercise` ids (R3) |
 | TEST-03a-5 | AC-03a | API/DB Integration | Failure injected after the `UserExercise` insert (e.g. forced error on `PlanItem` insert) | Create from a template | 500 `INTERNAL_ERROR` without stack trace; DB unchanged (rollback, R14) |
-| **TEST-03b-1** | AC-03b | API/DB Integration | Alice logged in | Create one custom exercise for each of the 6 modes with valid targets (e.g. "Goblet Squat" `WEIGHT`, "Pike Push-up" `BODYWEIGHT_REPS`, "Wall Sit" `BODYWEIGHT_TIME`, "Stretch Flow" `YOGA`, "Rowing" `CARDIO_TIME`, "Hill Walk" `CARDIO_DISTANCE`+`WALKING`) | 201 each; `isCustom` true; `sourceTemplateId` null; units `reps, reps, seconds, seconds, seconds, km`; 6 + 6 new rows |
-| TEST-03b-2 | AC-03b | API/DB Integration | Same | `CARDIO_DISTANCE` custom with each of `RUNNING`, `WALKING`, `CYCLING`, `SWIMMING` | 201 each; `cardioCategory` stored as sent |
-| TEST-03b-3 | AC-03b | API/DB Integration | Same | `CARDIO_DISTANCE` custom without `cardioCategory`; `WEIGHT` custom with `cardioCategory` | 400 naming `cardioCategory`; DB unchanged |
-| TEST-03b-4 | AC-03b | API/DB Integration | Same | Custom with `source: CUSTOM` and `templateId`; template source with an `exercise` object; unknown trackingMode | 400 naming the offending field each; DB unchanged |
-| **TEST-03c-1** | AC-03c | API/DB Integration | Alice; valid `WEIGHT` body as base | Each variation: `targetSets` 0, 21; `targetRepsPerSet` 0, 201; `loadKg` missing, 0, 500.01; `targetDurationSec` supplied for a `WEIGHT` exercise | 400 `VALIDATION_ERROR` naming the offending field each; DB unchanged |
-| TEST-03c-2 | AC-03c | API/DB Integration | Alice; valid bodies for a seconds mode and a km mode | `targetDurationSec` 0, 10,801, 59.5; `targetDistanceKm` 0, 100.01, 5.123 | 400 each, naming the field; DB unchanged |
-| TEST-03c-3 | AC-03c | API/DB Integration | Template with `rangeMax` 100 (created by Manager) | Select it with 10 × 11 = 110 total reps; then 10 × 10 = 100 | 400 naming `targetRepsPerSet` with the range; then 201 (boundary) |
-| TEST-03c-4 | AC-03c | API/DB Integration | Alice; clock 5 Nov | `priorityWeight` 0, 6, 2.5, missing | 400 each |
-| TEST-03c-5 | AC-03c | API/DB Integration | Same | `effectiveFrom` 2026-11-04 (yesterday), 2026-11-05 (today), 2026-11-06 | 400, 201, 201 |
-| TEST-03c-6 | AC-03c | API/DB Integration | Same | `endDate` 2026-11-04 with `effectiveFrom` 2026-11-05; `endDate` = `effectiveFrom` | 400; 201 |
-| TEST-03c-7 | AC-03c | API/DB Integration | Same | `repeatDays` `[]`, `[0]`, `[8]`, `[1,1]`, `"Mon"` | 400 each, naming `repeatDays` |
-| TEST-03c-8 | AC-03c | API/DB Integration | Same | Non-existent `templateId`; non-UUID `templateId`; non-JSON body; unknown extra field | 400 each; DB unchanged |
-| **TEST-03d-1** | AC-03d | API/DB Integration | Alice has one item: from 2026-11-05, ends 2026-11-30, `repeatDays` `[1,3,5]` | `GET /api/plan?date=` for Mon 2026-11-09, Tue 2026-11-10, Wed 2026-11-11 | Mon: `isRestDay` false with the item; Tue: `isRestDay` true, `items` empty; Wed: item present |
-| TEST-03d-2 | AC-03d | API/DB Integration | Same | Dates 2026-11-04 (before `effectiveFrom`), 2026-11-30 (end date, a Monday), 2026-12-07 (after end date, a Monday) | Rest Day; item present; Rest Day |
-| TEST-03d-3 | AC-03d | API/DB Integration | Two items with different repeat days; one with `endDate` earlier | `GET /api/plan?date=` on a day matching only one | Only the matching item is returned |
-| TEST-03d-4 | AC-03d | API/DB Integration | Historical helper creates a version with an earlier `effectiveFrom` and a later one for the same exercise | `GET /api/plan?date=` before and after the later `effectiveFrom` | Earlier version before; later version from its `effectiveFrom` (R12) |
-| TEST-03d-5 | AC-03d | API/DB Integration | Alice and Bob each have plans | `GET /api/plan` as Alice | Only Alice's items; `?date=2026-13-45` → 400; no `date` → today's plan |
+| **TEST-03b-1** | AC-03b | API/DB Integration | Alice; valid `WEIGHT` body as base | Each variation: `targetSets` 0, 21; `targetRepsPerSet` 0, 201; `loadKg` missing, 0, 500.01; `targetDurationSec` supplied for a `WEIGHT` exercise | 400 `VALIDATION_ERROR` naming the offending field each; DB unchanged |
+| TEST-03b-2 | AC-03b | API/DB Integration | Alice; valid bodies for a seconds mode and a km mode | `targetDurationSec` 0, 10,801, 59.5; `targetDistanceKm` 0, 100.01, 5.123 | 400 each, naming the field; DB unchanged |
+| TEST-03b-3 | AC-03b | API/DB Integration | Template with `rangeMax` 100 (created by Manager) | Select it with 10 × 11 = 110 total reps; then 10 × 10 = 100 | 400 naming `targetRepsPerSet` with the range; then 201 (boundary) |
+| TEST-03b-4 | AC-03b | API/DB Integration | Alice; clock 5 Nov | `priorityWeight` 0, 6, 2.5, missing | 400 each |
+| TEST-03b-5 | AC-03b | API/DB Integration | Same | `effectiveFrom` 2026-11-04 (yesterday), 2026-11-05 (today), 2026-11-06 | 400, 201, 201 |
+| TEST-03b-6 | AC-03b | API/DB Integration | Same | `endDate` 2026-11-04 with `effectiveFrom` 2026-11-05; `endDate` = `effectiveFrom` | 400; 201 |
+| TEST-03b-7 | AC-03b | API/DB Integration | Same | `repeatDays` `[]`, `[0]`, `[8]`, `[1,1]`, `"Mon"` | 400 each, naming `repeatDays` |
+| TEST-03b-8 | AC-03b | API/DB Integration | Same | Non-UUID `templateId`; non-JSON body; unknown extra field | 400 each; DB unchanged |
+| TEST-03b-9 | AC-03b | API/DB Integration | Alice logged in; a well-formed UUID `templateId` that does not exist | `POST /api/plan-items` with that `templateId` | 404 `NOT_FOUND` naming `templateId` in `fields`; DB unchanged |
+| **TEST-03c-1** | AC-03c | API/DB Integration | Alice has one item: from 2026-11-05, ends 2026-11-30, `repeatDays` `[1,3,5]` | `GET /api/plan?date=` for Mon 2026-11-09, Tue 2026-11-10, Wed 2026-11-11 | Mon: `isRestDay` false with the item; Tue: `isRestDay` true, `items` empty; Wed: item present |
+| TEST-03c-2 | AC-03c | API/DB Integration | Same | Dates 2026-11-04 (before `effectiveFrom`), 2026-11-30 (end date, a Monday), 2026-12-07 (after end date, a Monday) | Rest Day; item present; Rest Day |
+| TEST-03c-3 | AC-03c | API/DB Integration | Two items with different repeat days; one with `endDate` earlier | `GET /api/plan?date=` on a day matching only one | Only the matching item is returned |
+| TEST-03c-4 | AC-03c | API/DB Integration | Historical helper creates a version with an earlier `effectiveFrom` and a later one for the same exercise | `GET /api/plan?date=` before and after the later `effectiveFrom` | Earlier version before; later version from its `effectiveFrom` (R12) |
+| TEST-03c-5 | AC-03c | API/DB Integration | Alice and Bob each have plans | `GET /api/plan` as Alice | Only Alice's items; `?date=2026-13-45` → 400; no `date` → today's plan |
+| **TEST-03d-1** | AC-03d | API/DB Integration | Alice logged in | Create one custom exercise for each of the 6 modes with valid targets (e.g. "Goblet Squat" `WEIGHT`, "Pike Push-up" `BODYWEIGHT_REPS`, "Wall Sit" `BODYWEIGHT_TIME`, "Stretch Flow" `YOGA`, "Rowing" `CARDIO_TIME`, "Hill Walk" `CARDIO_DISTANCE`+`WALKING`) | 201 each; `isCustom` true; `sourceTemplateId` null; units `reps, reps, seconds, seconds, seconds, km`; 6 + 6 new rows |
+| TEST-03d-2 | AC-03d | API/DB Integration | Same | `CARDIO_DISTANCE` custom with each of `RUNNING`, `WALKING`, `CYCLING`, `SWIMMING` | 201 each; `cardioCategory` stored as sent |
+| TEST-03d-3 | AC-03d | API/DB Integration | Same | `CARDIO_DISTANCE` custom without `cardioCategory`; `WEIGHT` custom with `cardioCategory` | 400 naming `cardioCategory`; DB unchanged |
+| TEST-03d-4 | AC-03d | API/DB Integration | Same | Custom with `source: CUSTOM` and `templateId`; template source with an `exercise` object; unknown trackingMode | 400 naming the offending field each; DB unchanged |
 | **TEST-16a-1** | AC-16a | Unit | Validation/defaults module `buildCustomExercise` | For each mode and each cardio category | `metValue` equals Appendix A.1 (`3.5`, `3.8`, `3.8`, `2.5`, `7.0`, `9.8`/`4.3`/`8.0`/`5.8`); `unit` as derived |
 | TEST-16a-2 | AC-16a | API/DB Integration | Alice | Custom create with `metValue: 20` in the body | 400 naming `metValue` (unknown field); DB unchanged |
 | TEST-16a-3 | AC-16a | API/DB Integration | Alice | Custom `WEIGHT` and `CARDIO_DISTANCE`+`CYCLING` created | Stored `metValue` 3.5 and 8.0 |
@@ -325,8 +335,8 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/snaps
 | TEST-16b-2 | AC-16b | Boundary | Custom exercises per mode | Targets at limit and just above: 20 × 200 reps / 21 sets; 10,800 s / 10,801 s; 100 km / 100.01 km | Accepted / 400 |
 | **TEST-27-1** | AC-27 | API/DB Integration | Alice selected "Push-up" (snapshot S1, plan item P1); Manager logged in | Manager `PUT /api/templates/:id` changing name, `metValue`, `rangeMax`; then `GET /api/user-exercises` and `GET /api/plan-items/:id` as Alice | `UserExercise` and `PlanItem` equal their pre-update values field by field |
 | TEST-27-2 | AC-27 | API/DB Integration | Same | Manager `DELETE /api/templates/:id`; Alice `GET /api/plan?date=` on a day the item occurs | 204; snapshot and plan item unchanged; plan still returns the item; `sourceTemplateId` still stored |
-| TEST-27-3 | AC-27 | API/DB Integration | Same | Alice selects the (now deleted) template id again | 400 naming `templateId` |
-| **TEST-11 (F-03 cases)** | AC-11 | Unit | Validation module `validateTarget` | Boundary pairs from TEST-03c-1/03c-2/16b-2 asserted without HTTP | Accept / reject exactly as in those tests; error names field and limit |
+| TEST-27-3 | AC-27 | API/DB Integration | Same | Alice selects the (now deleted) template id again | 404 `NOT_FOUND` |
+| **TEST-11 (F-03 cases)** | AC-11 | Unit | Validation module `validateTarget` | Boundary pairs from TEST-03b-1/03b-2/16b-2 asserted without HTTP | Accept / reject exactly as in those tests; error names field and limit |
 | **TEST-22c (F-03 routes)** | AC-22c | Security | Registry contains the 5 F-03 routes | No token; then a Manager token on each | 401; then 403 (stage 2) |
 | **TEST-12a (F-03 routes)** | AC-12a | Security | Manager token | Every F-03 route | 403 each; no data in body (stage 2) |
 | **TEST-12b/12c (F-03 routes)** | AC-12b, AC-12c | Security | Alice and Bob each own a plan item | Alice `GET /api/plan-items/<Bob's id>`; Alice `GET /api/plan-items?userId=<Bob>`, `/api/user-exercises?userId=<Bob>`, `/api/plan?userId=<Bob>`; Alice `POST` with `userId: <Bob>` in the body | 403 each (body field: 400 unknown field); Bob's data unchanged; Bob's own request → 200; non-existent id → 404 (stage 2) |
@@ -338,12 +348,12 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/snaps
 #### 9. TDD Plan and Commit Sequence
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.1.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.2.0 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-16a-1, TEST-16b-1/2, TEST-11 (F-03 cases): default and boundary unit tests | Failing run (module absent) |
 | 3 | `feat` (green) | Migration, `buildCustomExercise`, `validateTarget` | Passing run |
-| 4 | `test` (red) | TEST-03a, 03b, 03c integration tests | Failing run showing e.g. past `effectiveFrom` or out-of-range target accepted |
+| 4 | `test` (red) | TEST-03a, TEST-03b (validation), TEST-03d (custom exercises) integration tests | Failing run showing e.g. past `effectiveFrom` or out-of-range target accepted |
 | 5 | `feat` (green) | `POST /api/plan-items` with snapshot copy, transaction, route policies | Passing run |
-| 6 | `test` (red) → `feat` (green) | TEST-03d (plan resolution) and list/read endpoints | Failing then passing runs |
+| 6 | `test` (red) → `feat` (green) | TEST-03c (plan resolution) and list/read endpoints | Failing then passing runs |
 | 7 | `test` (red) → `feat` (green) | TEST-27-1 to 27-3 snapshot isolation (with F-02 template endpoints) | Failing run showing a snapshot that follows a template edit, then passing run |
 | 8 | `test` / `feat` | TEST-22c / 12a / 12b / 12c (F-03 routes), My Plan UI | Passing run |
 | 9 | PR | Reviewed by Onsinee into `staging/sprint-1` | Review comment with a specific check |
@@ -358,7 +368,7 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/snaps
 | 3 | Migration runs on a clean database; `resolvePlan` available to F-04 and F-06 | Command output from a fresh clone; function exported |
 | 4 | All tests in §8 implemented and enabled (none skipped); each AC mapped | Test names match STS IDs |
 | 5 | Tests executed on the merge commit with counts | Passed / failed / skipped counts |
-| 6 | TDD red/green evidence for AC-03c, AC-16b and AC-27 | Failing and passing runs with commit IDs |
+| 6 | TDD red/green evidence for AC-03b, AC-16b and AC-27 | Failing and passing runs with commit IDs |
 | 7 | F-03 routes included in the Endpoint Access Matrix run at Sprint 1 integration | Integration output |
 | 8 | Teammate-reviewed PR with a substantive comment; integrated on staging | PR link, reviewer, comment |
 | 9 | My Plan screen: template picker, custom form, mode-specific fields and field errors work | Journey run (AC-25); screenshots with version |
@@ -372,9 +382,9 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/snaps
 | Item | Provided to / needed from | Note |
 | ------ | ------ | ------ |
 | Route policy registry, `requireRole`, error envelope, Clock | Needed from F-01 | F-03 cannot be merged before F-01 |
-| Template read endpoints and fields; `TrackingMode` / `CardioCategory` enums; template `PUT` / `DELETE` | Needed from F-02 | Needed for AC-03a, AC-03c (range), AC-27 |
+| Template read endpoints and fields; `TrackingMode` / `CardioCategory` enums; template `PUT` / `DELETE` | Needed from F-02 | Needed for AC-03a, AC-03b (range), AC-27 |
 | `UserExercise`, `PlanItem`, `resolvePlan`, target fields and `priorityWeight` | Provided to F-04, F-06 | F-04 uses `resolvePlan` for Quick Complete and `rangeMax`; F-06 uses targets and weights |
-| Plan versions (`effectiveFrom`) | Provided to F-07 (Sprint 2) | F-07 adds new `PlanItem` rows; R12 is unchanged |
+| Plan versions (`planKey` / `version` / `effectiveFrom`) | Provided to F-07 (Sprint 2) | F-07 inserts a new row for the same `planKey` with `version + 1`; the resolution rule R12 (SDS §3.3) is unchanged |
 | `UserExercise.metValue`, `cardioCategory` | Provided to F-11 (Sprint 2) | |
 
 --------------------------------------------------------------------------------
@@ -384,15 +394,16 @@ Used in this contract as **proposed** rules. Baseline documents (SRS, RTM, sprin
 
 | # | Pending item | Baseline document(s) affected |
 | ------ | ------ | ------ |
-| P3-1 | AC-03d added (RTM: +1 atomic AC; Sprint 1 count; Tier B) | RTM, sprint plan |
-| P3-2 | Concrete plan endpoints: `POST/GET /api/plan-items`, `GET /api/plan-items/:id`, `GET /api/user-exercises`, `GET /api/plan?date=` | SDS §5 (API), SRS (Q21/Q22 note) |
+| P3-1 | AC-03d (custom exercise for each of the 6 `trackingMode` values) added — RTM: +1 atomic AC; Sprint 1 count; Tier B | RTM, sprint plan |
+| P3-2 | Concrete plan endpoints: `POST/GET /api/plan-items`, `GET /api/plan-items/:id`, `GET /api/user-exercises`, `GET /api/plan?date=`. SDS §5.2 currently lists `GET/POST /api/exercises` and `GET/POST /api/plan-items`, so the catalogue must be rewritten to these paths (`/api/exercises` is dropped) | SDS §5 (API), SRS (Q21/Q22 note) |
 | P3-3 | Plan resolution rule R12 (greatest `effectiveFrom` ≤ date; occurrence by `endDate` and `repeatDays`) | SRS (new Q), SDS §3.2 |
 | P3-4 | Selecting the same template twice is allowed (R3) | SRS (new Q) |
 | P3-5 | Custom exercise name 1–80 and body part 1–50 characters; Participant cannot supply `metValue`, `unit` or Valid Range | SRS (Q13 clarification) |
 | P3-6 | `loadKg` required for `WEIGHT` targets, up to 2 decimals; `targetDistanceKm` up to 2 decimals; `targetDurationSec` integer | SRS (Q21 clarification) |
 | P3-7 | `priorityWeight` is required (no default) | SRS (Q21 / FR-03) |
 | P3-8 | AC-27 test file `tests/integration/snapshot_isolation.test.ts` (new) | RTM / sprint plan |
-| P3-9 | `isRestDay` and `repeatDays` ISO weekday numbering (1 = Monday) | SDS §5 data conventions |
+| P3-9 | `repeatDays` API representation as an ISO weekday array (1 = Monday … 7 = Sunday), converted to the SDS §3.2 Monday–Sunday bitmask at the API boundary; `isRestDay` in the plan/progress responses | SDS §5 data conventions |
+| P3-10 | Missing referenced `templateId` in a request body answered with 404 `NOT_FOUND` (SRS A.5 / SDS §5.1) rather than 400; a malformed value stays 400 | SRS Appendix A.5, SDS §5.1 |
 
 --------------------------------------------------------------------------------
 
