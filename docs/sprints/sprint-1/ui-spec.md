@@ -2,7 +2,7 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.4.0
+**Document Version:** 0.5.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
 **Status:** Draft: specification-only, awaiting reviewer approval before implementation
@@ -18,7 +18,7 @@
 | Feature Inventory | 1.1.0 | Feature scope and dependencies |
 | System-Level SDS | 1.1.0 | Stack, data model, UI conventions, routes and roles |
 | RTM | 1.1.0 | 28 AC groups / 80 atomic AC and target test paths |
-| API Specification | 0.4.0 | Reconciled HTTP contract used by this UI |
+| API Specification | 0.5.0 | Reconciled HTTP contract used by this UI |
 
 **Document Revision History**
 
@@ -26,6 +26,7 @@
 | --- | --- | --- | --- | --- |
 | **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Monthly progress (S-06) and Profile (S-07) marked Sprint 2 (CHANGE-06/04); Sprint 1 navigation excludes both routes; Sprint 1 is mobile-first, with tablet and desktop layouts optional in Sprint 2. | Onsinee | Draft |
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, API 0.4.0, category endpoint for S-04, Today/Rest Day discriminator and observable disabled controls, Quick Complete No-op behavior, exact contract copy, session-header test ids, and traceability/nit fixes. No baseline or contract change. | Onsinee | Draft |
+| **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: aligned S-04 to the F-03 two-tab Add Exercise dialog, aligned contract copy and empty states, moved the start date to the server `date` and extended the today rule to every date-aware screen, added the ledger time/value/kind and remaining-limit/range helper text, labelled AC-25 extras as supplementary, and fixed the health/test-id/viewport notes. No baseline or contract change. | Onsinee | Draft |
 
 **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence over this consolidated specification. The exact request/response shapes and rules in the F-xx contracts are authoritative; the UI may not depend on removed endpoints or fields. The v0.2.0 draft is reconciliation history only.
 
@@ -78,7 +79,7 @@
 | `/today` | S-02 Today | Participant | S1 | `GET /api/progress/daily`, `POST /api/entries`, `POST /api/entries/quick-complete`, `GET /api/entries`, `GET /api/user-exercises` | AC-04a-b, AC-06, AC-10a-b, AC-13 |
 | modal | S-03 Log Entry | Participant | S1 | `POST /api/entries` | AC-04a, AC-10a-b, AC-11 |
 | `/plan` | S-05 My Plan | Participant | S1 | `GET /api/plan-items` | AC-03a, AC-03c |
-| `/plan/new` | S-04 Add Exercise | Participant | S1 | `GET /api/categories`, `GET /api/templates`, `POST /api/plan-items` | AC-03a-c, AC-11 |
+| modal | S-04 Add Exercise | Participant | S1 | `GET /api/plan`, `GET /api/categories`, `GET /api/templates`, `POST /api/plan-items` | AC-03a-c, AC-11 |
 | `/progress` | S-06 Monthly Progress | Participant | S2 (AC-15, CHANGE-06) | `GET /api/progress/daily`, `GET /api/progress/monthly` | AC-15 |
 | `/profile` | S-07 Profile | Participant | S2 (AC-17, CHANGE-04) | `GET /api/profile`, `PUT /api/profile` | AC-17a-d |
 | `/manager/library` | S-08 Exercise Library | Manager | S1 | `GET/POST /api/categories`, `PUT/DELETE /api/categories/:id`, `GET/POST /api/templates`, `GET/PUT/DELETE /api/templates/:id` | AC-02a-c |
@@ -122,7 +123,7 @@
 | Code | Message shown |
 | --- | --- |
 | `INVALID_CREDENTIALS` | Email or password is incorrect. |
-| `UNAUTHENTICATED` | Your session has ended. Please log in again. |
+| `UNAUTHENTICATED` | Please sign in again. |
 | `FORBIDDEN` | You do not have permission to do this. |
 | `LOG_DATE_MISMATCH` | This entry is not for today. Please reload the page. |
 | `VALIDATION_ERROR` | Field-level messages from `fields[]`; if no fields, the server message. On Quick Complete, a `fields[].field` of `sets` shows a card-level notice: "Quick Complete cannot add the remaining target within today's limits." |
@@ -143,15 +144,17 @@
 
 ##### 3.5 Dates and the today rule
 
-- The date shown on Today is the `date` returned by `GET /api/progress/daily`, not the browser clock.
-- Log forms send `logDate` equal to that displayed date.
-- If the page stays open past midnight, the server returns 400 `LOG_DATE_MISMATCH`; show the notice and reload Today.
+- Every screen that needs "today" uses a server date, never the browser clock. Today uses the `date` returned by `GET /api/progress/daily`; Add Exercise uses the `date` returned by `GET /api/plan` (the call defaults to today).
+- Log forms send `logDate` equal to the displayed Today date.
+- Add Exercise sets the start date `effectiveFrom` default and minimum to the `GET /api/plan` date.
+- If Today stays open past midnight, the server returns 400 `LOG_DATE_MISMATCH`; show the notice and reload Today.
 - No date picker exists for logging. Past days are read-only.
 
 ##### 3.6 Accessibility and layout
 
 - Every input has a visible label. Show progress as text as well as a bar.
 - Touch targets are at least 44 px. The Sprint 1 layout works from 360 px width in a single column.
+- Playwright UI tests use a 360 × 800 viewport to match the Sprint 1 mobile-first minimum width.
 - Tablet and desktop layouts are optional and planned for Sprint 2.
 - Stop decorative motion when `prefers-reduced-motion` is set.
 
@@ -196,13 +199,14 @@ Use soft white for small body text on card teal. Do not use coral as a large bac
 - Header: date and the shared session header. The body-weight chip from `GET /api/profile` (`70.5 kg`, link to Profile, or "Set your body weight") is Sprint 2 with the Profile screen (CHANGE-04); daily overall progress card with a bar, `overallPercent` and `totalScore / totalWeight`.
 - When `overallPercent` is null, show "Rest day: no goal today" in the overall card instead of a percentage (F-06 §6).
 - Plan item card for each `items[]`: name, tracking-mode badge, priority badge, target text, actual vs target, mini bar from `ratio`, item score, and buttons. Today shows only the total `items[].target` and unit, for example "Target 40 reps"; the detailed "4 × 10 reps @ 40 kg" breakdown belongs to My Plan, which has the plan-item fields.
-- Quick Complete is enabled when the day is not a rest day and `ratio < 1`. It calls `POST /api/entries/quick-complete`, then refreshes from `GET /api/progress/daily` and `GET /api/entries`. A 200 with `entry: null` shows "Already completed, nothing added". When `ratio >= 1` the button reads "Completed" and **remains clickable**; clicking it makes the No-op request and shows the same notice. It is not disabled, so AC-13b / TEST-13b-1 stay observable.
+- Quick Complete is enabled when the day is not a rest day and `ratio < 1`. It calls `POST /api/entries/quick-complete`, then refreshes from `GET /api/progress/daily` and `GET /api/entries`. A 200 with `entry: null` shows "Already completed, nothing added". When `ratio >= 1` the button reads "Completed" and **remains clickable**; clicking it makes the No-op request and shows the same notice. F-04 §6 defines this behaviour, so the button is not disabled.
 - Rest Day (`isRestDay: true`, `items: []`): show the banner "Rest day: log anything you did" (F-04 §6), an explanation that entries are saved but not scored, and a picker built from `GET /api/user-exercises`. Each picker row has a **disabled** Quick Complete control with the explanation "Quick Complete is not available for this exercise today" and an enabled "Log" action. Entries created from the picker are labelled "not scored". This keeps TEST-23-3 observable without inventing a planned item.
 - First-time vs Rest Day: both have `isRestDay: true` and `items: []`. If `GET /api/user-exercises` returns `[]`, show the first-time state "Add an exercise to your plan first" with a link to `/plan` (F-04 §6); if it returns snapshots, show the Rest Day panel above.
 - "Log" opens S-03 for that exercise.
-- "Entries" expands the entries for that exercise from `GET /api/entries`, with the source tag Manual or Quick.
+- "Entries" expands the ledger for that exercise from `GET /api/entries`. Each row shows the entry time (from `createdAt`, displayed in Asia/Bangkok), the value with its unit, and the kind (`Manual` or `Quick`).
+- There is no global "Add activity" control in Sprint 1; logging is per planned card or through the Rest Day picker. Off-plan logging on a targeted day is AC-04d, deferred to Sprint 2.
 - States: loading skeletons; error notice with Retry; first-time user with no exercises shows "Add an exercise to your plan first" and a link to `/plan`.
-- Test ids: `today-date`, `today-overall-pct`, `item-<exerciseId>`, `item-quick-complete`, `item-log`, `rest-day-banner`, `rest-day-picker`, `rest-day-quick-complete`, `add-activity`.
+- Test ids: `today-date`, `today-overall-pct`, `rest-day-banner`, `rest-day-picker`, `rest-day-quick-complete`. Inside each item card, `item-<userExerciseId>` contains `item-quick-complete`, `item-log` and, when expanded, `item-entries`; these repeat once per card. `rest-day-quick-complete` repeats once per Rest Day picker row.
 
 ##### S-03 Log Entry modal (F-04)
 
@@ -216,6 +220,7 @@ Title: "Log activity - {exercise}". Fields by mode:
 | `CARDIO_DISTANCE` | Distance (km) -> `distanceKm` |
 
 - Show a live preview such as "Adds 20 reps (2 x 10)".
+- Show the remaining daily limit as helper text, using the stricter of the target and the daily cap (F-04 §6).
 - Save calls `POST /api/entries` with `logDate`. Success closes the modal and refreshes the card. A 400 keeps it open with inline errors.
 - Cancel discards. Save is disabled while pending.
 - Test ids: `log-sets`, `log-reps`, `log-duration-min`, `log-duration-sec`, `log-distance`, `log-save`.
@@ -223,30 +228,40 @@ Title: "Log activity - {exercise}". Fields by mode:
 ##### S-05 My Plan (F-03)
 
 - List from `GET /api/plan-items`: exercise name, mode, target, repeat-day chips, priority, date range. The target summary uses the plan fields, for example "4 × 10 reps @ 40 kg" or "3.5 km".
-- Empty state: "No plan yet" with a button "Add your first exercise" to `/plan/new`.
-- Button "Add exercise" goes to `/plan/new`.
+- Empty state: "No exercises in your plan yet. Add your first one" with a button "Add your first one" that opens S-04.
+- Button "Add exercise" opens the S-04 dialog.
 - Sprint 2 adds Edit and End actions.
 
-##### S-04 Add Exercise (F-03)
+##### S-04 Add Exercise dialog (F-03)
 
-Two-step page with a step indicator.
+Modal dialog opened from My Plan. It has two tabs: **From library** and **Custom**. It adds no separate route.
 
-**Step 1 - Choose exercise.**
+**From library**
 
-- Templates tab: list from `GET /api/templates` grouped by category, with category and mode filters (categories from `GET /api/categories`) and client-side name search. Each card shows name, mode, body part and allowed range.
-- Custom tab: name (required, 1-80 characters), tracking mode, body part (required, 1-50 characters), and cardio category only for `CARDIO_DISTANCE`. The form is part of Sprint 1; AC-03d and AC-16a-b are verified in Sprint 2 (CHANGE-05/08).
-- Selection or custom data is kept in wizard state. Do not call a create-exercise endpoint; Step 2 saves everything in one `POST /api/plan-items` request.
+- List from `GET /api/templates` grouped by category, with category and mode filters (categories from `GET /api/categories`) and client-side name search. Each card shows name, mode, body part and allowed range.
+- Choosing a template pre-fills the target section from the template: name, body part, unit and Valid Range.
 
-**Step 2 - Set goal.**
+**Custom**
 
-- Target fields by mode, using `targetSets`, `targetRepsPerSet`, `targetDurationSec` or `targetDistanceKm`.
+- Fields: name (required, 1-80 characters), tracking mode, body part (required, 1-50 characters), and cardio category only for `CARDIO_DISTANCE`.
+- Show the note "Default calories value is set by the system".
+- The form is part of Sprint 1; AC-03d and AC-16a-b are verified in Sprint 2 (CHANGE-05/08).
+
+**Target and common fields**
+
+- Target fields by mode, using `targetSets`, `targetRepsPerSet` (+ `loadKg` for weight training), `targetDurationSec` or `targetDistanceKm`.
+- Show the allowed range (the template Valid Range or the central limit) as helper text.
 - Priority weight 1-5.
 - Repeat days: seven toggles, all seven on by default.
-- Start date `effectiveFrom`: default today, minimum today.
+- Start date `effectiveFrom`: use the `date` returned by `GET /api/plan` as both the default and the minimum; dates before it are disabled, and the browser clock is never used.
 - End date: optional, empty by default.
 - Summary line, for example "Every day - 3 sets x 10 reps - from 9 Nov" or "Mon, Wed, Fri - ... - until 30 Nov".
-- Save calls `POST /api/plan-items` with `source: "TEMPLATE"` and `templateId`, or `source: "CUSTOM"` and `exercise`. A 201 creates both the snapshot and the plan item in one transaction and goes to `/plan` with a toast. A 400 shows inline errors. On failure neither row is stored.
-- Test ids: `template-card-<id>`, `wizard-continue`, `target-sets`, `target-reps`, `priority-<1..5>`, `repeat-day-<1..7>`, `plan-save`.
+
+Selection or custom data is kept in dialog state. Save sends everything in one `POST /api/plan-items` request; there is no separate create-exercise call.
+
+- Save calls `POST /api/plan-items` with `source: "TEMPLATE"` and `templateId`, or `source: "CUSTOM"` and `exercise`. A 201 creates both the snapshot and the plan item in one transaction, closes the dialog, shows a success notice and refreshes My Plan. A 400 shows inline errors. On failure neither row is stored.
+- Save is disabled while the request is pending.
+- Test ids: `add-exercise-dialog`, `template-card-<id>`, `tab-from-library`, `tab-custom`, `target-sets`, `target-reps`, `target-load`, `priority-<1..5>`, `repeat-day-<1..7>`, `plan-save`.
 
 ##### S-06 Monthly Progress (F-06) *(Sprint 2, CHANGE-06)*
 
@@ -279,7 +294,7 @@ One screen at `/manager/library` with two areas.
 - Table of name, category, mode, body part, range, MET and actions Edit/Delete.
 - Filters by category and mode. Button "New template".
 - Delete confirmation: "Delete this template? Participants' existing plans are not affected."
-- Empty state: "No templates yet".
+- Empty state: "No exercises yet. Add the first one".
 
 **Categories area**
 
@@ -295,7 +310,7 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 - The unit label follows the mode: `reps`, `seconds` or `km`.
 - MET is greater than 0 and at most 25, step 0.1.
 - Cardio category is shown and required only for `CARDIO_DISTANCE`; it is forbidden for other modes.
-- Valid Range bounds the plan target, not a single entry. For reps modes the range is in total reps.
+- Valid Range bounds the plan target. `rangeMax` also caps a single entry and the daily cumulative value (F-02 R10, F-04 R6). For reps modes the range is in total reps.
 - Tracking mode is disabled when editing.
 - Changing the mode clears fields that no longer apply.
 - Server errors appear inline.
@@ -329,11 +344,11 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 | Screen | Loading | Empty | Error | Success |
 | --- | --- | --- | --- | --- |
 | S-02 Today | Card skeletons | "Add an exercise to your plan first" + link, or Rest Day panel | Notice + Retry | Card and overall refreshed |
-| S-05 My Plan | List skeleton | "No plan yet" + button | Notice + Retry | - |
-| S-04 Add Exercise | Template skeleton | "No templates available yet" | Notice, inline field errors | Toast, go to `/plan` |
+| S-05 My Plan | List skeleton | "No exercises in your plan yet. Add your first one" + button | Notice + Retry | - |
+| S-04 Add Exercise | Template skeleton | "No templates available yet" | Notice, inline field errors | Toast, dialog closed, My Plan refreshed |
 | S-06 Progress (S2) | Grid skeleton | "No targeted days this month" | Notice + Retry | - |
 | S-07 Profile (S2) | Field skeleton | "No weight set" hint | Inline error | Toast |
-| S-08 Exercise Library | Table skeleton | "No templates yet" or "No categories yet" | Notice + Retry | Toast after delete |
+| S-08 Exercise Library | Table skeleton | "No exercises yet. Add the first one" or "No categories yet" | Notice + Retry | Toast after delete |
 
 #### 7. UI to AC and test traceability
 
@@ -341,7 +356,8 @@ Protection of data is always proven by API tests, never by UI behaviour alone.
 
 | AC | UI evidence | Test file or scenario |
 | --- | --- | --- |
-| AC-25 | Main journey: Manager creates a template, logs out; Participant logs in, adds the template to the plan, opens Today, logs, presses Quick Complete, sees 100%, logs out and in again and sees the same data. Also covers the S-00 CTA when present, valid and invalid login notice, protected URL redirect after logout, and the session header showing display name and role | `tests/e2e/main_journey.spec.ts` |
+| AC-25 | Main journey (RTM): Manager creates a template → Participant logs in and lands on Today → selects the template and sets the goal → logs 1 set / 10 reps → presses Quick Complete → sees 100% → logs out and in again → sees the same data | `tests/e2e/main_journey.spec.ts` |
+| Supplementary checks *(not part of the AC-25 pass criteria)* | S-00 CTA when present; invalid-login notice; protected-URL redirect after logout; session header showing display name and role | `tests/e2e/main_journey.spec.ts` |
 | AC-12a (UI side, supplementary) | Manager opening `/today` sees `/403`. RTM AC-25 owns `main_journey.spec.ts`; this row is supplementary UI evidence | `tests/e2e/main_journey.spec.ts` |
 | AC-23 | Sets 21 shows `VALIDATION_ERROR` field error; Quick Complete is disabled with an explanation on a Rest Day; editing an old entry shows `ENTRY_NOT_EDITABLE` in Sprint 2; mocked midnight shows `LOG_DATE_MISMATCH` and reloads. The Rest Day picker and disabled control are rendered from `GET /api/user-exercises`, so TEST-23-3 has an observable target | `tests/e2e/validation_feedback.spec.ts` |
 | AC-08b (S2) | History shows past days; streak badge equals the API value | `tests/e2e/streak_history.spec.ts` |
@@ -358,13 +374,14 @@ Protection of data is always proven by API tests, never by UI behaviour alone.
 7. Off-plan logging uses existing snapshots. A Participant cannot create a standalone snapshot in Sprint 1.
 8. Duration uses minutes and seconds; reps are entered per set and sent as `totalReps`.
 9. App screens use English copy. S-00 is the only Thai screen.
-10. The Add Exercise wizard keeps its selection in memory and creates the snapshot and plan item in one `POST /api/plan-items` call.
+10. The Add Exercise dialog keeps its selection in memory and creates the snapshot and plan item in one `POST /api/plan-items` call; it adds no separate route.
 11. S-00, the BunnyFit design tokens and final artwork are design-only items. They are not added to the approved RTM.
 12. Final tokens and assets are supplied by the design owner later. The palette in this document is provisional.
 13. The Manager's **Exercise Library** uses one screen at `/manager/library` with a category list and a template table grouped by category.
 14. Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06); Sprint 1 shows only the daily progress panel on Today.
 15. Sprint 1 is mobile-first. Tablet and desktop layouts are optional and planned for Sprint 2.
 16. Repository layout is resolved: SDS §2.5 and AGENTS.md fix `server/`, `web/` and `prisma/` at the repository root; the SPA root is `web/`.
+17. Playwright Sprint 1 UI tests use a 360 × 800 viewport. The 360 px minimum width is a UI-spec decision, not a requirement taken from the baseline.
 
 #### 9. Open items
 

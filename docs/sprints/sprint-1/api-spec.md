@@ -2,7 +2,7 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.4.0
+**Document Version:** 0.5.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
 **Status:** Draft: specification-only, awaiting reviewer approval before implementation
@@ -33,6 +33,7 @@
 | --- | --- | --- | --- | --- |
 | **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Profile endpoints and monthly progress marked Sprint 2 (CHANGE-04/06); AC-27 test path aligned to `template_snapshot.test.ts`. | Onsinee | Draft |
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, Sprint route column, plan/entry shape and mode rules, Rest Day/Quick Complete semantics, full traceability rows, and resolved repository-layout and `BODY_WEIGHT_REQUIRED` wording. No baseline or contract change. | Onsinee | Draft |
+| **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: stated the health response shape and public-route matrix exception, removed the JSON key-order claim and the PR citation from the layout note, added mode-discriminator rejection and per-entry minimums, and restricted the Quick Complete validation order to the order defined by F-04. No baseline or contract change. | Onsinee | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
@@ -57,7 +58,7 @@
 | End date | Required or end of month | Optional; omitted means no end |
 | Entry input | Reps per set | `sets` + `totalReps`; the UI converts reps per set before sending |
 
-**Repository layout note (resolved):** SDS 1.1.0 and AGENTS.md fix `server/`, `web/` and `prisma/` at the repository root; PR #14 follows that layout. No versioned layout decision remains open.
+**Repository layout note (resolved):** SDS 1.1.0 §2.5 and AGENTS.md fix `server/`, `web/` and `prisma/` at the repository root. No versioned layout decision remains open.
 
 --------------------------------------------------------------------------------
 
@@ -153,6 +154,8 @@ The route policy registry is the single source for the middleware and the Endpoi
 | GET | `/api/health` | SYS-01 | S1 | public | - | none |
 
 **Sprint 2 routes.** `GET/PUT /api/profile` (CHANGE-04) and `GET /api/progress/monthly` (CHANGE-06) are included for contract completeness but are **not** part of the Sprint 1 route gate; their AC are deferred. The matrix grows by sprint per AC-22c: S1 covers F-01–F-04 and F-06; S2 adds F-05, F-07, F-08 and F-11; S3 adds F-09 and F-10.
+
+**Public routes.** `POST /api/auth/login` and `GET /api/health` are listed in the matrix for completeness. AC-22c and AC-12c assert access control only on non-public routes; these two public rows are skipped by the matrix test.
 
 **Role check.** Manager requests to every F-03, F-04 and F-06 route return `403 FORBIDDEN` after authentication, before validation. Participant writes to F-02 routes return `403 FORBIDDEN`.
 
@@ -303,7 +306,7 @@ Percentages and ratios are returned unrounded; the UI rounds for display.
 }
 ```
 
-This is the item shape used by `POST /api/plan-items`, `GET /api/plan-items` and each entry of `items[]` in `GET /api/plan`. The key order is `planItem` then `userExercise`, as defined by F-03 §4.4–§4.5.
+This is the item shape used by `POST /api/plan-items`, `GET /api/plan-items` and each entry of `items[]` in `GET /api/plan`. Both `planItem` and `userExercise` are present; JSON object key order is not significant.
 
 --------------------------------------------------------------------------------
 
@@ -446,6 +449,8 @@ Target fields by mode:
 | `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME` | `targetDurationSec` integer 1-10,800 |
 | `CARDIO_DISTANCE` | `targetDistanceKm` > 0 and <= 100, up to 2 decimal places |
 
+A target field that does not belong to the chosen mode is rejected with `400 VALIDATION_ERROR` naming the field (F-03 R6), for example `loadKg` on `BODYWEIGHT_REPS`. A missing required target field is also rejected.
+
 The target total must lie inside the snapshot's Valid Range (the stricter of `rangeMin`/`rangeMax` and the central limits applies). `priorityWeight` is a required integer 1-5. The operation creates a `UserExercise` snapshot and a `PlanItem` in one transaction; on failure neither row is stored.
 
 Success `201`: a 2.9 object, `{ "planItem": { "...": "as 2.5" }, "userExercise": { "...": "as 2.4" } }`.
@@ -489,10 +494,12 @@ Request fields depend on the exercise mode:
 
 Limits apply per entry and to the day's cumulative total per exercise:
 
-- `sets` <= 20; `totalReps` <= `sets * 200`.
+- Reps modes: `sets` is an integer 1-20; `totalReps` is an integer >= 1 and <= `sets * 200`.
+- Seconds modes: `durationSec` is an integer 1-10,800.
+- Distance mode: `distanceKm` > 0 and <= 100, with at most 2 decimal places.
 - Cumulative sets <= 20; cumulative reps <= cumulative sets * 200 and <= `rangeMax`.
 - Cumulative seconds <= min(10,800, `rangeMax`).
-- Cumulative kilometres <= min(100, `rangeMax`); `distanceKm` has at most 2 decimal places.
+- Cumulative kilometres <= min(100, `rangeMax`).
 - Values that do not belong to the exercise mode are rejected.
 
 Success `201`: `{ entry, cumulative }` using objects 2.6 and 2.7.
@@ -501,7 +508,7 @@ Success `201`: `{ entry, cumulative }` using objects 2.6 and 2.7.
 
 Request: `{ "userExerciseId": "uuid", "logDate": "2026-11-05" }`; `logDate` optional.
 
-Validation order is authentication → role → ownership (`userExerciseId` 403/404) → payload validation → `logDate` mismatch → Quick Complete availability. A `logDate` that is not today returns `LOG_DATE_MISMATCH` before any availability check.
+Validation order follows F-04: authentication and role checks run before validation (R1), and the `logDate` format/mismatch check runs before the Quick Complete availability check (R3/R8). Ownership is resolved through `userExerciseId` per F-04 R2: a well-formed id belonging to another Participant returns `403 FORBIDDEN`, and a well-formed id that does not exist returns `404 NOT_FOUND`. F-04 does not define any further payload-validation ordering; a malformed `userExerciseId` is a `400 VALIDATION_ERROR` because it is not a well-formed id.
 
 Quick Complete is available only when the exercise occurs today according to plan resolution. Otherwise `400 QUICK_COMPLETE_NOT_AVAILABLE`.
 
@@ -602,7 +609,7 @@ Success `200`:
 
 #### 8. Health
 
-`GET /api/health` returns `200` with a simple readiness payload. It is public and is used by deployment checks.
+`GET /api/health` returns `200` with `{ "status": "ok" }`. No other field is required. The endpoint is public and is used by deployment checks; the AC-22c/AC-12c matrix test lists but skips this public route, together with `POST /api/auth/login`.
 
 --------------------------------------------------------------------------------
 
