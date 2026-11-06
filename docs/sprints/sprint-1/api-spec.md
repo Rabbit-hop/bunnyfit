@@ -1,8 +1,8 @@
 ### API Specification (Sprint 1)
 
-**Project Title:** Habit and Activity Tracking System (Exercise Domain)
+**Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.3.0
+**Document Version:** 0.4.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
 **Status:** Draft: specification-only, awaiting reviewer approval before implementation
@@ -10,7 +10,7 @@
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
 
-> **Source-of-truth rule:** the approved baseline and Sprint 1 contracts take precedence over the v0.2.0 draft.
+> **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence. This document is a consolidated view; the exact request/response shapes and rules in the F-xx contracts are authoritative. The v0.2.0 draft is shown only as reconciliation history and is not authoritative.
 
 **Source baselines**
 
@@ -32,6 +32,7 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | --- | --- | --- | --- | --- |
 | **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Profile endpoints and monthly progress marked Sprint 2 (CHANGE-04/06); AC-27 test path aligned to `template_snapshot.test.ts`. | Onsinee | Draft |
+| **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, Sprint route column, plan/entry shape and mode rules, Rest Day/Quick Complete semantics, full traceability rows, and resolved repository-layout and `BODY_WEIGHT_REQUIRED` wording. No baseline or contract change. | Onsinee | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
@@ -56,7 +57,7 @@
 | End date | Required or end of month | Optional; omitted means no end |
 | Entry input | Reps per set | `sets` + `totalReps`; the UI converts reps per set before sending |
 
-**Repository layout note:** SDS 1.1.0 lists `server/`, `web/` and `prisma/` at the repository root. This document is layout-neutral; the layout decision must be recorded in the SDS/AGENTS before code is moved.
+**Repository layout note (resolved):** SDS 1.1.0 and AGENTS.md fix `server/`, `web/` and `prisma/` at the repository root; PR #14 follows that layout. No versioned layout decision remains open.
 
 --------------------------------------------------------------------------------
 
@@ -71,7 +72,7 @@
 | Identity | The authenticated token is authoritative. Participant-owned data is never addressed by `userId` in the path |
 | Dates | `YYYY-MM-DD` in Asia/Bangkok business time |
 | Months | `YYYY-MM` |
-| Times | `HH:mm` where a time of day is accepted (not used in Sprint 1 responses; profile display is Sprint 2) |
+| Times | `HH:mm` where a time of day is accepted; no Sprint 1 endpoint uses a time of day (reminders are Sprint 3) |
 | Timestamps | ISO 8601 UTC strings, for example `2026-11-05T03:00:00.000Z` |
 | Durations | Stored and exchanged in seconds |
 | Distances | Kilometres |
@@ -104,8 +105,9 @@
 | `QUICK_COMPLETE_NOT_AVAILABLE` | 400 | Quick Complete on a Rest Day or a non-planned exercise |
 | `CATEGORY_HAS_TEMPLATES` | 409 | Category cannot be deleted because templates still exist |
 | `ENTRY_NOT_EDITABLE` | 409 | Sprint 2 only; not used in Sprint 1 endpoints |
-| `BODY_WEIGHT_REQUIRED` | 200 | Sprint 2 calorie response only; not used in Sprint 1 |
 | `INTERNAL_ERROR` | 500 | Unexpected server or database failure |
+
+`BODY_WEIGHT_REQUIRED` is **not** an error-envelope code. It is the `calorieError` string in a `200` calorie response with `calories: null` (SRS A.5 / Sprint 2, F-11).
 
 ##### 1.2 Authentication pipeline
 
@@ -121,36 +123,38 @@ The route policy registry is the single source for the middleware and the Endpoi
 
 ##### 1.3 Route policy matrix
 
-| Method | Path | Feature | Auth | Roles | Ownership |
-| --- | --- | --- | --- | --- | --- |
-| POST | `/api/auth/login` | F-01 | public | - | none |
-| GET | `/api/auth/me` | F-01 | required | Manager, Participant | none |
-| POST | `/api/auth/logout` | F-01 | required | Manager, Participant | none |
-| GET | `/api/categories` | F-02 | required | Manager, Participant | none |
-| POST | `/api/categories` | F-02 | required | Manager | none |
-| PUT | `/api/categories/:id` | F-02 | required | Manager | none |
-| DELETE | `/api/categories/:id` | F-02 | required | Manager | none |
-| GET | `/api/templates` | F-02 | required | Manager, Participant | none |
-| GET | `/api/templates/:id` | F-02 | required | Manager, Participant | none |
-| POST | `/api/templates` | F-02 | required | Manager | none |
-| PUT | `/api/templates/:id` | F-02 | required | Manager | none |
-| DELETE | `/api/templates/:id` | F-02 | required | Manager | none |
-| POST | `/api/plan-items` | F-03 | required | Participant | self-scoped |
-| GET | `/api/plan-items` | F-03 | required | Participant | self-scoped |
-| GET | `/api/plan-items/:id` | F-03 | required | Participant | resource-owner |
-| GET | `/api/user-exercises` | F-03 | required | Participant | self-scoped |
-| GET | `/api/plan` | F-03 | required | Participant | self-scoped |
-| POST | `/api/entries` | F-04 | required | Participant | self-scoped |
-| POST | `/api/entries/quick-complete` | F-04 | required | Participant | self-scoped |
-| GET | `/api/entries` | F-04 | required | Participant | self-scoped |
-| GET | `/api/entries/:id` | F-04 | required | Participant | resource-owner |
-| GET | `/api/profile` | F-04 | required | Participant | self-scoped |
-| PUT | `/api/profile` | F-04 | required | Participant | self-scoped |
-| GET | `/api/progress/daily` | F-06 | required | Participant | self-scoped |
-| GET | `/api/progress/monthly` | F-06 | required | Participant | self-scoped |
-| GET | `/api/health` | SYS-01 | public | - | none |
+| Method | Path | Feature | Sprint | Auth | Roles | Ownership |
+| --- | --- | --- | --- | --- | --- | --- |
+| POST | `/api/auth/login` | F-01 | S1 | public | - | none |
+| GET | `/api/auth/me` | F-01 | S1 | required | Manager, Participant | none |
+| POST | `/api/auth/logout` | F-01 | S1 | required | Manager, Participant | none |
+| GET | `/api/categories` | F-02 | S1 | required | Manager, Participant | none |
+| POST | `/api/categories` | F-02 | S1 | required | Manager | none |
+| PUT | `/api/categories/:id` | F-02 | S1 | required | Manager | none |
+| DELETE | `/api/categories/:id` | F-02 | S1 | required | Manager | none |
+| GET | `/api/templates` | F-02 | S1 | required | Manager, Participant | none |
+| GET | `/api/templates/:id` | F-02 | S1 | required | Manager, Participant | none |
+| POST | `/api/templates` | F-02 | S1 | required | Manager | none |
+| PUT | `/api/templates/:id` | F-02 | S1 | required | Manager | none |
+| DELETE | `/api/templates/:id` | F-02 | S1 | required | Manager | none |
+| POST | `/api/plan-items` | F-03 | S1 | required | Participant | self-scoped |
+| GET | `/api/plan-items` | F-03 | S1 | required | Participant | self-scoped |
+| GET | `/api/plan-items/:id` | F-03 | S1 | required | Participant | resource-owner |
+| GET | `/api/user-exercises` | F-03 | S1 | required | Participant | self-scoped |
+| GET | `/api/plan` | F-03 | S1 | required | Participant | self-scoped |
+| POST | `/api/entries` | F-04 | S1 | required | Participant | self-scoped |
+| POST | `/api/entries/quick-complete` | F-04 | S1 | required | Participant | self-scoped |
+| GET | `/api/entries` | F-04 | S1 | required | Participant | self-scoped |
+| GET | `/api/entries/:id` | F-04 | S1 | required | Participant | resource-owner |
+| GET | `/api/profile` | F-04 | S2 | required | Participant | self-scoped |
+| PUT | `/api/profile` | F-04 | S2 | required | Participant | self-scoped |
+| GET | `/api/progress/daily` | F-06 | S1 | required | Participant | self-scoped |
+| GET | `/api/progress/monthly` | F-06 | S2 | required | Participant | self-scoped |
+| GET | `/api/health` | SYS-01 | S1 | public | - | none |
 
-**Sprint 2 routes.** `GET/PUT /api/profile` (CHANGE-04) and `GET /api/progress/monthly` (CHANGE-06) are included for contract completeness but are **not** part of the Sprint 1 route gate; their AC are deferred.
+**Sprint 2 routes.** `GET/PUT /api/profile` (CHANGE-04) and `GET /api/progress/monthly` (CHANGE-06) are included for contract completeness but are **not** part of the Sprint 1 route gate; their AC are deferred. The matrix grows by sprint per AC-22c: S1 covers F-01–F-04 and F-06; S2 adds F-05, F-07, F-08 and F-11; S3 adds F-09 and F-10.
+
+**Role check.** Manager requests to every F-03, F-04 and F-06 route return `403 FORBIDDEN` after authentication, before validation. Participant writes to F-02 routes return `403 FORBIDDEN`.
 
 --------------------------------------------------------------------------------
 
@@ -290,6 +294,17 @@ Fields that do not apply to the exercise mode are `0` in the cumulative block.
 
 Percentages and ratios are returned unrounded; the UI rounds for display.
 
+##### 2.9 Plan item with snapshot
+
+```json
+{
+  "planItem": { "...": "as 2.5" },
+  "userExercise": { "...": "as 2.4" }
+}
+```
+
+This is the item shape used by `POST /api/plan-items`, `GET /api/plan-items` and each entry of `items[]` in `GET /api/plan`. The key order is `planItem` then `userExercise`, as defined by F-03 §4.4–§4.5.
+
 --------------------------------------------------------------------------------
 
 #### 3. Authentication endpoints (F-01)
@@ -338,7 +353,7 @@ Success `204 No Content`; inserts `{ jti, userId, expiresAt }` into `RevokedToke
 | `PUT /api/categories/:id` | `{ "name": "Mobility & Stretch" }` | `200 { id, name }` |
 | `DELETE /api/categories/:id` | - | `204` |
 
-Rules: name trimmed, 1-50 characters, unique case-insensitively. Manager only for writes; Participant writes return 403. Deleting a category with templates returns `409 CATEGORY_HAS_TEMPLATES`. A well-formed missing `:id` returns 404; a malformed `:id` returns 400.
+Rules: name trimmed, 1-50 characters, unique case-insensitively; a duplicate name returns `400 VALIDATION_ERROR` naming `name`. Manager only for writes; Participant writes return 403. Deleting a category with templates returns `409 CATEGORY_HAS_TEMPLATES`. A well-formed missing `:id` returns 404; a malformed `:id` returns 400.
 
 ##### 4.2 Templates
 
@@ -360,7 +375,7 @@ Create request:
 }
 ```
 
-Update uses the same fields, but `trackingMode` cannot change. `unit`, `rangeMin` and `rangeMax` are optional; defaults follow the contract.
+Update uses the same fields, but `trackingMode` cannot change; an attempted change returns `400 VALIDATION_ERROR` naming `trackingMode`. `unit`, `rangeMin` and `rangeMax` are optional; defaults follow F-02 R10: `rangeMin` is the minimum value (1 rep/second or 0.01 km) and `rangeMax` is the central limit (4,000 reps, 10,800 s or 100 km).
 
 Rules:
 
@@ -368,9 +383,9 @@ Rules:
 - `unit` is derived from `trackingMode`: `reps`, `seconds` or `km`; a supplied unit must match.
 - `cardioCategory` is required for `CARDIO_DISTANCE` and forbidden otherwise.
 - `metValue` is greater than 0 and at most 25, with at most 1 decimal place.
-- Template name is 1-80 characters and unique within its category, case-insensitively.
-- `targetBodyPart` is 1-50 characters.
-- Valid Range must satisfy `rangeMin <= rangeMax`; the maximum values are 4,000 reps, 10,800 seconds and 100 km.
+- Template name is trimmed, 1-80 characters and unique within its category, case-insensitively; a duplicate returns `400 VALIDATION_ERROR` naming `name`.
+- `targetBodyPart` is trimmed, 1-50 characters.
+- Valid Range must satisfy `rangeMin <= rangeMax`; `rangeMin` is at least 1 rep/second or 0.01 km; the maximum values are 4,000 reps, 10,800 seconds and 100 km.
 - A missing well-formed `categoryId` returns 404; a malformed `categoryId` returns 400.
 - Participant writes return 403 even if the body is invalid.
 
@@ -416,24 +431,24 @@ Custom request:
 
 Custom exercise creation is part of Sprint 1; AC-03d and AC-16a-b are verified in Sprint 2 (CHANGE-05/08).
 
-`effectiveFrom`, `endDate` and `repeatDays` are optional. `effectiveFrom` defaults to today and must be today or later. `repeatDays` defaults to all seven days. Unknown fields are rejected.
+`effectiveFrom`, `endDate` and `repeatDays` are optional. `effectiveFrom` defaults to today and must be today or later; a past date returns `400 VALIDATION_ERROR` (not `LOG_DATE_MISMATCH`). If present, `endDate` must not precede `effectiveFrom`. `repeatDays` defaults to all seven days and must be a non-empty array of unique ISO weekdays 1–7. `priorityWeight` is required; there is no default. Unknown fields are rejected.
+
+`source` rules: `TEMPLATE` requires `templateId` and forbids `exercise`; `CUSTOM` requires `exercise` and forbids `templateId`. A mismatch returns `400 VALIDATION_ERROR` naming the offending field. A missing well-formed `templateId` returns `404 NOT_FOUND` naming `templateId`.
+
+Custom `exercise` rules (F-03 R4–R5): `name` is trimmed, 1–80 characters; `targetBodyPart` is trimmed, 1–50 characters and required; `trackingMode` is one of the six values; `cardioCategory` is required for `CARDIO_DISTANCE` and forbidden otherwise. The Participant **must not** send `metValue`, `unit`, `rangeMin` or `rangeMax`; unknown fields are rejected. The server derives `unit` from `trackingMode`, sets `metValue` from SRS Appendix A.1, sets `rangeMin` to the mode minimum (1 rep/second or 0.01 km) and `rangeMax` to the central limit (4,000 reps, 10,800 seconds or 100 km).
 
 Target fields by mode:
 
 | Mode | Required target fields |
 | --- | --- |
-| `WEIGHT` | `targetSets` 1-20, `targetRepsPerSet` 1-200, `loadKg` > 0 and <= 500 |
+| `WEIGHT` | `targetSets` 1-20, `targetRepsPerSet` 1-200, `loadKg` > 0 and <= 500, up to 2 decimal places |
 | `BODYWEIGHT_REPS` | `targetSets` 1-20, `targetRepsPerSet` 1-200 |
 | `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME` | `targetDurationSec` integer 1-10,800 |
-| `CARDIO_DISTANCE` | `targetDistanceKm` > 0 and <= 100 |
+| `CARDIO_DISTANCE` | `targetDistanceKm` > 0 and <= 100, up to 2 decimal places |
 
-The target must lie inside the snapshot's Valid Range. `priorityWeight` is an integer 1-5. The operation creates a `UserExercise` snapshot and a `PlanItem` in one transaction; on failure neither row is stored.
+The target total must lie inside the snapshot's Valid Range (the stricter of `rangeMin`/`rangeMax` and the central limits applies). `priorityWeight` is a required integer 1-5. The operation creates a `UserExercise` snapshot and a `PlanItem` in one transaction; on failure neither row is stored.
 
-Success `201`:
-
-```json
-{ "userExercise": { "...": "as 2.4" }, "planItem": { "...": "as 2.5" } }
-```
+Success `201`: a 2.9 object, `{ "planItem": { "...": "as 2.5" }, "userExercise": { "...": "as 2.4" } }`.
 
 Errors: `400 VALIDATION_ERROR`, `401`, `403`, `404 NOT_FOUND` for a missing well-formed `templateId`.
 
@@ -441,10 +456,10 @@ Errors: `400 VALIDATION_ERROR`, `401`, `403`, `404 NOT_FOUND` for a missing well
 
 | Endpoint | Success | Notes |
 | --- | --- | --- |
-| `GET /api/plan-items` | `200` list of plan items with snapshots | Ordered by `effectiveFrom`, then `createdAt` |
-| `GET /api/plan-items/:id` | `200` plan item with snapshot | Owner only; other owner returns 403 |
+| `GET /api/plan-items` | `200` list of 2.9 objects | Ordered by `effectiveFrom`, then `createdAt` |
+| `GET /api/plan-items/:id` | `200` 2.9 object | Owner only; another owner returns 403, a missing well-formed id returns 404 |
 | `GET /api/user-exercises` | `200` list of own snapshots | Sorted by name |
-| `GET /api/plan?date=YYYY-MM-DD` | `200 { date, isRestDay, items }` | `date` defaults to today; malformed date returns 400 |
+| `GET /api/plan?date=YYYY-MM-DD` | `200 { date, isRestDay, items }` | `date` defaults to today; malformed date returns 400; each `items[]` entry is a 2.9 object |
 
 Plan resolution: for each `planKey`, take the version with the greatest `effectiveFrom <= date` (ties: highest `version`); discard it if `endDate` exists and `date > endDate`, or if the weekday is not in `repeatDays`. If no item remains, `isRestDay` is true and `items` is empty.
 
@@ -470,12 +485,14 @@ Request fields depend on the exercise mode:
 
 `logDate` is optional. If present it must equal today in Asia/Bangkok, otherwise `400 LOG_DATE_MISMATCH`; a malformed date is `400 VALIDATION_ERROR`. The stored date is always today. Unknown fields are rejected.
 
+`userExerciseId` must belong to the caller: an id that exists but belongs to another Participant returns `403 FORBIDDEN`; a well-formed id that does not exist returns `404 NOT_FOUND` (F-04 R2). A `userId` in the body is rejected as an unknown field.
+
 Limits apply per entry and to the day's cumulative total per exercise:
 
 - `sets` <= 20; `totalReps` <= `sets * 200`.
 - Cumulative sets <= 20; cumulative reps <= cumulative sets * 200 and <= `rangeMax`.
 - Cumulative seconds <= min(10,800, `rangeMax`).
-- Cumulative kilometres <= min(100, `rangeMax`).
+- Cumulative kilometres <= min(100, `rangeMax`); `distanceKm` has at most 2 decimal places.
 - Values that do not belong to the exercise mode are rejected.
 
 Success `201`: `{ entry, cumulative }` using objects 2.6 and 2.7.
@@ -483,6 +500,8 @@ Success `201`: `{ entry, cumulative }` using objects 2.6 and 2.7.
 ##### 6.2 `POST /api/entries/quick-complete` (Participant)
 
 Request: `{ "userExerciseId": "uuid", "logDate": "2026-11-05" }`; `logDate` optional.
+
+Validation order is authentication → role → ownership (`userExerciseId` 403/404) → payload validation → `logDate` mismatch → Quick Complete availability. A `logDate` that is not today returns `LOG_DATE_MISMATCH` before any availability check.
 
 Quick Complete is available only when the exercise occurs today according to plan resolution. Otherwise `400 QUICK_COMPLETE_NOT_AVAILABLE`.
 
@@ -592,10 +611,11 @@ Success `200`:
 | Feature | Endpoints | AC | Target tests |
 | --- | --- | --- | --- |
 | F-01 | `/api/auth/login`, `/api/auth/me`, `/api/auth/logout` | AC-01a-f, AC-22a-c, AC-12a-c | `tests/integration/auth.test.ts`, `tests/integration/security_access.test.ts` |
-| F-02 | `/api/categories`, `/api/templates` | AC-02a-c, AC-02d *(Sprint 2)*, AC-11, AC-12c, AC-22c, AC-27 | `tests/integration/manager_template.test.ts` |
-| F-03 | `/api/plan-items`, `/api/user-exercises`, `/api/plan` | AC-03a-c, AC-03d *(Sprint 2)*, AC-16a-b *(Sprint 2)*, AC-27, AC-12a-c, AC-22c | `tests/integration/goal_config.test.ts`, `tests/integration/template_snapshot.test.ts` |
-| F-04 | `/api/entries`, `/api/entries/quick-complete`, `/api/profile` *(Sprint 2)* | AC-04a-b, AC-04c-d *(Sprint 2)*, AC-10a-b, AC-10c *(Sprint 2)*, AC-13a-c, AC-14a-b, AC-17a-d *(Sprint 2)*, AC-23, AC-24a | `tests/integration/daily_logging.test.ts`, `tests/integration/quick_complete.test.ts`, `tests/integration/profile.test.ts` *(Sprint 2)* |
-| F-06 | `/api/progress/daily`, `/api/progress/monthly` *(Sprint 2)* | AC-06a-f, AC-06g *(Sprint 2)*, AC-15 *(Sprint 2)*, AC-21a *(Sprint 2)* | `tests/unit/progress_calc.test.ts`, `tests/integration/progress_api.test.ts`, `tests/performance/latency.test.ts` |
+| F-02 | `/api/categories`, `/api/templates` | AC-02a-c, AC-02d *(Sprint 2)*, AC-11 (F-02 cases), AC-12c, AC-22c | `tests/integration/manager_template.test.ts`, `tests/unit/boundary_validation.test.ts` |
+| F-03 | `/api/plan-items`, `/api/user-exercises`, `/api/plan` | AC-03a-c, AC-03d *(Sprint 2)*, AC-16a-b *(Sprint 2)*, AC-27, AC-11 (F-03 cases), AC-12a-c, AC-22c | `tests/integration/goal_config.test.ts`, `tests/integration/template_snapshot.test.ts`, `tests/unit/boundary_validation.test.ts` |
+| F-04 | `/api/entries`, `/api/entries/quick-complete`, `/api/profile` *(Sprint 2)* | AC-04a-b, AC-04c-d *(Sprint 2)*, AC-10a-b, AC-10c *(Sprint 2)*, AC-13a-c, AC-14a-b, AC-17a-d *(Sprint 2)*, AC-23 (owners F-04/F-05/SYS-01), AC-24a, AC-11 (F-04 cases), AC-12a, AC-22c | `tests/integration/daily_logging.test.ts`, `tests/integration/quick_complete.test.ts`, `tests/integration/profile.test.ts` *(Sprint 2)*, `tests/unit/progress_calc.test.ts`, `tests/unit/boundary_validation.test.ts`, `tests/integration/persistence.test.ts`, `tests/e2e/validation_feedback.spec.ts` |
+| F-06 | `/api/progress/daily`, `/api/progress/monthly` *(Sprint 2)* | AC-06a-f, AC-06g *(Sprint 2)*, AC-15 *(Sprint 2)*, AC-21a *(Sprint 2)*, AC-12a, AC-22c | `tests/unit/progress_calc.test.ts`, `tests/integration/progress_api.test.ts`, `tests/performance/latency.test.ts` *(Sprint 2)* |
+| F-01–F-06 journey | All Sprint 1 routes | AC-25 | `tests/e2e/main_journey.spec.ts` |
 
 --------------------------------------------------------------------------------
 
@@ -606,7 +626,7 @@ Success `200`:
 - Monthly progress (`GET /api/progress/monthly`, AC-15): F-06, Sprint 2 (CHANGE-06).
 - Plan version updates (`PUT /api/plan-items/:id`): F-07, Sprint 2.
 - History and streak (`/api/history`, `/api/streak`): F-08, Sprint 2.
-- Calories and `BODY_WEIGHT_REQUIRED`: F-11, Sprint 2.
+- Calories and the `calorieError` value `BODY_WEIGHT_REQUIRED`: F-11, Sprint 2.
 - Schedule and reminders: F-09, Sprint 3.
 - Monthly summary: F-10, Sprint 3.
 
@@ -614,6 +634,5 @@ Success `200`:
 
 #### 11. Open items
 
-1. Decide the repository layout (`server/` + `web/` + `prisma/` per SDS 1.1.0, or `client/` + `server/prisma` with a versioned SDS/AGENTS update).
-2. Resolve the off-plan custom exercise gap: there is no standalone `POST /api/user-exercises`, so a Participant can only log off-plan activity for an existing snapshot in Sprint 1.
-3. Add concrete examples for every mode if the reviewer wants a fully self-contained API document.
+1. Resolve the off-plan custom exercise gap: there is no standalone `POST /api/user-exercises`, so a Participant can only log off-plan activity for an existing snapshot in Sprint 1.
+2. Add concrete examples for every mode if the reviewer wants a fully self-contained API document.
