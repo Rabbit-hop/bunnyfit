@@ -135,32 +135,45 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
       return
     }
 
-    // Delete only rows created by this suite. Guard on the ids: Prisma treats
-    // `where: { userId: undefined }` as "no filter", which would wipe a table.
-    await prisma.revokedToken.deleteMany({ where: { jti } })
-    await prisma.planItem.deleteMany({ where: { planKey } })
-    if (participantId) {
-      await prisma.ledgerEntry.deleteMany({ where: { userId: participantId } })
-      await prisma.weightLog.deleteMany({ where: { userId: participantId } })
-      await prisma.userExercise.deleteMany({ where: { userId: participantId } })
-    }
-    if (managerId) {
-      await prisma.exerciseTemplate.deleteMany({ where: { createdById: managerId } })
-    }
-    await prisma.category.deleteMany({ where: { name: categoryName } })
-    const userIds = [managerId, participantId].filter((id): id is string => Boolean(id))
-    if (userIds.length > 0) {
-      await prisma.user.deleteMany({ where: { id: { in: userIds } } })
-    }
+    const cleanup = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    })
 
-    await prisma.$disconnect()
+    try {
+      // Delete only rows created by this suite. Guard on the ids: Prisma treats
+      // `where: { userId: undefined }` as "no filter", which would wipe a table.
+      await cleanup.revokedToken.deleteMany({ where: { jti } })
+      await cleanup.planItem.deleteMany({ where: { planKey } })
+      if (participantId) {
+        await cleanup.ledgerEntry.deleteMany({ where: { userId: participantId } })
+        await cleanup.weightLog.deleteMany({ where: { userId: participantId } })
+        await cleanup.userExercise.deleteMany({ where: { userId: participantId } })
+      }
+      if (managerId) {
+        await cleanup.exerciseTemplate.deleteMany({ where: { createdById: managerId } })
+      }
+      await cleanup.category.deleteMany({ where: { name: categoryName } })
+      const userIds = [managerId, participantId].filter((id): id is string => Boolean(id))
+      if (userIds.length > 0) {
+        await cleanup.user.deleteMany({ where: { id: { in: userIds } } })
+      }
+    } finally {
+      await cleanup.$disconnect()
+      await prisma.$disconnect()
+    }
   })
 
   it('keeps plans, entries, weight logs and revoked tokens after reconnecting', async () => {
     // AC-24a says "after a server restart". The HTTP API for plans, entries and
     // weight logs does not exist yet (F-03/F-04), so this test simulates the
-    // restart by disposing the client and opening a brand-new connection.
+    // restart by disposing the setup client and opening a brand-new connection.
     // Extend it to go through Supertest once those endpoints land (RTM TEST-24a).
+    await prisma.$disconnect()
+
     const restarted = new PrismaClient({
       datasources: {
         db: {

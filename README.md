@@ -30,17 +30,23 @@ single-page app, with PostgreSQL accessed through Prisma.
    reads `DATABASE_URL` directly.
 
 3. Create the databases named in `DATABASE_URL` and `DATABASE_URL_TEST`, then
-   generate the client, apply migrations and seed:
+   generate the client, apply migrations to the development database and seed:
 
    ```bash
    pnpm run prisma:generate
-   pnpm run db:migrate                                      # applies to DATABASE_URL
-   DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:migrate    # applies to the test DB
+   pnpm run db:migrate   # applies to DATABASE_URL
    pnpm run db:seed
    ```
 
-   `pnpm run db:migrate` only targets `DATABASE_URL`, so the test database must
-   be migrated separately as shown above before running the integration suite.
+   The integration suite migrates `DATABASE_URL_TEST` automatically through
+   `tests/globalSetup.ts`. To migrate it manually, export `DATABASE_URL_TEST`
+   first and run `DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:migrate` from a
+   POSIX shell (the inline `VAR=...` form does not work in PowerShell).
+
+   Re-running the seed does not overwrite existing users or templates. Changing
+   `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` therefore does not
+   update an existing user's password hash; reset that user (or the database)
+   to re-seed it.
 
 ## Development
 

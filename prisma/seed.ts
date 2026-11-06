@@ -11,19 +11,19 @@ const users = [
     email: 'manager@exercise.test',
     displayName: 'Program Manager',
     role: Role.MANAGER,
-    passwordEnv: 'SEED_MANAGER_PASSWORD',
+    password: env.seedManagerPassword,
   },
   {
     email: 'alice@exercise.test',
     displayName: 'Alice',
     role: Role.PARTICIPANT,
-    passwordEnv: 'SEED_PARTICIPANT_PASSWORD',
+    password: env.seedParticipantPassword,
   },
   {
     email: 'bob@exercise.test',
     displayName: 'Bob',
     role: Role.PARTICIPANT,
-    passwordEnv: 'SEED_PARTICIPANT_PASSWORD',
+    password: env.seedParticipantPassword,
   },
 ] as const
 
@@ -118,25 +118,16 @@ function unitFor(mode: TrackingMode) {
   return 'seconds'
 }
 
-function bangkokToday() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: env.appTimezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
-
-  return new Date(`${parts}T00:00:00.000Z`)
-}
-
 async function seedUsers() {
   const passwordHashes = new Map<string, string>()
 
   for (const user of users) {
-    const password = process.env[user.passwordEnv]
+    const password = user.password
 
     if (!password) {
-      throw new Error(`${user.passwordEnv} is required to seed users`)
+      throw new Error(
+        `Seed password for ${user.email} is empty; set SEED_MANAGER_PASSWORD and SEED_PARTICIPANT_PASSWORD in .env`,
+      )
     }
 
     let passwordHash = passwordHashes.get(password)
@@ -223,13 +214,10 @@ async function seedWeightLogs() {
     where: { email: 'alice@exercise.test' },
   })
 
-  const rows = [
-    ...weightHistory.map((row) => ({
-      effectiveDate: new Date(`${row.date}T00:00:00.000Z`),
-      weightKg: row.weightKg,
-    })),
-    { effectiveDate: bangkokToday(), weightKg: 70 },
-  ]
+  const rows = weightHistory.map((row) => ({
+    effectiveDate: new Date(`${row.date}T00:00:00.000Z`),
+    weightKg: row.weightKg,
+  }))
 
   for (const row of rows) {
     const existing = await prisma.weightLog.findFirst({

@@ -14,6 +14,12 @@ export default function setup() {
     return
   }
 
+  if (process.env.DATABASE_URL === databaseUrl) {
+    throw new Error(
+      'DATABASE_URL_TEST must point at a different database from DATABASE_URL (the integration suite writes and deletes rows).',
+    )
+  }
+
   execSync('pnpm exec prisma migrate deploy', {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: databaseUrl },
