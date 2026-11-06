@@ -3,8 +3,8 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.1.2
-**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.0.0, System-Level SDS 1.0.0)
+**Contract Version:**  0.3.0
+**SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
@@ -18,6 +18,7 @@
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/data/UI specification, AC (AC-01a–f, AC-12a–c, AC-22a–c), STS, Definition of Done. Proposes new AC-01f (login input validation), not yet in RTM | Nakagamon | Draft |
 | **0.1.1** | 5 Nov 2026 | Cross-review fixes against the baselines: §2 limited to the three requirements Feature Inventory 1.0.0 maps to F-01 (removed the NFR-01/NFR-04 partial rows); §3.2 completed with SDS §6.2 steps 4–5; §6 no longer cites AC-23 (its three cases are domain cases of F-04/F-05 and contain no login case); AC-12b and AC-22c restored to the exact RTM 1.0.0 wording; §7 register status aligned to the RTM §3.1 vocabulary (`INCOMPLETE` instead of an invented "stage 1 only"); §8 gains TEST-25 (AC-25, sprint-level), the SUP-01 file path and the missing e-mail length case; DoD items 7 and 9 qualified with their real evidence; §11 corrected (SRS 1.0.0 Appendix A.5 already contains `NOT_FOUND` and `INTERNAL_ERROR`), counts made provisional across contracts, and the login field-error gap recorded; R10 aligned to SDS §8 (bytes) | Nakagamon | Draft |
 | **0.1.2** | 6 Nov 2026 | Baseline reconciliation (SRS / RTM / SDS / plan 1.0.0): §11 item 4 updated for the corrected proposed-AC IDs after renumbering — the Sprint 1 proposals are now AC-01f (F-01), AC-02d (F-02), AC-03d (F-03), AC-04d (F-04) and AC-06g (F-06); F-06's former "AC-06d" is restored to the RTM 1.0.0 meaning, so it is no longer a proposal. Baseline citations confirmed (RTM 1.0.0 and SDS 1.0.0 — no "RTM 1.2.0" or "SDS 0.1.0" exists in any baseline document) | Nakagamon | Draft |
+| **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0 (RTM / SDS / plan 1.1.0, SRS / Feature Inventory 1.1.0): citations updated; AC-01f is now an approved RTM 1.1.0 criterion (Tier A, Sprint 1), no longer *proposed*; §11 item 4 rewritten with the current counts (80 atomic AC, Sprint 1 = 38, Sprint 2 = 34 after CHANGE-03 … CHANGE-08) and the Coverage check no longer conditional (F-01 is verified by 12 atomic AC) | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -31,8 +32,8 @@ F-01 establishes **who the caller is and what they may do**. It provides login w
 | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` | Self-registration, password recovery, email verification, account administration (SRS Exclusion 4) |
 | bcrypt password hashing; seeded Manager and Participant accounts | Multiple roles per account, refresh tokens |
 | JWT with `jti`, 1-hour expiry; `RevokedToken` denylist in PostgreSQL | Rate limiting / lockout (recorded as a known limitation, §11) |
-| Authenticate / role / ownership middleware and the declarative **route policy registry** | Business endpoints themselves (F-02 to F-06) |
-| Login screen, session header, role-based landing, global 401/403 handling | Feature screens (F-02 to F-06) |
+| Authenticate / role / ownership middleware and the declarative **route policy registry** | Business endpoints themselves (F-02, F-03, F-04 and F-06) |
+| Login screen, session header, role-based landing, global 401/403 handling | Feature screens (F-02, F-03, F-04 and F-06) |
 | Foundation pieces F-01 needs: `User` and `RevokedToken` tables, seed accounts, injectable Clock | Remaining schema (other features' contracts) |
 
 --------------------------------------------------------------------------------
@@ -44,7 +45,7 @@ F-01 establishes **who the caller is and what they may do**. It provides login w
 | **BR-04** | Ownership and role enforcement so private Participant data is never exposed to other users or the Manager (401/403) |
 | **NFR-02** | 401 for missing/expired/revoked tokens; 403 for wrong role or cross-user access; Endpoint Access Matrix started here and extended every sprint |
 
-*Exactly the three requirements that Feature Inventory 1.0.0 maps to F-01 (FR-01, BR-04, NFR-02). Login latency is verified by AC-21b under SYS-01 and restart durability by AC-24a under F-04; F-01 contributes AC-01d (denylist survives a restart) to the latter without claiming the requirement.*
+*Exactly the three requirements that Feature Inventory 1.1.0 maps to F-01 (FR-01, BR-04, NFR-02). Login latency is verified by AC-21b under SYS-01 and restart durability by AC-24a under F-04; F-01 contributes AC-01d (denylist survives a restart) to the latter without claiming the requirement.*
 
 **Dependencies:** none upstream (Foundation: schema/migrations, seed script, Clock, test harness). **Downstream:** F-02, F-03, F-04, F-06 (Sprint 1) and all later features depend on the policy registry and middleware.
 
@@ -246,7 +247,7 @@ UI behavior is verified through the Sprint 1 journey (AC-25 / TEST-25: login, ro
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC text is identical to RTM 1.0.0 except AC-01f, which is **proposed** (the `/me` response also carries `displayName`, which AC-01c does not forbid).
+AC text is identical to RTM 1.1.0, which includes AC-01f (approved 6 Nov 2026, Tier A, Sprint 1). Note: the `/me` response also carries `displayName`, which AC-01c does not forbid.
 
 | AC | Observable outcome |
 | ------ | ------ |
@@ -255,7 +256,7 @@ AC text is identical to RTM 1.0.0 except AC-01f, which is **proposed** (the `/me
 | **AC-01c** | `GET /api/auth/me` with a valid token returns `{id, email, role}` |
 | **AC-01d** | `POST /api/auth/logout` stores `jti` and `expiresAt` in `RevokedToken`; `/me` with the same token then returns 401, including after a server restart |
 | **AC-01e** | Stored passwords are bcrypt hashes (prefix `$2`) and never equal the plaintext |
-| **AC-01f** *(proposed)* | Login with a missing or invalid field (missing email or password, malformed or over-length email, over-length password, non-JSON body, unknown field) returns 400 `VALIDATION_ERROR` naming the field; no token is issued and no data changes |
+| **AC-01f** | Login with a missing or invalid field (missing email or password, malformed or over-length email, over-length password, non-JSON body, unknown field) returns 400 `VALIDATION_ERROR` naming the field; no token is issued and no data changes |
 | **AC-22a** | Missing header, malformed Bearer, forged signature, `alg:none`, expired token, revoked token → 401 in every case |
 | **AC-22b** | Valid token with the wrong role → 403 with no private data in the body |
 | **AC-22c** | Endpoint Access Matrix (role dimension): for every route in the matrix, no token → 401 and wrong role → 403; a registry test fails if any registered route is missing from the matrix. The matrix grows per sprint (S1: F-01–F-04, F-06; S2: F-05, F-07, F-08, F-11; S3: F-09, F-10). |
@@ -263,7 +264,7 @@ AC text is identical to RTM 1.0.0 except AC-01f, which is **proposed** (the `/me
 | **AC-12b** | Participant A using GET / PUT / DELETE on Participant B's resources (entry, plan, profile, reminder, summary) → 403; database unchanged |
 | **AC-12c** | Endpoint Access Matrix (owner dimension): for every owner-scoped route in the matrix, a request by a different user → 403 |
 
-**Two-stage verification.** AC-12a, AC-12b, AC-12c and AC-22c concern endpoints that F-02 to F-06 create later. F-01 therefore verifies them first against the `/__test/…` probe routes and its own routes (**stage 1**, at F-01 merge), and the same parametrized tests are re-run over the real routes at Sprint 1 integration (**stage 2**). The RTM register records a final PASS for these four AC **only after stage 2**; a stage-1 pass alone leaves the register at `INCOMPLETE` (stage 2 pending) — the RTM §3.1 Result vocabulary (PASS / FAIL / SKIPPED / INCOMPLETE) has no "stage 1 only" value.
+**Two-stage verification.** AC-12a, AC-12b, AC-12c and AC-22c concern endpoints that F-02, F-03, F-04 and F-06 create later. F-01 therefore verifies them first against the `/__test/…` probe routes and its own routes (**stage 1**, at F-01 merge), and the same parametrized tests are re-run over the real routes at Sprint 1 integration (**stage 2**). The RTM register records a final PASS for these four AC **only after stage 2**; a stage-1 pass alone leaves the register at `INCOMPLETE` (stage 2 pending) — the RTM §3.1 Result vocabulary (PASS / FAIL / SKIPPED / INCOMPLETE) has no "stage 1 only" value.
 
 --------------------------------------------------------------------------------
 
@@ -312,9 +313,9 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | **TEST-12c-1** | AC-12c | Security | Registry; two Participants with their own records | For each `resource-owner` route: request Bob's record with Alice's token | 403 each; database unchanged (stage 1: probes; stage 2: all Sprint 1 owner-scoped routes) |
 | TEST-12c-2 | AC-12c | Security | Registry | A route declared `resource-owner` without an owner-lookup function | Registration fails at startup (R11) |
 | **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/config.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Load configuration | First two fail fast with a clear error; third starts |
-| **TEST-25** *(sprint-level, AC-25 shared with F-02 – F-06)* | AC-25 | UI E2E | All Sprint 1 features integrated; seeded Manager, Alice and Bob; clean database | Playwright journey in `tests/e2e/main_journey.spec.ts`: Manager creates a template → Participant logs in → selects it (3×10, weight 4) → logs 1 set / 10 reps → Quick Complete → progress 100% → logout, login again | Journey completes end-to-end and the values persist after re-login; run at Sprint 1 integration (plan §4.4), not at F-01 merge |
+| **TEST-25** *(sprint-level, AC-25 shared with F-02, F-03, F-04 and F-06)* | AC-25 | UI E2E | All Sprint 1 features integrated; seeded Manager, Alice and Bob; clean database | Playwright journey in `tests/e2e/main_journey.spec.ts`: Manager creates a template → Participant logs in → selects it (3×10, weight 4) → logs 1 set / 10 reps → Quick Complete → progress 100% → logout, login again | Journey completes end-to-end and the values persist after re-login; run at Sprint 1 integration (plan §4.4), not at F-01 merge |
 
-**Coverage check.** Every AC in §7 has at least one test; negative, boundary (3,599/3,600 s, 254/255-character email, 72/73-character password) and role cases are included. If AC-01f is approved, F-01 is verified by 12 atomic AC: AC-01a–f (6), AC-22a–c (3) and AC-12a–c (3); without AC-01f it is 11. TEST-25 (AC-25) is additionally defined here as a sprint-level test and is **not** counted in the 12: AC-25 belongs jointly to F-01 – F-06 in the RTM and runs at Sprint 1 integration.
+**Coverage check.** Every AC in §7 has at least one test; negative, boundary (3,599/3,600 s, 254/255-character email, 72/73-character password) and role cases are included. F-01 is verified by 12 atomic AC: AC-01a–f (6), AC-22a–c (3) and AC-12a–c (3). TEST-25 (AC-25) is additionally defined here as a sprint-level test and is **not** counted in the 12: AC-25 belongs jointly to F-01 – F-06 in the RTM and runs at Sprint 1 integration.
 
 --------------------------------------------------------------------------------
 
@@ -323,7 +324,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.1.2 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-01a/01b/01c written; routes absent | Failing run output |
 | 3 | `feat` (green) | Login and `/me`; migration and seed | Passing run output |
 | 4 | `test` (red) | TEST-22a (all cases) and TEST-01d | Failing run showing e.g. `alg:none` accepted or logout not revoking |
@@ -343,7 +344,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 | 4 | All tests in §8 implemented and enabled (none skipped); each AC mapped | Test file names and names match the STS IDs |
 | 5 | Tests executed on the merge commit with counts | Output showing passed / failed / skipped counts |
 | 6 | TDD red/green evidence for AC-01d, AC-22a, AC-22b | Failing and passing runs with commit IDs |
-| 7 | AC-12a/b/c and AC-22c re-run over all real Sprint 1 routes (stage 2 — completable only at Sprint 1 integration, after the F-02 – F-06 routes exist) | Integration run output; RTM register updated |
+| 7 | AC-12a/b/c and AC-22c re-run over all real Sprint 1 routes (stage 2 — completable only at Sprint 1 integration, after the F-02, F-03, F-04 and F-06 routes exist) | Integration run output; RTM register updated |
 | 8 | Teammate-reviewed PR with a substantive comment; integrated on staging | PR link, reviewer, comment |
 | 9 | Login UI states, role landing, logout and 401/403 handling work | Journey run (TEST-25 / AC-25) for login, role landing, logout and re-login; screenshots with version for the 401/403 UI handling (no baseline AC covers it, §11) |
 | 10 | No secret committed; `.env.example` updated; README setup works | Repository check; clean-clone run |
@@ -360,6 +361,6 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 | 1 | No login rate limiting or account lockout | Out of scope for the course baseline; recorded as a known limitation and possible Sprint 3 hardening |
 | 2 | Token kept in `sessionStorage` (XSS exposure) instead of an HttpOnly cookie | Accepted trade-off (SDS §12 item 4) |
 | 3 | 403 for another user's existing record vs 404 for a missing one reveals that an ID exists | Required by SRS BR-04; accepted (SDS §12 item 3) |
-| 4 | Proposed AC-01f is not yet in RTM / sprint plan counts | Needs team approval. The RTM has 75 atomic AC and Sprint 1 has 47 today; the five Sprint 1 proposals after reconciliation are **AC-01f** (F-01), **AC-02d** (F-02), **AC-03d** (F-03), **AC-04d** (F-04) and **AC-06g** (F-06), so approving all five gives 80 atomic AC / 52 in Sprint 1. All proposals must be consolidated first and the final RTM total, Sprint 1 total, Tier A count and distribution table recomputed together, applied in the same baseline batch as the other contracts (F-02 §12) and recorded as a new RTM revision-history row — never a silent rewrite |
+| 4 | AC counts after the 6 Nov scope checkpoint | RTM 1.1.0 holds **80** atomic AC (28 groups): AC-01f, AC-02d, AC-03d, AC-04d and AC-06g were added to the RTM as approved criteria. At the checkpoint all 14 Tier B AC moved to Sprint 2 (CHANGE-03 … CHANGE-08), so **Sprint 1 = 38** and **Sprint 2 = 34** atomic AC. AC-01f is the only one of the five that stays in Sprint 1 (Tier A) |
 | 5 | Timing-equalization behavior (R5) is a design measure, not directly asserted by a test | Verified by code review; no timing-based test, to avoid flaky tests |
 | 6 | The login field-error display (§6) is not covered by any baseline AC: RTM AC-23 contains only sets 21, Quick Complete disabled on a Rest Day and editing an old entry (F-04 / F-05 cases), and Deliverable 1 §3.6 / §4.2 requires only valid/invalid login checks and login/logout screenshots | Verified in the meantime by TEST-01f-1 (the `fields` array the UI renders) and the DoD #9 screenshots; extend AC-23 or add an AC only through an approved baseline change, decided with the team |

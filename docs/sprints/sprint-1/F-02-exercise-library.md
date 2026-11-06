@@ -3,8 +3,8 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-02
 **Sprint:**  1
-**Contract Version:**  0.2.0
-**SRS Baseline Version:**  1.0.0 (Feature Inventory 1.0.0, RTM 1.0.0, System-Level SDS 1.0.0, F-01 contract 0.1.2)
+**Contract Version:**  0.3.0
+**SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0)
 **Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
@@ -17,6 +17,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/data/UI specification, AC (AC-02a–c; proposed AC-02d), STS, Definition of Done, list of pending baseline changes (§12) | Nakagamon | Draft |
 | **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citation corrected (F-01 contract 0.1.2); error codes reduced to the approved SRS Appendix A.5 set — `CATEGORY_NOT_EMPTY` replaced by the approved `CATEGORY_HAS_TEMPLATES` (409), the invented `DUPLICATE_NAME` (409) replaced by `VALIDATION_ERROR` (400) because A.5 defines no duplicate-name code; a well-formed `categoryId` that does not exist now returns 404 `NOT_FOUND` (SRS A.5 / SDS §5.1) instead of 400 while a malformed value stays 400; §8 test expectations and §12 pending items updated accordingly (P8 rewritten, P3 dropped because A.5 already covers the rule) | Nakagamon | Draft |
+| **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0); AC-02d is now an RTM 1.1.0 criterion (no longer *proposed*) and is marked **deferred to Sprint 2** (CHANGE-08, Tier B) in §7, §8, §10 and §12 — its STS rows are kept; §12 pending items given a status column; all applied to baseline 1.1.0 (SRS Q30–Q49) or resolved | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-02 implementation; later changes are new versions with a reason.*
 
@@ -59,15 +60,15 @@ F-02 is the **Manager side of the Sprint 1 journey**: the Program Manager mainta
 | ID | Rule | Status |
 | ------ | ------ | ------ |
 | R1 | Only role `MANAGER` may create, update or delete categories and templates; `PARTICIPANT` is read-only (403 on writes). Authorization is checked before validation | Baseline (FR-02) |
-| R2 | Category name: trimmed, 1–50 characters, unique case-insensitively | **Pending** (§12) |
+| R2 | Category name: trimmed, 1–50 characters, unique case-insensitively | Baseline (SRS Q30) |
 | R3 | A category with at least one template cannot be deleted → 409 `CATEGORY_HAS_TEMPLATES` | Baseline (SRS Appendix A.5) |
-| R4 | Template name: trimmed, 1–80 characters, unique within its category (case-insensitive) | **Pending** |
-| R5 | `trackingMode` is one of `WEIGHT`, `BODYWEIGHT_REPS`, `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`, `CARDIO_DISTANCE` and **cannot be changed after creation** | Baseline B1 (values) + **Pending** (immutability) |
-| R6 | `unit` is derived from `trackingMode`: `WEIGHT`, `BODYWEIGHT_REPS` → `reps`; `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME` → `seconds`; `CARDIO_DISTANCE` → `km`. A supplied `unit` must match | **Pending** |
+| R4 | Template name: trimmed, 1–80 characters, unique within its category (case-insensitive) | Baseline (SRS Q30) |
+| R5 | `trackingMode` is one of `WEIGHT`, `BODYWEIGHT_REPS`, `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`, `CARDIO_DISTANCE` and **cannot be changed after creation** | Baseline B1 (values) + SRS Q32 (immutability) |
+| R6 | `unit` is derived from `trackingMode`: `WEIGHT`, `BODYWEIGHT_REPS` → `reps`; `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME` → `seconds`; `CARDIO_DISTANCE` → `km`. A supplied `unit` must match | Baseline (SRS Q31) |
 | R7 | `cardioCategory` (`RUNNING`, `WALKING`, `CYCLING`, `SWIMMING`) is **required** when `trackingMode = CARDIO_DISTANCE` and **forbidden** otherwise | Baseline B3 |
-| R8 | `metValue`: number greater than 0, at most 25, at most 1 decimal place | Baseline (`metValue` > 0) + **Pending** (bound) |
-| R9 | `targetBodyPart`: trimmed free text, 1–50 characters | **Pending** |
-| R10 | Valid Range (`rangeMin`, `rangeMax`, in the template's unit): `rangeMin ≤ rangeMax`; `rangeMin` ≥ 1 (reps, seconds) or ≥ 0.01 (km); `rangeMax` ≤ the central limit: 4,000 reps (20 sets × 200), 10,800 seconds, 100 km. Defaults when omitted: `rangeMin` = minimum value, `rangeMax` = central limit. Meaning: `rangeMin`/`rangeMax` bound the **target** of a plan, and `rangeMax` also caps an entry and the daily cumulative value (applied by F-03/F-04) | Baseline BR-02 / Q26 + **Pending** (meaning, minimum) |
+| R8 | `metValue`: number greater than 0, at most 25, at most 1 decimal place | Baseline (`metValue` > 0) + SRS Q33 (bound) |
+| R9 | `targetBodyPart`: trimmed free text, 1–50 characters | Baseline (SRS Q30) |
+| R10 | Valid Range (`rangeMin`, `rangeMax`, in the template's unit): `rangeMin ≤ rangeMax`; `rangeMin` ≥ 1 (reps, seconds) or ≥ 0.01 (km); `rangeMax` ≤ the central limit: 4,000 reps (20 sets × 200), 10,800 seconds, 100 km. Defaults when omitted: `rangeMin` = minimum value, `rangeMax` = central limit. Meaning: `rangeMin`/`rangeMax` bound the **target** of a plan, and `rangeMax` also caps an entry and the daily cumulative value (applied by F-03/F-04) | Baseline BR-02 / Q26 + SRS Q34 (meaning, minimum) |
 | R11 | Deleting or updating a template never changes existing `UserExercise` rows; delete is a hard delete (Decision 12) | Baseline |
 | R12 | The catalog is shared: no per-record owner; any Manager may modify any template | Design decision |
 
@@ -241,14 +242,14 @@ UI behavior is verified through the journey (AC-25: Manager creates a template, 
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-02a–c are identical to RTM 1.0.0. AC-02d is **proposed** (not yet in RTM).
+AC-02a–d are identical to RTM 1.1.0 (AC-02d added to the RTM on 6 Nov 2026). **AC-02d is deferred to Sprint 2** (CHANGE-08, Tier B): it is specified and its tests are written below, but it is not part of the 38 Sprint 1 atomic AC, and the Sprint 1 DoD does not require it.
 
 | AC | Observable outcome |
 | ------ | ------ |
 | **AC-02a** | Manager creates categories and base exercises for all 6 `trackingMode` values → 201 and persisted (`CARDIO_DISTANCE` requires `cardioCategory`) |
 | **AC-02b** | Manager updates and deletes categories and base exercises → 200 / 204 |
 | **AC-02c** | Participant `GET /api/templates` → 200; Participant POST / PUT / DELETE on templates or categories → 403 and the database is unchanged |
-| **AC-02d** *(proposed)* | Conflicting or invalid library data is rejected and nothing is stored: duplicate category name or duplicate template name within a category → 400 `VALIDATION_ERROR` naming `name`; deleting a category that still has templates → 409 `CATEGORY_HAS_TEMPLATES`; invalid template fields (name/body-part length, `unit` not matching `trackingMode`, `metValue` outside (0, 25] or with more than 1 decimal, Valid Range outside the central limits or `rangeMin` > `rangeMax`, `cardioCategory` inconsistent with `trackingMode`, change of `trackingMode`) → 400 `VALIDATION_ERROR` naming the field |
+| **AC-02d** *(deferred → Sprint 2, CHANGE-08)* | Conflicting or invalid library data is rejected and nothing is stored: duplicate category name or duplicate template name within a category → 400 `VALIDATION_ERROR` naming `name`; deleting a category that still has templates → 409 `CATEGORY_HAS_TEMPLATES`; invalid template fields (name/body-part length, `unit` not matching `trackingMode`, `metValue` outside (0, 25] or with more than 1 decimal, Valid Range outside the central limits or `rangeMin` > `rangeMax`, `cardioCategory` inconsistent with `trackingMode`, change of `trackingMode`) → 400 `VALIDATION_ERROR` naming the field |
 
 **Shared AC with other features.** AC-11 (boundary table, `boundary_validation.test.ts`): F-02 contributes the template Valid Range cases. AC-12c / AC-22c (Endpoint Access Matrix): the F-02 routes are covered in stage 2; F-02 has no owner-scoped route, so AC-12c is satisfied for F-02 by asserting that every F-02 policy is `ownership: 'none'`. AC-27 (snapshot isolation) is owned by F-03 and uses the F-02 update and delete endpoints. AC-25 (journey) uses F-02 to create the template.
 
@@ -272,31 +273,31 @@ File: `tests/integration/manager_template.test.ts` (AC-02). Fixtures: seeded Man
 | **TEST-02c-1** | AC-02c | API/DB Integration | Alice logged in; seeded library | `GET /api/templates`, `GET /api/categories`, `GET /api/templates/:id` | 200 each; the list contains the 8 seeded templates; no `createdById` in any response |
 | TEST-02c-2 | AC-02c | API/DB Integration | Alice logged in; DB snapshot taken | `POST`, `PUT`, `DELETE` on `/api/templates` and on `/api/categories` (6 requests, including one with an invalid body) | 403 `FORBIDDEN` for all; database unchanged |
 | TEST-02c-3 | AC-02c | API/DB Integration | No token | `GET /api/templates` | 401 `UNAUTHENTICATED` |
-| **TEST-02d-1** | AC-02d | API/DB Integration | Seeded category "Weight Training" | `POST` category `"weight training"`; `PUT` another category to that name | 400 `VALIDATION_ERROR` naming `name` for both; database unchanged |
-| TEST-02d-2 | AC-02d | API/DB Integration | Template "Push-up" in "Bodyweight" | `POST` `"push-UP"` in "Bodyweight"; then `"Push-up"` in "Yoga" | 400 `VALIDATION_ERROR`; then 201 (different category) |
-| TEST-02d-3 | AC-02d | API/DB Integration | Category with templates | `DELETE /api/categories/:id`; then delete its templates and retry | 409 `CATEGORY_HAS_TEMPLATES` with everything intact; then 204 |
-| TEST-02d-4 | AC-02d | API/DB Integration | Valid `WEIGHT` body as base | Each variation: name empty / whitespace only / 81 characters; body part empty / 51 characters; `unit` `"kg"` for `WEIGHT`; `metValue` 0, 25.1, 3.55; unknown `trackingMode`; unknown extra field | 400 `VALIDATION_ERROR` naming the offending field; database unchanged |
-| TEST-02d-5 | AC-02d | API/DB Integration | Valid bodies for a reps, a seconds and a km mode | Boundary pairs: `rangeMax` 4,000 / 4,001 reps; 10,800 / 10,801 s; 100 / 100.01 km; `rangeMin` 0; `rangeMin` > `rangeMax`; `rangeMin` = `rangeMax` | 201 for 4,000, 10,800, 100 and for min = max; 400 for the others |
-| TEST-02d-6 | AC-02d | API/DB Integration | Valid bodies | Boundary accepted values: name of 80 characters; `metValue` 25 and 0.1 | 201 each |
-| TEST-02d-7 | AC-02d | API/DB Integration | Existing `WEIGHT` template | `PUT` with `trackingMode: "YOGA"`; `PUT` giving `cardioCategory` to a `WEIGHT` template | 400 naming `trackingMode` / `cardioCategory`; unchanged |
+| **TEST-02d-1** | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Seeded category "Weight Training" | `POST` category `"weight training"`; `PUT` another category to that name | 400 `VALIDATION_ERROR` naming `name` for both; database unchanged |
+| TEST-02d-2 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Template "Push-up" in "Bodyweight" | `POST` `"push-UP"` in "Bodyweight"; then `"Push-up"` in "Yoga" | 400 `VALIDATION_ERROR`; then 201 (different category) |
+| TEST-02d-3 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Category with templates | `DELETE /api/categories/:id`; then delete its templates and retry | 409 `CATEGORY_HAS_TEMPLATES` with everything intact; then 204 |
+| TEST-02d-4 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Valid `WEIGHT` body as base | Each variation: name empty / whitespace only / 81 characters; body part empty / 51 characters; `unit` `"kg"` for `WEIGHT`; `metValue` 0, 25.1, 3.55; unknown `trackingMode`; unknown extra field | 400 `VALIDATION_ERROR` naming the offending field; database unchanged |
+| TEST-02d-5 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Valid bodies for a reps, a seconds and a km mode | Boundary pairs: `rangeMax` 4,000 / 4,001 reps; 10,800 / 10,801 s; 100 / 100.01 km; `rangeMin` 0; `rangeMin` > `rangeMax`; `rangeMin` = `rangeMax` | 201 for 4,000, 10,800, 100 and for min = max; 400 for the others |
+| TEST-02d-6 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Valid bodies | Boundary accepted values: name of 80 characters; `metValue` 25 and 0.1 | 201 each |
+| TEST-02d-7 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Existing `WEIGHT` template | `PUT` with `trackingMode: "YOGA"`; `PUT` giving `cardioCategory` to a `WEIGHT` template | 400 naming `trackingMode` / `cardioCategory`; unchanged |
 | **TEST-11 (F-02 cases)** | AC-11 | Unit | Validation module `validateTemplate` | Same boundary pairs as TEST-02d-5 plus unit/mode derivation, asserted without HTTP | Accept / reject exactly as in TEST-02d-5; error names field and limit |
 | **TEST-22c (F-02 routes)** | AC-22c | Security | Registry contains the 9 F-02 routes | No token; then a Participant token on each write route | 401; then 403 (stage 2, with the Sprint 1 matrix) |
 | **TEST-12c (F-02 routes)** | AC-12c | Security | Registry | Assert every F-02 policy has `ownership: 'none'` | True for all 9 routes |
-| TEST-02d-8 | AC-02d | API/DB Integration | A well-formed UUID `categoryId` that does not exist | `POST /api/templates` with that `categoryId` | 404 `NOT_FOUND`; database unchanged |
+| TEST-02d-8 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | A well-formed UUID `categoryId` that does not exist | `POST /api/templates` with that `categoryId` | 404 `NOT_FOUND`; database unchanged |
 
-**Coverage check.** AC-02a, 02b, 02c and (proposed) 02d each have at least one test; negative, boundary and role cases are included (80/81-character names, `metValue` 25/25.1, range limits 4,000/4,001, 10,800/10,801, 100/100.01). The Manager-creates-template step of AC-25 and the AC-27 snapshot test are verified in their own contracts.
+**Coverage check.** AC-02a, 02b, 02c and 02d (deferred to Sprint 2) each have at least one test; negative, boundary and role cases are included (80/81-character names, `metValue` 25/25.1, range limits 4,000/4,001, 10,800/10,801, 100/100.01). The Manager-creates-template step of AC-25 and the AC-27 snapshot test are verified in their own contracts.
 
 --------------------------------------------------------------------------------
 
 #### 9. TDD Plan and Commit Sequence
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.2.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-02c-1 to 02c-3 with routes absent | Failing run |
 | 3 | `feat` (green) | Migration, seed, `GET` routes, route policies, Manager `POST` for categories | Passing run |
-| 4 | `test` (red) | TEST-02a-2 to 02a-4 and TEST-02d-4 to 02d-7 (field rules) | Failing run showing missing validation (e.g. invalid `metValue` accepted) |
+| 4 | `test` (red) | TEST-02a-2 to 02a-4 (field rules; TEST-02d-4 to 02d-7: Sprint 2, CHANGE-08) | Failing run showing missing validation (e.g. invalid `metValue` accepted) |
 | 5 | `feat` (green) | Template validation module and endpoints | Passing run |
-| 6 | `test` (red) → `feat` (green) | TEST-02d-1 to 02d-3 (conflicts, non-empty category delete) | Failing then passing runs |
+| 6 | `test` (red) → `feat` (green) | *(Sprint 2, CHANGE-08)* TEST-02d-1 to 02d-3 (conflicts, non-empty category delete) | Failing then passing runs |
 | 7 | `test` / `feat` | TEST-02b-1 to 02b-5, TEST-11 cases, TEST-22c / 12c, Exercise Library UI | Passing run |
 | 8 | PR | Reviewed by Onsinee into `staging/sprint-1` | Review comment with a specific check |
 
@@ -306,16 +307,16 @@ File: `tests/integration/manager_template.test.ts` (AC-02). Fixtures: seeded Man
 | # | Criterion | Evidence required |
 | ------ | ------ | ------ |
 | 1 | Contract reviewed and approved by Onsinee before implementation | Review comment; commit order |
-| 2 | All endpoints, validation rules and policies implemented as specified | Code on `staging/sprint-1`; matches §4 |
+| 2 | All endpoints and policies implemented as specified; AC-02d validation/409 rules are Sprint 2 (CHANGE-08) | Code on `staging/sprint-1`; matches §4 |
 | 3 | Migration and seed run on a clean database and create 4 categories and 8 templates | Command output from a fresh clone |
-| 4 | All tests in §8 implemented and enabled (none skipped); each AC mapped | Test names match STS IDs |
+| 4 | All Sprint 1 tests in §8 implemented and enabled (none skipped); each Sprint 1 AC mapped (TEST-02d-* are Sprint 2 and are not required for Sprint 1) | Test names match STS IDs |
 | 5 | Tests executed on the merge commit with counts | Passed / failed / skipped counts |
-| 6 | TDD red/green evidence for AC-02c and AC-02d rules | Failing and passing runs with commit IDs |
+| 6 | TDD red/green evidence for the AC-02c rules (AC-02d rules: Sprint 2) | Failing and passing runs with commit IDs |
 | 7 | F-02 routes included in the Endpoint Access Matrix run at Sprint 1 integration | Integration output |
 | 8 | Teammate-reviewed PR with a substantive comment; integrated on staging | PR link, reviewer, comment |
 | 9 | Exercise Library screen works for the Manager and is unavailable to Participants | Journey run (AC-25); screenshots with version |
 | 10 | README, seed and `.env.example` current; no secret committed | Clean-clone run |
-| 11 | RTM §3.1 updated (actual test names, result, commit); pending baseline items (§12) resolved or logged | Updated register |
+| 11 | RTM §3.1 updated (actual test names, result, commit); §12 pending items resolved or logged (status column) | Updated register |
 | 12 | Incomplete work and limitations disclosed | §13 updated |
 
 --------------------------------------------------------------------------------
@@ -331,18 +332,18 @@ File: `tests/integration/manager_template.test.ts` (AC-02). Fixtures: seeded Man
 --------------------------------------------------------------------------------
 
 #### 12. Pending Baseline Impact
-These items are used in this contract as **proposed** rules. The baseline documents (SRS, RTM, sprint plan, SDS, F-01 contract) are deliberately **not edited yet**; all pending items from the F-02, F-03, F-04 and F-06 contracts are applied together in one batch after the contract drafts are reviewed, before the Sprint 1 checkpoint on Fri 6 Nov.
+Status after the 6 Nov 2026 baseline pass (RTM / SDS / plan / SRS / Feature Inventory 1.1.0). **Applied** items are in the baseline (SRS 1.1.0 Q30–Q49, RTM, SDS, plan 1.1.0); **Resolved** items needed no baseline change. Every pending item of the Sprint 1 contracts is now applied or resolved.
 
-| # | Pending item | Baseline document(s) affected |
-| ------ | ------ | ------ |
-| P1 | AC-02d added (RTM: +1 atomic AC; Sprint 1 count; Tier B) | RTM, sprint plan |
-| P2 | Name uniqueness: category (case-insensitive), template within category | SRS (new Q), SDS §3.2 |
-| P3 | `unit` derived from `trackingMode` | SRS (new Q) |
-| P4 | `metValue` ≤ 25 with 1 decimal; target body part 1–50 and names 1–80 characters | SRS (new Q) |
-| P5 | Valid Range meaning (bounds target; `rangeMax` caps entries and daily cumulative), minimum values and defaults | SRS (Q26 clarification) |
-| P6 | `trackingMode` immutable after creation | SRS (new Q) |
-| P7 | Duplicate category / template name answered with 400 `VALIDATION_ERROR`; SRS Appendix A.5 defines no duplicate-name code, and a dedicated 409 code would require an approved A.5 addition first (v0.2.0 deliberately uses only approved codes) | SRS Appendix A.5 |
-| P8 | Wording fix in the F-01 contract: "F-02 to F-06" should read "F-02, F-03, F-04 and F-06" (F-05 is Sprint 2) | F-01 contract |
+| # | Pending item | Baseline document(s) affected | Status at baseline 1.1.0 |
+| ------ | ------ | ------ | ------ |
+| P1 | AC-02d added (RTM: +1 atomic AC; Sprint 1 count; Tier B) | RTM, sprint plan | **Applied** — RTM 1.1.0 (AC-02d, Sprint 2 by CHANGE-08), plan 1.1.0 |
+| P2 | Name uniqueness: category (case-insensitive), template within category | SRS (new Q) | **Applied** — SRS 1.1.0 Q30 (category and template naming) |
+| P3 | `unit` derived from `trackingMode` | SRS (new Q) | **Applied** — SRS 1.1.0 Q31 |
+| P4 | `metValue` ≤ 25 with 1 decimal; target body part 1–50 and names 1–80 characters | SRS (new Q) | **Applied** — SRS 1.1.0 Q30 (lengths) and Q33 (`metValue` format) |
+| P5 | Valid Range meaning (bounds target; `rangeMax` caps entries and daily cumulative), minimum values and defaults | SRS (Q26 clarification) | **Applied** — SRS 1.1.0 Q34 |
+| P6 | `trackingMode` immutable after creation | SRS (new Q) | **Applied** — RTM 1.1.0 (AC-02d) and SRS 1.1.0 Q32 |
+| P7 | Duplicate category / template name answered with 400 `VALIDATION_ERROR`; SRS Appendix A.5 defines no duplicate-name code, and a dedicated 409 code would require an approved A.5 addition first (v0.2.0 deliberately uses only approved codes) | SRS Appendix A.5 | **Resolved, no baseline change needed** — SRS Appendix A.5 left unchanged by design (RTM 1.1.0 D4); the contract uses `VALIDATION_ERROR` only |
+| P8 | Wording fix in the F-01 contract: "F-02 to F-06" should read "F-02, F-03, F-04 and F-06" (F-05 is Sprint 2) | F-01 contract | **Applied** — F-01 contract 0.3.0 now reads "F-02, F-03, F-04 and F-06" |
 
 --------------------------------------------------------------------------------
 
