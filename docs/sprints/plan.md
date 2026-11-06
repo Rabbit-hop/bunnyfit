@@ -3,7 +3,7 @@
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
 **Document Version:**  1.1.0
-**SRS Baseline Version:**  1.0.0
+**SRS Baseline Version:**  1.1.0
 **Date:**  6 November 2026
 **Status:**  Approved Baseline
 **Team:**  Nakagamon (67070501064) & Onsinee (67070501078)
@@ -15,12 +15,12 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial draft: sprint goals, feature allocation, dependencies, schedule against the course calendar, Lab alignment, risks, Product Definition of Done | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Clarified FR-03 allocation across Sprint 1 (F-03: initial goal setting) and Sprint 2 (F-07: mid-month reconfiguration & plan versioning). Aligned RTM AC coverage, error codes, and persisted `ReminderSetting` scope with SRS 1.0.0 and SDS 1.0.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
-| **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. Review-fix pass before merge: SRS Baseline Version header 1.1.0 (SRS and Feature Inventory also 1.1.0); Section 4.2 / 4.3 / 4.5 no longer list profile (FR-08), AC-15, AC-17 or AC-21a as Sprint 1 work; Section 7 BR-03 → Sprint 1, 2 and FR-04 notes its deferred F-04 AC. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 
 --------------------------------------------------------------------------------
 
 #### 1. Purpose and Inputs
-This plan allocates every baseline requirement to one of three sprints and states, for each sprint, its **goal, included feature IDs, dependencies and completion outcome**. It is built from the Feature Inventory 1.0.0 (features F-01 – F-11, SYS-01), the RTM 1.1.0 (28 AC groups, 80 atomic AC) and the System-Level SDS 1.1.0. Dates come from the course calendar; owners are agreed upon by the team.
+This plan allocates every baseline requirement to one of three sprints and states, for each sprint, its **goal, included feature IDs, dependencies and completion outcome**. It is built from the Feature Inventory 1.1.0 (features F-01 – F-11, SYS-01), the RTM 1.1.0 (28 AC groups, 80 atomic AC) and the System-Level SDS 1.1.0. Dates come from the course calendar; owners are agreed upon by the team.
 
 --------------------------------------------------------------------------------
 
@@ -65,13 +65,13 @@ This is the course example for this theme (define template → select → set go
 | F-01 Authentication & authorization | Mandatory from Sprint 1; every later feature depends on it |
 | F-02 Categories & base exercises | Manager side of the journey; read-only Participant access gives the permission test |
 | F-03 Initial Goal Configuration | Participant selects a template and sets an initial goal; snapshot design (Decision 12) must exist from the start |
-| F-04 Daily logging (+ profile, Rest Day) | The domain transaction: ledger accumulation, Quick Complete, no-backdating and boundary rejections (`QUICK_COMPLETE_NOT_AVAILABLE` on Rest Days) |
+| F-04 Daily logging (+ Rest Day; profile moved to Sprint 2 by CHANGE-04) | The domain transaction: ledger accumulation, Quick Complete, no-backdating and boundary rejections (`QUICK_COMPLETE_NOT_AVAILABLE` on Rest Days) |
 | F-06 Computed progress | The visible result of logging; pure domain functions with strong unit tests |
 
 Deliberately **moved out** of Sprint 1 and recorded as CHANGE-01 / CHANGE-02: F-05 (entry edit/delete) and F-11 (calorie estimation). F-07, F-08, F-09, F-10 depend on this foundation.
 
 ##### 4.3 Included Requirements and AC
-- **Requirements:** FR-01, FR-02, FR-03 (initial goal setting), FR-04, FR-05, FR-08 (profile); BR-01 to BR-08; NFR-01 (progress/ledger endpoints), NFR-02, NFR-03, NFR-04.
+- **Requirements:** FR-01, FR-02, FR-03 (initial goal setting), FR-04, FR-05; BR-01 to BR-07 (BR-01, BR-03 and BR-07 keep their deferred edge-case AC in Sprint 2; FR-04 defers AC-04c/04d); NFR-02, NFR-03, NFR-04. **Not in Sprint 1:** FR-08 (profile, CHANGE-04), BR-08 (CHANGE-05) and NFR-01 (AC-21a latency, CHANGE-03) are verified in Sprint 2.
 - **AC groups (38 atomic):** AC-01, 02, 03, 04, 06, 10, 11, 12, 13, 14, 22, 23, 24a, 25, 27. (AC-15, AC-16, AC-17 and AC-21a moved wholly to Sprint 2; the deferred members of the remaining groups are AC-02d, AC-03d, AC-04c–d, AC-06g and AC-10c — CHANGE-03 … CHANGE-08.)
 
 ##### 4.4 Dependencies and Build Order
@@ -82,9 +82,9 @@ Each feature contract (AC + STS + DoD) is written and committed **before** its i
 | Day | Nakagamon (67070501064) | Onsinee (67070501078) | Together |
 | ------ | ------ | ------ | ------ |
 | Wed 4 Nov | Repo, Prisma schema, migrations, seed, Docker Compose DB, Clock | Contracts F-03, F-04, F-06 (draft) | Review SDS and plan; create Issues and board |
-| Thu 5 Nov | Contracts F-01, F-02; F-01 via TDD (AC-01, AC-22) | F-06 domain unit tests (AC-06, AC-14, AC-15) | Workshop and Lab 5 groundwork |
+| Thu 5 Nov | Contracts F-01, F-02; F-01 via TDD (AC-01, AC-22) | F-06 domain unit tests (AC-06, AC-14; AC-15 deferred to Sprint 2 by CHANGE-06) | Workshop and Lab 5 groundwork |
 | Fri 6 Nov | F-02 (AC-02); route-policy registry and Access Matrix (AC-12, AC-22c) | F-03 (AC-03, AC-27); F-04 backend (AC-13, AC-10, AC-11) | Cross-review PRs; integrate into `staging/sprint-1`; **scope checkpoint (Section 4.7, end of day)** |
-| Sat 7 Nov | UI: login, Exercise Library; AC-24a, AC-21a | UI: Plan, Today; profile (AC-17) | Playwright journey AC-25, AC-23; fix integration failures |
+| Sat 7 Nov | UI: login, Exercise Library; AC-24a (AC-21a deferred by CHANGE-03) | UI: Plan, Today (profile and AC-17 deferred by CHANGE-04) | Playwright journey AC-25, AC-23; fix integration failures |
 | Sun 8 Nov | Release PR → `main`, tag `sprint1-v1.0.0` | Assemble Deliverable 1 PDF | Final review; **submit before 20:00** (hard limit 23:59) |
 
 ##### 4.6 Completion Outcome (Exit Criteria)
@@ -170,14 +170,14 @@ Generated from the Feature Inventory audit matrix (single source of truth).
 | **FR-01** | User Authentication, JWT `jti` Denylist, Logout & Server-side Authorization | F-01 | Sprint 1 |
 | **FR-02** | Activity Category & Base Exercise Management (Manager CRUD & Read-Only Participant) | F-02 | Sprint 1, 2 |
 | **FR-03** | Participant Initial Goal Configuration & UserExercise Snapshot Architecture ($\text{Target} > 0$) | F-03 | Sprint 1, 2 |
-| **FR-04** | Daily Activity Logging, Profile Integration, Ledger UX & Rest Day Logging | F-04, F-05 | Sprint 1 (F-04), Sprint 2 (F-05) |
-| **FR-05** | Real-time Computed Progress Display & Calorie Estimation Display | F-06, F-10, F-11 | Sprint 1 (F-06), Sprint 2 (F-11), Sprint 3 (F-10) |
+| **FR-04** | Daily Activity Logging, Profile Integration, Ledger UX & Rest Day Logging | F-04, F-05 | Sprint 1 (F-04), Sprint 2 (F-05; F-04 deferred AC-04c–d, AC-17a–d) |
+| **FR-05** | Real-time Computed Progress Display & Calorie Estimation Display | F-06, F-10, F-11 | Sprint 1 (F-06; deferred AC-06g, AC-15, AC-21a), Sprint 2 (F-11), Sprint 3 (F-10) |
 | **FR-06** | Personal History & Streak Tracking | F-08, F-10 | Sprint 2 (F-08), Sprint 3 (F-10) |
 | **FR-07** | Schedule Representation & Persisted Reminder Settings (display only, no external delivery) | F-09 | Sprint 3 |
 | **FR-08** | User Profile & Body Weight Management (`GET/PUT /api/profile`, `WeightLog` Append-Only) | F-04, F-11 | Sprint 2 (F-04, F-11) |
 | **BR-01** | Strictly No Backdating (Asia/Bangkok Timezone, Optional `logDate` Input Validation) | F-04 | Sprint 1, 2 |
 | **BR-02** | Valid Range & Boundary Enforcement ($\text{Target} > 0, \text{Max Weight} = 500\text{ kg}, \text{Max Distance} = 100\text{ km}, \text{Body Weight} = 1 - 800\text{ kg}$) | F-02, F-03, F-04 | Sprint 1 |
-| **BR-03** | Ratio-Based Score Formulas (6 Tracking Modes) & Daily Overall % | F-06 | Sprint 1 |
+| **BR-03** | Ratio-Based Score Formulas (6 Tracking Modes) & Daily Overall % | F-06 | Sprint 1, 2 |
 | **BR-04** | 100% Data Privacy & Access Isolation Policy (HTTP 401 Unauthorized / HTTP 403 Forbidden), extended to every protected route | F-01, SYS-01 | Sprint 1, 2, 3 |
 | **BR-05** | Ledger Accumulation, Quick Complete Mechanics ($\sum \text{Actual} = \text{Target}$) & No-op Handling | F-04 | Sprint 1 |
 | **BR-06** | Direct Completed Value Counting Logic | F-04 | Sprint 1 |

@@ -2,7 +2,7 @@
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
 **Document Version:**  1.1.0
-**SRS Baseline Version:**  1.0.0
+**SRS Baseline Version:**  1.1.0
 **Date:**  6 November 2026
 **Status:**  Approved Baseline
 
@@ -13,7 +13,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial draft derived from SRS 1.0.0, Feature Inventory 1.0.0 and RTM 1.0.0: architecture and stack, data model, UI structure, API conventions, role/permission matrix, authentication design, configuration, delivery and deployment plan, testability design | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Synchronized error codes (`NOT_FOUND`, `CATEGORY_HAS_TEMPLATES`, `INTERNAL_ERROR`, `QUICK_COMPLETE_NOT_AVAILABLE`), explicit backend HTTP 400 validation for Quick Complete on Rest Days, retained `ReminderSetting` fields (`label`, `enabled`), and added explicit AC references for template snapshot isolation (AC-27) and historical `WeightLog` lookup (AC-28a–c). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
-| **1.1.0** | 6 Nov 2026 | Endpoint catalog corrected against the Sprint 1 contracts (v0.2.0), Section 5.2: removed the non-existent `GET/POST /api/exercises` and `GET /api/exercises/:id`, added `GET /api/plan-items/:id` (F-03), `GET /api/user-exercises`, `GET /api/plan?date=` (F-03) and `GET /api/entries/:id` (F-04). Added the API representation of `repeatDays` (ISO weekday array exchanged at the boundary, stored as the Section 3.2 Monday–Sunday bitmask), which resolves contract pending item F-03 P3-9. Schema and Section 3.3 unchanged (already matched by contracts 0.2.0). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.0** | 6 Nov 2026 | Endpoint catalog corrected against the Sprint 1 contracts (v0.2.0), Section 5.2: removed the non-existent `GET/POST /api/exercises` and `GET /api/exercises/:id`, added `GET /api/plan-items/:id` (F-03), `GET /api/user-exercises`, `GET /api/plan?date=` (F-03) and `GET /api/entries/:id` (F-04). Added the API representation of `repeatDays` (ISO weekday array exchanged at the boundary, stored as the Section 3.2 Monday–Sunday bitmask), which resolves contract pending item F-03 P3-9. Schema and Section 3.3 unchanged (already matched by contracts 0.2.0). Review-fix pass before merge: Section 1 cites SRS / Feature Inventory / RTM 1.1.0 and the SRS Baseline Version header is 1.1.0; Section 5.2 `GET/PUT /api/profile` is Sprint 2 (CHANGE-04, AC-17a–d deferred) and `GET /api/progress/monthly` is Sprint 2 (CHANGE-06, AC-15 deferred); the service-layer row (Section 4) states the entry/Quick Complete row lock (SRS Q45) and the decision log cites SRS Q1–Q49. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 
 --------------------------------------------------------------------------------
 
@@ -22,9 +22,9 @@ This document defines the **system-wide design** of the Habit and Activity Track
 
 | Document | Role |
 | ------ | ------ |
-| SRS 1.0.0 | What the system must do (FR/BR/NFR, decisions Q1–Q29, Appendix A) |
-| Feature Inventory 1.0.0 | Features F-01 – F-11 and SYS-01, dependencies, sprint allocation |
-| RTM 1.0.0 | Requirement → feature → sprint → AC → test traceability |
+| SRS 1.1.0 | What the system must do (FR/BR/NFR, decisions Q1–Q49, Appendix A) |
+| Feature Inventory 1.1.0 | Features F-01 – F-11 and SYS-01, dependencies, sprint allocation |
+| RTM 1.1.0 | Requirement → feature → sprint → AC → test traceability |
 | **System-Level SDS (this document)** | How the system is structured and which rules apply to every feature |
 | Sprint plan | When each feature is built (`docs/sprints/plan.md`) |
 
@@ -63,7 +63,7 @@ flowchart LR
 | ------ | ------ | ------ |
 | **Web UI** | Screens, navigation, forms, display of server results and error messages, role-based menu visibility, early input hints | Be the only place a rule is enforced; hold business logic that decides outcomes |
 | **HTTP layer** | Routing, token verification, role check, ownership check, request validation, mapping errors to the error envelope | Contain business rules or SQL |
-| **Service layer** | One use case per operation (e.g. quick-complete, change plan item); enforces BR-01, BR-02, BR-05, BR-09 etc.; runs transactions | Read request/response objects or the system clock directly |
+| **Service layer** | One use case per operation (e.g. quick-complete, change plan item); enforces BR-01, BR-02, BR-05, BR-09 etc.; runs transactions; entry and Quick Complete writes for one exercise and day take a row lock on `UserExercise` (`SELECT … FOR UPDATE`, SRS Q45) | Read request/response objects or the system clock directly |
 | **Domain functions** | Pure, deterministic calculations: item score, daily overall %, monthly average, streak, estimated minutes, calories, plan resolution | Touch the database, clock or network |
 | **Data access** | Prisma queries, always filtered by owner where data is private | Decide permissions |
 | **PostgreSQL** | Persistence, referential integrity, CHECK constraints as a last line of defense | Hold business logic in triggers |
@@ -185,7 +185,7 @@ Every private row has a `userId` owner link. `createdAt` (and `updatedAt` where 
 | **UserExercise** | `id`, `userId`, `sourceTemplateId`, `name`, `targetBodyPart`, `unit`, `trackingMode`, `metValue`, `cardioCategory`, `rangeMin`, `rangeMax`, `isCustom` | Snapshot copied at selection time; `sourceTemplateId` is a plain column **without a foreign key**, so template edits/deletes never alter it (Decision 12, AC-27); custom exercises get default METs from SRS Appendix A.1 | 1 |
 | **PlanItem** | `id`, `planKey`, `version`, `userId`, `userExerciseId`, `targetSets`, `targetRepsPerSet`, `loadKg`, `targetDurationSec`, `targetDistanceKm`, `priorityWeight`, `repeatDays`, `effectiveFrom`, `endDate` | Target columns used depend on `trackingMode` (Q21); `priorityWeight` 1–5 integer; `repeatDays` is a Monday–Sunday bitmask (default: all days); unique (`planKey`, `version`); rows are **never updated in place** — a goal change inserts a new version (F-07) | 1 (S2 adds versions) |
 | **LedgerEntry** | `id`, `userId`, `userExerciseId`, `logDate`, `sets`, `totalReps`, `durationSec`, `distanceKm`, `kind` (`MANUAL` / `QUICK_COMPLETE`) | Values non-negative and within BR-02 (`totalReps ≤ sets × 200`); `logDate` equals the creation date (Asia/Bangkok); editable/deletable only while `logDate` is today (BR-09); duration stored in seconds | 1 (S2 edit/delete) |
-| **WeightLog** | `id`, `userId`, `weightKg`, `effectiveDate` | **Append-only**: no update/delete operation exists; `weightKg` CHECK between 1 and 800; queried via latest `effectiveDate <= logDate` (AC-28a–c) | 1 |
+| **WeightLog** | `id`, `userId`, `weightKg`, `effectiveDate` | **Append-only**: no update/delete operation exists; `weightKg` CHECK between 1 and 800 (one decimal place, SRS Q44); queried via latest `effectiveDate <= logDate` (AC-28a–c) | table and seed: 1; profile endpoints: 2 |
 | **ReminderSetting** | `id`, `userId`, `timeOfDay` (HH:mm), `repeatDays`, `label`, `enabled` | Stored and displayed only; no delivery component exists (Exclusion 6) | 3 |
 
 Indexes: `LedgerEntry(userId, logDate)`, `PlanItem(userId, effectiveFrom)`, `WeightLog(userId, effectiveDate)`, `UserExercise(userId)`, `RevokedToken(expiresAt)`.
@@ -220,7 +220,7 @@ Item Score, Daily Overall %, monthly average, Streak, estimated minutes, calorie
 | Participant | **History & Streak** | Past days, daily %, current Streak | F-08 |
 | Participant | **Schedule & Reminders** | Week/month schedule, reminder settings (display only) | F-09 |
 | Participant | **Monthly Summary** | Monthly report | F-10 |
-| Participant | **Profile** | View/update body weight | F-04 |
+| Participant | **Profile** | View/update body weight (Sprint 2, CHANGE-04) | F-04 |
 
 Route guards hide screens a role cannot use, but this is **not** authorization; the API rejects the request regardless (Section 6).
 
@@ -263,8 +263,8 @@ Exact request/response shapes are defined in each feature contract; this catalog
 | `PUT /api/plan-items/:id` (creates a new version) | F-07 | 2 |
 | `GET/POST /api/entries`, `GET /api/entries/:id`, `POST /api/entries/quick-complete` | F-04 | 1 |
 | `PUT/DELETE /api/entries/:id` | F-05 | 2 |
-| `GET /api/progress/daily?date=`, `GET /api/progress/monthly?month=` | F-06 (kcal fields: F-11) | 1 (2) |
-| `GET/PUT /api/profile` | F-04 | 1 |
+| `GET /api/progress/daily?date=`, `GET /api/progress/monthly?month=` | F-06 (kcal fields: F-11) | daily: 1; monthly (AC-15, CHANGE-06) and kcal fields: 2 |
+| `GET/PUT /api/profile` | F-04 | 2 (CHANGE-04) |
 | `GET /api/history`, `GET /api/streak` | F-08 | 2 |
 | `GET /api/schedule?view=`, `GET/POST /api/reminders`, `PUT/DELETE /api/reminders/:id` | F-09 | 3 |
 | `GET /api/summary?month=` | F-10 | 3 |
