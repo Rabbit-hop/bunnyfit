@@ -15,7 +15,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 4 Nov 2026 | Initial draft: sprint goals, feature allocation, dependencies, schedule against the course calendar, Lab alignment, risks, Product Definition of Done | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Clarified FR-03 allocation across Sprint 1 (F-03: initial goal setting) and Sprint 2 (F-07: mid-month reconfiguration & plan versioning). Aligned RTM AC coverage, error codes, and persisted `ReminderSetting` scope with SRS 1.0.0 and SDS 1.0.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
-| **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. Review-fix pass before merge: SRS Baseline Version header 1.1.0 (SRS and Feature Inventory also 1.1.0); Section 4.2 / 4.3 / 4.5 no longer list profile (FR-08), AC-15, AC-17 or AC-21a as Sprint 1 work; Section 7 BR-03 → Sprint 1, 2 and FR-04 notes its deferred F-04 AC. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. Review-fix pass before merge: SRS Baseline Version header 1.1.0 (SRS and Feature Inventory also 1.1.0); Section 4.2 / 4.3 / 4.5 no longer list profile (FR-08), AC-15, AC-17 or AC-21a as Sprint 1 work; Section 7 BR-03 → Sprint 1, 2 and FR-04 notes its deferred F-04 AC. Review-fix pass (PR #13): §4.7 AC-21a is Sprint 2 and the four added AC are no longer called "proposed"; NFR-03 target 1, 2, 3; §8 ownership updated — Nakagamon authored the F-03, F-04 and F-06 contracts and Onsinee reviews (the earlier proposal had them reversed). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 
 --------------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ Each feature contract (AC + STS + DoD) is written and committed **before** its i
 | Tier | AC | Count | Notes |
 | ------ | ------ | :---: | ------ |
 | **A (must)** | All Sprint 1 AC not in Tier B — auth, roles, ownership, templates, goal, logging, Quick Complete, no-backdating, boundaries, scoring, persistence, journey AC-25; plus AC-01f (login validation, added 6 Nov, Tier A) | 38 | Needed for the course's minimum Sprint 1 outcome |
-| **B (cut candidates, in order)** | 1. AC-21a (Sprint 1 latency, re-verified in Sprint 3) · 2. AC-17a–d (profile endpoints, move with F-11) · 3. AC-16a–b (custom exercise defaults) · 4. AC-15 (monthly average) · 5. AC-10c and AC-04c (edge cases) · 6. AC-02d, AC-03d, AC-04d, AC-06g (AC proposed by the Sprint 1 contracts, added 6 Nov) | 14 | Each is already covered again or can start in Sprint 2 without breaking the journey |
+| **B (cut candidates, in order)** | 1. AC-21a (Sprint 2 latency; AC-21b is the Sprint 3 full re-verification) · 2. AC-17a–d (profile endpoints, move with F-11) · 3. AC-16a–b (custom exercise defaults) · 4. AC-15 (monthly average) · 5. AC-10c and AC-04c (edge cases) · 6. AC-02d, AC-03d, AC-04d, AC-06g (AC added and approved with the Sprint 1 contracts, 6 Nov) | 14 | Each is already covered again or can start in Sprint 2 without breaking the journey |
 
 **Executed at the checkpoint on Fri 6 Nov 2026:** no Tier A test had been written yet, so **all 14 Tier B AC moved to Sprint 2** and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0. Sprint 1 therefore runs with **38 atomic AC**; the deferred AC keep their STS in the Sprint 1 contracts and are verified with their features (F-02, F-03, F-04, F-06) during Sprint 2.
 
@@ -189,20 +189,20 @@ Generated from the Feature Inventory audit matrix (single source of truth).
 | **BR-12** | Estimated Duration & Calorie Calculation via METs (Historical `WeightLog` Lookup) | F-11 | Sprint 2 |
 | **NFR-01** | Performance ($p95 < 500\text{ ms}$ under 50 concurrency; login measured separately) | F-06, SYS-01 | Sprint 2, 3 |
 | **NFR-02** | Security & Access Control (HTTP 401 Unauthorized / HTTP 403 Forbidden), Endpoint Access Matrix grows each sprint | F-01, SYS-01 | Sprint 1, 2, 3 |
-| **NFR-03** | Usability & Validation Feedback (Clear UI Error Notices) | F-04, SYS-01 | Sprint 1, 3 |
+| **NFR-03** | Usability & Validation Feedback (Clear UI Error Notices) | F-04, F-05, SYS-01 | Sprint 1, 2, 3 |
 | **NFR-04** | Data Persistence & Durability (Survives Application Restart and GCP Redeployment) | F-04, SYS-01 | Sprint 1, 3 |
 
 --------------------------------------------------------------------------------
 
-#### 8. Feature Dependencies and Proposed Ownership
-| Feature | Sprint | Depends on | Primary author (proposed) | Reviewer |
+#### 8. Feature Dependencies and Ownership
+| Feature | Sprint | Depends on | Primary author | Reviewer |
 | ------ | :---: | ------ | ------ | ------ |
 | Foundation (schema, seed, harness) | 1 | - | Nakagamon (67070501064) | Onsinee (67070501078) |
 | F-01 | 1 | - | Nakagamon (67070501064) | Onsinee (67070501078) |
 | F-02 | 1 | F-01 | Nakagamon (67070501064) | Onsinee (67070501078) |
-| F-03 | 1 | F-01, F-02 | Onsinee (67070501078) | Nakagamon (67070501064) |
-| F-04 | 1 | F-01, F-03 | Onsinee (67070501078) | Nakagamon (67070501064) |
-| F-06 | 1 | F-04 | Onsinee (67070501078) | Nakagamon (67070501064) |
+| F-03 | 1 | F-01, F-02 | Nakagamon (67070501064) | Onsinee (67070501078) |
+| F-04 | 1 | F-01, F-03 | Nakagamon (67070501064) | Onsinee (67070501078) |
+| F-06 | 1 | F-04 | Nakagamon (67070501064) | Onsinee (67070501078) |
 | F-07 | 2 | F-03, F-04, F-06 | Nakagamon (67070501064) | Onsinee (67070501078) |
 | F-08 | 2 | F-03, F-04, F-06, F-07 | Nakagamon (67070501064) | Onsinee (67070501078) |
 | F-05 | 2 | F-04 | Onsinee (67070501078) | Nakagamon (67070501064) |

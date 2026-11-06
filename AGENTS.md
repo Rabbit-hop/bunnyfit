@@ -1,14 +1,14 @@
 # AGENTS.md
 
 ## Working rules (user-mandated — follow always)
-1. **Read before deciding.** Before any decision about scope, behavior, tests, workflow or grading, read these first (in order of relevance): `docs/features.md`, `docs/srs.md`, `docs/system-sds.md`, `docs/traceability.md`, `docs/sprints/plan.md`, `docs/local/group_work_specs_v1.md`, `docs/local/project_deliverable_1_v1.md`. Do not decide from filenames or memory — the docs are the contract.
+1. **Read before deciding.** Before any decision about scope, behavior, tests, workflow or grading, read these first (in order of relevance): `docs/features.md`, `docs/srs.md`, `docs/system-sds.md`, `docs/traceability.md`, `docs/sprints/plan.md`, `docs/local/group_work_specs_v1.md`, `docs/local/project_deliverable_1_v1.md` (the `docs/local/` files are local-only and git-ignored, so they are not in the repo). Do not decide from filenames or memory — the docs are the contract.
 2. **Commit yes, push never.** Creating/updating local commits is allowed; **pushing anything is forbidden** (branches, tags, `main`, staging — nothing). No `git push`, no force-push, no `--set-upstream`. The user pushes manually when ready.
 3. **PR drafts only after user confirmation.** When the user confirms a feature/issue is *actually done*, draft the pull request as an **English `.md` file** at `docs/local/pr-drafts/pr-<issue-or-feature-id>.md`. Never draft one speculatively; ask the user questions first if anything about the change is unclear.
 
 ## What this repo is
 - CPE 334 two-person course project **bunnyfit** (Habit & Activity Tracking, exercise domain). Graded deliverables cite repo tags/commits and `docs/` paths, so doc/commit/branch hygiene is part of the product.
 - **Docs-first, contract-first:** each feature's contract (`docs/sprints/sprint-N/F-xx.md`: feature SDS, AC, STS, DoD) must be committed as a *spec-only commit before* its implementation. Never silently rewrite docs — add a version row in the revision history instead.
-- As of 5 Nov 2026 only `README.md` is committed. The docs baseline (`docs/srs.md`, `docs/traceability.md`, `docs/system-sds.md`, `docs/features.md`, `docs/sprints/plan.md`, `AGENTS.md`, `.gitignore`) lands on a `docs/…` branch → PR into `staging/sprint-1` with teammate review (group_work_specs §5.3/§8.3: no direct commits to staging; push remains forbidden per working rule 2). **Excluded from that commit:** `docs/sprints/sprint-1/` contracts stay uncommitted until reviewed by the partner; **`docs/local/` is internal working notes and is git-ignored — never commit it.** Scaffold per the SDS layout below and document build/test commands in `README.md`.
+- Repo state: the docs baseline lands via PR #13 (`docs/baseline-v1` → `staging/sprint-1`) and is under review; code starts on `feature/sys01-foundation`. The docs baseline (`docs/srs.md`, `docs/traceability.md`, `docs/system-sds.md`, `docs/features.md`, `docs/sprints/plan.md`, `AGENTS.md`, `.gitignore`) lands on a `docs/…` branch → PR into `staging/sprint-1` with teammate review (group_work_specs §5.3/§8.3: no direct commits to staging; push remains forbidden per working rule 2). **Excluded from that commit:** `docs/sprints/sprint-1/` contracts are committed separately as spec-only commits and reviewed in the same PR; **`docs/local/` is internal working notes and is git-ignored — never commit it.** Scaffold per the SDS layout below and document build/test commands in `README.md`.
 
 ## Sources of truth (precedence on conflict)
 1. `docs/system-sds.md` — stack, data model, API/auth/error conventions, route policy, config, CI plan. Rules that every contract must follow.
@@ -22,7 +22,7 @@
 - `github_issues.md` — snapshot of GitHub issues taken 5 Nov 2026; may go stale. Get live state with `gh issue list --repo Rabbit-hop/bunnyfit --state all`.
 - `pr-drafts/` — English PR drafts, created only per working rule 3.
 - **De facto assignment (from GitHub issues, newer than `plan.md` §4.5):** Nakagamon = `fahsai-02` owns issues #1, #3, #4, #5, #6, #11 (foundation, backend F-01/F-03/F-04/F-06, contracts/test output); Onsinee = `justfepwx12` owns #2, #7–#10, #12 (Prisma+scaffold, all UI, PDF). Where `plan.md` §4.5 and the issues disagree, **the issues win** (they are the graded tracking artifact and were created later).
-- **Known gap:** contract `docs/sprints/sprint-1/F-06-*.md` does not exist yet although issues #6 and #11 reference it; owner to be decided between the pair (per plan §8, Onsinee authors F-06).
+- Sprint 1 contracts F-01, F-02, F-03, F-04 and F-06 exist in `docs/sprints/sprint-1/`; Nakagamon is primary author of all five and Onsinee reviews (plan §8).
 
 ## Stack (decided — SDS §2.1)
 TypeScript everywhere; Node + Express API that also serves the built React SPA (one origin, no CORS); PostgreSQL + Prisma (committed migrations: `prisma migrate dev` locally, `migrate deploy` in CI); Vitest + Supertest (integration tests hit a **real** Postgres test DB via `DATABASE_URL_TEST`, not mocks); Playwright E2E; multi-stage Docker; GitHub Actions → GCP (Lab 5).
@@ -50,5 +50,5 @@ Planned layout (SDS §2.5): `server/` (routes, middleware, services, domain, rep
 - Sprint 1 scope = **F-01, F-02, F-03, F-04, F-06** only (F-05 and F-11 are deferred to Sprint 2 as CHANGE-01/02). Build order: Foundation (schema, migrations, seed, route-policy registry, test harness, Clock) → F-01 → F-02 → F-03 → F-04 → F-06 → UI → AC-25 journey.
 
 ## Secrets and config
-- Commit `.env.example` with placeholders only; real values live in untracked `.env` (there is **no `.gitignore` yet** — create one before adding env files). Secrets are a graded check: never commit real credentials.
+- Commit `.env.example` with placeholders only; real values live in untracked `.env` (`.gitignore` already excludes `.env` and `docs/local/`; keep it that way). Secrets are a graded check: never commit real credentials.
 - Required vars (SDS §8): `DATABASE_URL`, `DATABASE_URL_TEST`, `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS`, `BCRYPT_COST`, `APP_TIMEZONE`, `SEED_MANAGER_PASSWORD`, `SEED_PARTICIPANT_PASSWORD`, `PORT`, `NODE_ENV`, `LOG_LEVEL`.
