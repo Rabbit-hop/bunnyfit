@@ -25,9 +25,9 @@ single-page app, with PostgreSQL accessed through Prisma.
    ```
 
    `.env` is git-ignored and must never be committed; `.env.example` lists every
-   variable name with a placeholder (SDS §8). Application code reads environment
-   variables only through `server/config/env.ts`; the Prisma CLI and seed read
-   `DATABASE_URL` directly.
+   variable name with a placeholder (SDS §8). Application code and the seed read
+   environment variables only through `server/config/env.ts`; the Prisma CLI
+   reads `DATABASE_URL` directly.
 
 3. Create the databases named in `DATABASE_URL` and `DATABASE_URL_TEST`, then
    generate the client, apply migrations and seed:

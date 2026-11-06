@@ -1,10 +1,10 @@
-import 'dotenv/config'
 import { CardioCategory, PrismaClient, Role, TrackingMode } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { env } from '../server/config/env.js'
 
 const prisma = new PrismaClient()
 
-const bcryptCost = Number(process.env.BCRYPT_COST ?? 10)
+const bcryptCost = env.bcryptCost
 
 const users = [
   {
@@ -120,7 +120,7 @@ function unitFor(mode: TrackingMode) {
 
 function bangkokToday() {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: process.env.APP_TIMEZONE ?? 'Asia/Bangkok',
+    timeZone: env.appTimezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -148,11 +148,7 @@ async function seedUsers() {
 
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {
-        passwordHash,
-        role: user.role,
-        displayName: user.displayName,
-      },
+      update: {},
       create: {
         email: user.email,
         passwordHash,
@@ -209,32 +205,49 @@ async function seedLibrary(managerId: string) {
           name: template.name,
         },
       },
-      update: data,
+      update: {},
       create: data,
     })
   }
 }
 
+const weightHistory = [
+  { date: '2026-11-01', weightKg: 71.2 },
+  { date: '2026-11-02', weightKg: 71.0 },
+  { date: '2026-11-03', weightKg: 70.8 },
+  { date: '2026-11-04', weightKg: 70.5 },
+] as const
+
 async function seedWeightLogs() {
   const alice = await prisma.user.findUniqueOrThrow({
     where: { email: 'alice@exercise.test' },
   })
-  const effectiveDate = bangkokToday()
-  const existing = await prisma.weightLog.findFirst({
-    where: {
-      userId: alice.id,
-      effectiveDate,
-    },
-  })
 
-  if (!existing) {
-    await prisma.weightLog.create({
-      data: {
+  const rows = [
+    ...weightHistory.map((row) => ({
+      effectiveDate: new Date(`${row.date}T00:00:00.000Z`),
+      weightKg: row.weightKg,
+    })),
+    { effectiveDate: bangkokToday(), weightKg: 70 },
+  ]
+
+  for (const row of rows) {
+    const existing = await prisma.weightLog.findFirst({
+      where: {
         userId: alice.id,
-        weightKg: 70,
-        effectiveDate,
+        effectiveDate: row.effectiveDate,
       },
     })
+
+    if (!existing) {
+      await prisma.weightLog.create({
+        data: {
+          userId: alice.id,
+          weightKg: row.weightKg,
+          effectiveDate: row.effectiveDate,
+        },
+      })
+    }
   }
 }
 

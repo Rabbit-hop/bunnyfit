@@ -14,11 +14,16 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 800 } },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 360, height: 800 },
+        hasTouch: true,
+        isMobile: true,
+      },
     },
   ],
   webServer: {
-    command: 'pnpm run dev -- --host 127.0.0.1 --port 5173',
+    command: 'pnpm run dev:web',
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

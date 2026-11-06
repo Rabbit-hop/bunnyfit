@@ -15,8 +15,8 @@
   "include": [
     "playwright.config.ts",
     "vitest.config.ts",
+    "tests/globalSetup.ts",
     "web/vite.config.ts",
-    "prisma/seed.ts",
-    "tests/**/*.ts"
+    "prisma/seed.ts"
   ]
 }

@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { PrismaClient } from '@prisma/client'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const databaseUrl = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL
+const databaseUrl = process.env.DATABASE_URL_TEST
+
+if (!databaseUrl && process.env.CI === 'true') {
+  throw new Error(
+    'DATABASE_URL_TEST is required to run the persistence suite in CI (AC-24a / TEST-24a).',
+  )
+}
+
 const describeWithDatabase = databaseUrl ? describe : describe.skip
 
 describeWithDatabase('AC-24a data persistence after application restart', () => {
@@ -10,17 +17,18 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
   const email = `persistence-${suffix}@exercise.test`
   const jti = `persistence-${suffix}`
   const planKey = randomUUID()
+  const categoryName = `Persistence Category ${suffix}`
   const effectiveDate = new Date('2026-11-05T00:00:00.000Z')
 
   let prisma: PrismaClient
-  let managerId: string
-  let participantId: string
+  let managerId: string | undefined
+  let participantId: string | undefined
 
   beforeAll(async () => {
     prisma = new PrismaClient({
       datasources: {
         db: {
-          url: databaseUrl!,
+          url: databaseUrl,
         },
       },
     })
@@ -47,7 +55,7 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
 
     const category = await prisma.category.create({
       data: {
-        name: `Persistence Category ${suffix}`,
+        name: categoryName,
       },
     })
 
@@ -120,8 +128,6 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
         expiresAt: new Date('2026-11-06T00:00:00.000Z'),
       },
     })
-
-    await prisma.$disconnect()
   })
 
   afterAll(async () => {
@@ -129,53 +135,71 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
       return
     }
 
+    // Delete only rows created by this suite. Guard on the ids: Prisma treats
+    // `where: { userId: undefined }` as "no filter", which would wipe a table.
     await prisma.revokedToken.deleteMany({ where: { jti } })
-    await prisma.ledgerEntry.deleteMany({ where: { userId: participantId } })
-    await prisma.weightLog.deleteMany({ where: { userId: participantId } })
     await prisma.planItem.deleteMany({ where: { planKey } })
-    await prisma.userExercise.deleteMany({ where: { userId: participantId } })
-    await prisma.exerciseTemplate.deleteMany({ where: { createdById: managerId } })
-    await prisma.category.deleteMany({ where: { name: `Persistence Category ${suffix}` } })
-    await prisma.user.deleteMany({ where: { id: { in: [managerId, participantId] } } })
+    if (participantId) {
+      await prisma.ledgerEntry.deleteMany({ where: { userId: participantId } })
+      await prisma.weightLog.deleteMany({ where: { userId: participantId } })
+      await prisma.userExercise.deleteMany({ where: { userId: participantId } })
+    }
+    if (managerId) {
+      await prisma.exerciseTemplate.deleteMany({ where: { createdById: managerId } })
+    }
+    await prisma.category.deleteMany({ where: { name: categoryName } })
+    const userIds = [managerId, participantId].filter((id): id is string => Boolean(id))
+    if (userIds.length > 0) {
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } })
+    }
+
     await prisma.$disconnect()
   })
 
   it('keeps plans, entries, weight logs and revoked tokens after reconnecting', async () => {
-    prisma = new PrismaClient({
+    // AC-24a says "after a server restart". The HTTP API for plans, entries and
+    // weight logs does not exist yet (F-03/F-04), so this test simulates the
+    // restart by disposing the client and opening a brand-new connection.
+    // Extend it to go through Supertest once those endpoints land (RTM TEST-24a).
+    const restarted = new PrismaClient({
       datasources: {
         db: {
-          url: databaseUrl!,
+          url: databaseUrl,
         },
       },
     })
 
-    const restored = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        planItems: true,
-        ledgerEntries: true,
-        weightLogs: true,
-        revokedTokens: true,
-        userExercises: true,
-      },
-    })
+    try {
+      const restored = await restarted.user.findUnique({
+        where: { email },
+        include: {
+          planItems: true,
+          ledgerEntries: true,
+          weightLogs: true,
+          revokedTokens: true,
+          userExercises: true,
+        },
+      })
 
-    expect(restored).not.toBeNull()
-    expect(restored?.planItems).toHaveLength(1)
-    expect(restored?.planItems[0]).toMatchObject({
-      planKey,
-      version: 1,
-      repeatDays: 127,
-    })
-    expect(restored?.ledgerEntries).toHaveLength(1)
-    expect(restored?.ledgerEntries[0]).toMatchObject({
-      sets: 3,
-      totalReps: 30,
-      kind: 'MANUAL',
-    })
-    expect(restored?.weightLogs).toHaveLength(1)
-    expect(Number(restored?.weightLogs[0].weightKg)).toBe(70)
-    expect(restored?.revokedTokens).toHaveLength(1)
-    expect(restored?.revokedTokens[0].jti).toBe(jti)
+      expect(restored).not.toBeNull()
+      expect(restored?.planItems).toHaveLength(1)
+      expect(restored?.planItems[0]).toMatchObject({
+        planKey,
+        version: 1,
+        repeatDays: 127,
+      })
+      expect(restored?.ledgerEntries).toHaveLength(1)
+      expect(restored?.ledgerEntries[0]).toMatchObject({
+        sets: 3,
+        totalReps: 30,
+        kind: 'MANUAL',
+      })
+      expect(restored?.weightLogs).toHaveLength(1)
+      expect(Number(restored?.weightLogs[0]?.weightKg)).toBe(70)
+      expect(restored?.revokedTokens).toHaveLength(1)
+      expect(restored?.revokedTokens[0]?.jti).toBe(jti)
+    } finally {
+      await restarted.$disconnect()
+    }
   })
 })
