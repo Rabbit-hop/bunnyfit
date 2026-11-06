@@ -41,6 +41,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
     return;
   }
 
+  // Body larger than the parser limit → client error, never 5xx (A.5 has no 413 code).
+  if (parseFailure.type === 'entity.too.large') {
+    envelope(res, 400, { code: 'VALIDATION_ERROR', message: 'Request body is too large', fields: [] });
+    return;
+  }
+
   // Unexpected error: log the full detail server-side only, answer generically.
   console.error('[unhandled]', err);
   envelope(res, 500, { code: 'INTERNAL_ERROR', message: 'Internal server error', fields: [] });

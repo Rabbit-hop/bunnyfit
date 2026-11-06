@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { createApp } from '../../server/app.js';
 import { AppError } from '../../server/domain/errors.js';
 import { errorHandler, validationError } from '../../server/middleware/errorHandler.js';
 
@@ -46,5 +47,17 @@ describe('global error handler (SRS Appendix A.5)', () => {
     // ...but the detail IS logged server-side
     expect(log).toHaveBeenCalledOnce();
     log.mockRestore();
+  });
+});
+
+describe('oversized request bodies (client error, never 5xx)', () => {
+  it('answer 400 VALIDATION_ERROR envelope instead of 500', async () => {
+    const res = await request(createApp())
+      .post('/api/health')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ pad: 'x'.repeat(200 * 1024) }));
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'VALIDATION_ERROR', fields: [] });
+    expect(JSON.stringify(res.body)).not.toMatch(/stack|PayloadTooLarge/i);
   });
 });
