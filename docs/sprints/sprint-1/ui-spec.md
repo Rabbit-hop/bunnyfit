@@ -2,10 +2,10 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.5.0
+**Document Version:** 0.6.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
-**Status:** Draft: specification-only, awaiting reviewer approval before implementation
+**Status:** Approved: specification-only, implementation may start
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/ui-spec.md`
 **Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Participant navigation in Sprint 1 is Today and My Plan; Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06). The wider five-tab design is scheduled for later sprints and is not a Sprint 1 gate.
@@ -18,7 +18,7 @@
 | Feature Inventory | 1.1.0 | Feature scope and dependencies |
 | System-Level SDS | 1.1.0 | Stack, data model, UI conventions, routes and roles |
 | RTM | 1.1.0 | 28 AC groups / 80 atomic AC and target test paths |
-| API Specification | 0.5.0 | Reconciled HTTP contract used by this UI |
+| API Specification | 0.6.0 | Reconciled HTTP contract used by this UI |
 
 **Document Revision History**
 
@@ -27,6 +27,7 @@
 | **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Monthly progress (S-06) and Profile (S-07) marked Sprint 2 (CHANGE-06/04); Sprint 1 navigation excludes both routes; Sprint 1 is mobile-first, with tablet and desktop layouts optional in Sprint 2. | Onsinee | Draft |
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, API 0.4.0, category endpoint for S-04, Today/Rest Day discriminator and observable disabled controls, Quick Complete No-op behavior, exact contract copy, session-header test ids, and traceability/nit fixes. No baseline or contract change. | Onsinee | Draft |
 | **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: aligned S-04 to the F-03 two-tab Add Exercise dialog, aligned contract copy and empty states, moved the start date to the server `date` and extended the today rule to every date-aware screen, added the ledger time/value/kind and remaining-limit/range helper text, labelled AC-25 extras as supplementary, and fixed the health/test-id/viewport notes. No baseline or contract change. | Onsinee | Draft |
+| **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved and the API Specification reference updated to 0.6.0; no UI, baseline or contract content changed. | Onsinee | Approved |
 
 **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence over this consolidated specification. The exact request/response shapes and rules in the F-xx contracts are authoritative; the UI may not depend on removed endpoints or fields. The v0.2.0 draft is reconciliation history only.
 

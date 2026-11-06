@@ -2,10 +2,10 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.5.0
+**Document Version:** 0.6.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
-**Status:** Draft: specification-only, awaiting reviewer approval before implementation
+**Status:** Approved: specification-only, implementation may start
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
@@ -34,6 +34,7 @@
 | **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Profile endpoints and monthly progress marked Sprint 2 (CHANGE-04/06); AC-27 test path aligned to `template_snapshot.test.ts`. | Onsinee | Draft |
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, Sprint route column, plan/entry shape and mode rules, Rest Day/Quick Complete semantics, full traceability rows, and resolved repository-layout and `BODY_WEIGHT_REQUIRED` wording. No baseline or contract change. | Onsinee | Draft |
 | **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: stated the health response shape and public-route matrix exception, removed the JSON key-order claim and the PR citation from the layout note, added mode-discriminator rejection and per-entry minimums, and restricted the Quick Complete validation order to the order defined by F-04. No baseline or contract change. | Onsinee | Draft |
+| **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved; no specification, baseline or contract content changed. | Onsinee | Approved |
 
 **Reconciled changes from the v0.2.0 draft**
 
