@@ -10,7 +10,7 @@
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
 
-> **Source-of-truth decision (6 Nov 2026):** the approved baseline and Sprint 1 contracts take precedence. The v0.2.0 draft's `/api/exercises` endpoints, `occursOn` query, `accessToken` field, `bodyWeightKg` profile fields, `id = planKey` plan-item shape, `metValue` 1–20 cap, `sec` unit, `loadKg` on ledger entries, `CARDIO_TIME` cardio category, and `item`/`overall` progress shapes are not adopted. Where the v0.2.0 draft is compatible, its wording and examples are retained.
+> **Source-of-truth rule:** the approved baseline and Sprint 1 contracts take precedence over the v0.2.0 draft.
 
 **Source baselines**
 
@@ -31,11 +31,11 @@
 
 | Version | Date | Description of Changes | Author(s) | Status |
 | --- | --- | --- | --- | --- |
-| **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from the user-supplied v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Profile endpoints and monthly progress marked Sprint 2 (CHANGE-04/06); AC-27 test path aligned to `template_snapshot.test.ts`. | Onsinee | Draft |
+| **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Profile endpoints and monthly progress marked Sprint 2 (CHANGE-04/06); AC-27 test path aligned to `template_snapshot.test.ts`. | Onsinee | Draft |
 
-**Reconciled changes from the v0.2.0 user draft**
+**Reconciled changes from the v0.2.0 draft**
 
-| Area | v0.2.0 | Reconciled decision |
+| Area | v0.2.0 draft | Final Sprint 1 specification |
 | --- | --- | --- |
 | Exercise selection | `GET/POST /api/exercises`, `GET /api/exercises/:id` | Removed. Snapshots are created inside `POST /api/plan-items`; participants read their snapshots with `GET /api/user-exercises` |
 | Plan reads | `GET /api/plan-items?occursOn=` | `GET /api/plan-items` lists all plan rows; `GET /api/plan?date=` resolves a date |
@@ -43,6 +43,7 @@
 | Profile | `bodyWeightKg`, `effectiveDate`; `PUT { bodyWeightKg }` | `currentWeightKg`, `weightEffectiveDate`; `PUT { weightKg }` |
 | Plan item identity | `id = planKey` stable across versions | Separate `id`, `planKey` and `version`; rows are never updated in place |
 | Template validity | `metValue` 1–20; unit `sec`; `cardioCategory` optional for `CARDIO_TIME` | `metValue` > 0 and <= 25; unit `seconds`; `cardioCategory` forbidden unless `CARDIO_DISTANCE` |
+| Template image | Optional `imageUrl` | Not in the Sprint 1 contracts; no image field or upload endpoint |
 | Valid Range | Bounds the primary per-entry value | Bounds the plan target; total reps for reps modes |
 | Ledger entry | Stores `loadKg` | No `loadKg` column in `LedgerEntry`; target `loadKg` stays on `PlanItem` |
 | Quick Complete | `sets = max(1, targetSets - loggedSets)` | Raise `sets` to `ceil(remainingReps / 200)` when needed; reject if no valid row fits |
@@ -50,14 +51,12 @@
 | Monthly progress | `averageOverallPct`, `days[].status` | `averagePercent`, `days[].isRestDay`; the UI derives `TARGETED` / `REST` / `FUTURE`; Sprint 2 (CHANGE-06) |
 | Profile sprint | Sprint 1 | Sprint 2 (CHANGE-04); AC-17a–d deferred, S-07 hidden in Sprint 1 |
 | Monthly progress sprint | Sprint 1 | Sprint 2 (CHANGE-06); AC-15 deferred |
-| Plan overlap | One active plan item per exercise (Q30) | Not adopted; F-03 defines no overlap rule |
-| Plan listing | Latest non-ended version only (Q32) | All plan rows ordered by `effectiveFrom`, then `createdAt` |
-| History range | 30-day default / 366-day maximum (Q34) | Retained; matches the baseline decision |
-| Calories | `calorieError` / null calories (Q35) | Retained; matches the baseline decision |
-| End date | Optional, no end when omitted (Q37) | Retained; matches the baseline decision |
-| Entry input | `sets` + `totalReps` (Q38) | Retained; matches the baseline decision |
+| Plan overlap | One active plan item per exercise | No overlap rule; F-03 allows the same template to be selected more than once |
+| Plan listing | Latest non-ended version only | `GET /api/plan-items` returns all rows ordered by `effectiveFrom`, then `createdAt`; `GET /api/plan?date=` resolves one date |
+| End date | Required or end of month | Optional; omitted means no end |
+| Entry input | Reps per set | `sets` + `totalReps`; the UI converts reps per set before sending |
 
-**Repository layout note:** SDS 1.1.0 currently lists `server/`, `web/` and `prisma/` at the repository root. The proposed issue #2 layout uses `client/` and `server/prisma/`. This document is layout-neutral; the layout decision must be recorded in the SDS/AGENTS before code is moved.
+**Repository layout note:** SDS 1.1.0 lists `server/`, `web/` and `prisma/` at the repository root. This document is layout-neutral; the layout decision must be recorded in the SDS/AGENTS before code is moved.
 
 --------------------------------------------------------------------------------
 
@@ -371,7 +370,7 @@ Rules:
 - `metValue` is greater than 0 and at most 25, with at most 1 decimal place.
 - Template name is 1-80 characters and unique within its category, case-insensitively.
 - `targetBodyPart` is 1-50 characters.
-- Valid Range must satisfy `rangeMin <= rangeMax`, with central maxima 4,000 reps, 10,800 seconds and 100 km.
+- Valid Range must satisfy `rangeMin <= rangeMax`; the maximum values are 4,000 reps, 10,800 seconds and 100 km.
 - A missing well-formed `categoryId` returns 404; a malformed `categoryId` returns 400.
 - Participant writes return 403 even if the body is invalid.
 
@@ -414,6 +413,8 @@ Custom request:
   "targetDistanceKm": 3.5
 }
 ```
+
+Custom exercise creation is part of Sprint 1; AC-03d and AC-16a-b are verified in Sprint 2 (CHANGE-05/08).
 
 `effectiveFrom`, `endDate` and `repeatDays` are optional. `effectiveFrom` defaults to today and must be today or later. `repeatDays` defaults to all seven days. Unknown fields are rejected.
 
@@ -595,8 +596,6 @@ Success `200`:
 | F-03 | `/api/plan-items`, `/api/user-exercises`, `/api/plan` | AC-03a-c, AC-03d *(Sprint 2)*, AC-16a-b *(Sprint 2)*, AC-27, AC-12a-c, AC-22c | `tests/integration/goal_config.test.ts`, `tests/integration/template_snapshot.test.ts` |
 | F-04 | `/api/entries`, `/api/entries/quick-complete`, `/api/profile` *(Sprint 2)* | AC-04a-b, AC-04c-d *(Sprint 2)*, AC-10a-b, AC-10c *(Sprint 2)*, AC-13a-c, AC-14a-b, AC-17a-d *(Sprint 2)*, AC-23, AC-24a | `tests/integration/daily_logging.test.ts`, `tests/integration/quick_complete.test.ts`, `tests/integration/profile.test.ts` *(Sprint 2)* |
 | F-06 | `/api/progress/daily`, `/api/progress/monthly` *(Sprint 2)* | AC-06a-f, AC-06g *(Sprint 2)*, AC-15 *(Sprint 2)*, AC-21a *(Sprint 2)* | `tests/unit/progress_calc.test.ts`, `tests/integration/progress_api.test.ts`, `tests/performance/latency.test.ts` |
-
-AC-27 uses `tests/integration/template_snapshot.test.ts` in RTM 1.1.0 and F-03 0.3.0; no path mismatch remains.
 
 --------------------------------------------------------------------------------
 

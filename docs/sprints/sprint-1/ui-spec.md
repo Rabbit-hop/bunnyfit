@@ -1,6 +1,6 @@
-### UI Specification (Sprint 1, hybrid scope)
+### UI Specification (Sprint 1)
 
-**Project Title:** Habit and Activity Tracking System (FitBunny)
+**Project Title:** Habit and Activity Tracking System (BunnyFit)
 **Course:** CPE 334 Software Engineering
 **Document Version:** 0.3.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
@@ -8,7 +8,7 @@
 **Status:** Draft: specification-only, awaiting reviewer approval before implementation
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/ui-spec.md`
-**Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06, with a hybrid UI scope agreed on 6 November 2026. Profile (S-07) and the monthly progress screen (S-06) are Sprint 2 (CHANGE-04/06).
+**Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Participant navigation in Sprint 1 is Today and My Plan; Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06). The wider five-tab design is scheduled for later sprints and is not a Sprint 1 gate.
 
 **Source baselines**
 
@@ -24,25 +24,29 @@
 
 | Version | Date | Description of Changes | Author(s) | Status |
 | --- | --- | --- | --- | --- |
-| **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from the user-supplied v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Monthly progress (S-06) and Profile (S-07) marked Sprint 2 (CHANGE-06/04); Sprint 1 navigation excludes both routes. | Onsinee | Draft |
+| **0.3.0** | 6 Nov 2026 | Initial committed draft. Reconciled from v0.2.0 against baseline 1.1.0 and Sprint 1 contracts 0.3.0. Monthly progress (S-06) and Profile (S-07) marked Sprint 2 (CHANGE-06/04); Sprint 1 navigation excludes both routes; Sprint 1 is mobile-first, with tablet and desktop layouts optional in Sprint 2. | Onsinee | Draft |
 
-**Source-of-truth decision (6 Nov 2026):** the approved baseline and Sprint 1 contracts take precedence over UI Specification v0.2.0. The UI may not depend on removed endpoints or fields.
+**Source-of-truth rule:** the approved baseline and Sprint 1 contracts take precedence over UI Specification v0.2.0. The UI may not depend on removed endpoints or fields.
 
-**Hybrid UI scope (6 Nov 2026):**
+**Sprint 1 UI scope:**
 
 - S-00 Welcome is a should-have and is not a gate for Sprint 1.
 - The daily progress panel stays on Today; the monthly progress screen (S-06) is Sprint 2 with AC-15 (CHANGE-06).
-- Manager templates and categories are combined into one Manager Library screen with two tabs.
+- Participant Sprint 1 navigation is Today and My Plan. Profile and monthly progress are Sprint 2; Calendar and other tabs are later.
+- Sprint 1 is mobile-first. Tablet and desktop layouts are optional and planned for Sprint 2.
+- Manager templates and categories use one **Exercise Library** screen, following the F-02 wording: a category list and a template table grouped by category.
 - Final artwork, colours and image assets are supplied by the user later; the tokens below are provisional.
 
-**Reconciled changes from the v0.2.0 user draft**
+**Reconciled changes from the v0.2.0 draft**
 
-| Area | v0.2.0 | Reconciled decision |
+| Area | v0.2.0 draft | Final Sprint 1 specification |
 | --- | --- | --- |
-| Routes | `/manager/templates`, `/manager/categories` | `/manager/library` with Templates and Categories tabs |
+| App name | Inconsistent app name | **BunnyFit** everywhere |
+| Participant navigation | Five tabs from Sprint 1 | Today and My Plan in Sprint 1; Profile and monthly progress in Sprint 2; other tabs later |
+| Manager navigation | Separate Templates and Categories screens | One **Exercise Library** at `/manager/library` with a category list and a template table grouped by category |
 | Welcome | Required S-00 | Optional S-00; ship without mascot if the asset is not available |
 | Exercise selection | X1/X2 endpoints | `GET /api/user-exercises` for existing snapshots; template and custom exercises are created by `POST /api/plan-items` |
-| Today | `quickCompleteAvailable` and `offPlanEntries` from D1 | Derive availability from `isRestDay` and `ratio`; read off-plan entries from `GET /api/entries` |
+| Today | `quickCompleteAvailable` and `offPlanEntries` from the daily progress response | Derive availability from `isRestDay` and `ratio`; read off-plan entries from `GET /api/entries` |
 | Log entry | Weight (kg) input stored as `loadKg` | No `loadKg` field in `LedgerEntry`; do not show the load input in Sprint 1 |
 | Progress daily | `item`, `overall`, `offPlanEntries` | `items`, `totalScore`, `totalWeight`, `overallPercent` |
 | Progress monthly | `averageOverallPct`, `days[].status` | `averagePercent`, `days[].isRestDay`; derive TARGETED / REST / FUTURE in the UI; Sprint 2 (CHANGE-06) |
@@ -58,29 +62,29 @@
 
 #### 1. Purpose and assumptions
 
-- The UI is a mobile-first responsive single-page app built with React and TypeScript. It is served by the API container and talks only to the `/api` endpoints in the API Specification.
+- The UI is a mobile-first single-page app built with React and TypeScript. It is served by the API container and talks only to the `/api` endpoints in the API Specification.
 - The UI is never an authority. Hiding a button or route does not protect data; the backend enforces role and ownership rules.
 - All displayed scores, percentages, dates, calories and cumulative values come from API responses. The UI does not recompute them.
 - The UI may derive presentation state only: for example, whether a month day is TARGETED, REST or FUTURE from `isRestDay` and the current date.
-- Routes and paths in this document are layout-neutral. The final SPA root (`web/` or `client/`) is decided after issue #1 merges.
+- Routes and paths in this document are layout-neutral. The final SPA root (`web/` or `client/`) is not fixed by this document.
 
 #### 2. Roles, routes and navigation
 
 | Route | Screen | Role | Sprint | API calls | AC |
 | --- | --- | --- | --- | --- | --- |
 | `/` | S-00 Welcome | Public | S1 should-have | Reads session only | None |
-| `/login` | S-01 Login | Public | S1 | A1 | AC-01a, AC-01b, AC-22a |
-| `/today` | S-02 Today | Participant | S1 | D1, E1, E2, E3, `GET /api/user-exercises` | AC-04a-b, AC-06, AC-10a-b, AC-13 |
-| modal | S-03 Log Entry | Participant | S1 | E1 | AC-04a, AC-10a-b, AC-11 |
-| `/plan` | S-05 My Plan | Participant | S1 | G2 | AC-03a, AC-03c |
-| `/plan/new` | S-04 Add to Plan | Participant | S1 | T1, G1 | AC-03a-c, AC-11 |
-| `/progress` | S-06 Monthly Progress | Participant | S2 (AC-15, CHANGE-06) | D1, M1 | AC-15 |
-| `/profile` | S-07 Profile | Participant | S2 (AC-17, CHANGE-04) | P1, P2 | AC-17a-d |
-| `/manager/library` | S-08 Manager Library | Manager | S1 | C1-C4, T1-T5 | AC-02a-c |
-| `/manager/library/templates/new`, `/manager/library/templates/:id` | S-09 Template Form | Manager | S1 | T2, T3, T4, C1 | AC-02a, AC-02b, AC-11 |
+| `/login` | S-01 Login | Public | S1 | `POST /api/auth/login` | AC-01a, AC-01b, AC-22a |
+| `/today` | S-02 Today | Participant | S1 | `GET /api/progress/daily`, `POST /api/entries`, `POST /api/entries/quick-complete`, `GET /api/entries`, `GET /api/user-exercises` | AC-04a-b, AC-06, AC-10a-b, AC-13 |
+| modal | S-03 Log Entry | Participant | S1 | `POST /api/entries` | AC-04a, AC-10a-b, AC-11 |
+| `/plan` | S-05 My Plan | Participant | S1 | `GET /api/plan-items` | AC-03a, AC-03c |
+| `/plan/new` | S-04 Add Exercise | Participant | S1 | `GET /api/templates`, `POST /api/plan-items` | AC-03a-c, AC-11 |
+| `/progress` | S-06 Monthly Progress | Participant | S2 (AC-15, CHANGE-06) | `GET /api/progress/daily`, `GET /api/progress/monthly` | AC-15 |
+| `/profile` | S-07 Profile | Participant | S2 (AC-17, CHANGE-04) | `GET /api/profile`, `PUT /api/profile` | AC-17a-d |
+| `/manager/library` | S-08 Exercise Library | Manager | S1 | `GET/POST /api/categories`, `PUT/DELETE /api/categories/:id`, `GET/POST /api/templates`, `GET/PUT/DELETE /api/templates/:id` | AC-02a-c |
+| `/manager/library/templates/new`, `/manager/library/templates/:id` | S-09 Template Form | Manager | S1 | `GET /api/templates/:id`, `POST /api/templates`, `PUT /api/templates/:id`, `GET /api/categories` | AC-02a, AC-02b, AC-11 |
 | `/403`, `*` | S-10 Error Pages | Any | S1 | None | AC-12a, AC-22b |
 
-**Navigation.** Participant Sprint 1: Today, Plan, Log out. Sprint 2 adds Progress and Profile (CHANGE-06/04). Manager: Library, Log out. On screens narrower than 640 px use a bottom tab bar; on wider screens use a top bar. After login: Participant goes to `/today`; Manager goes to `/manager/library`.
+**Navigation.** Participant Sprint 1: Today, My Plan, Log out. Sprint 2 adds Progress and Profile (CHANGE-06/04). Manager: Exercise Library, Log out. Sprint 1 uses a bottom tab bar on mobile. Tablet and desktop navigation is optional and planned for Sprint 2. After login: Participant goes to `/today`; Manager goes to `/manager/library`.
 
 **Entry rule.** An unauthenticated visitor opening `/` sees S-00. Its button goes to `/login`. A visitor with a valid session opening `/` or `/login` is redirected to their landing page.
 
@@ -92,7 +96,7 @@
 
 - Store the token in memory and `sessionStorage`. Send it as `Authorization: Bearer <token>`.
 - On app start call `GET /api/auth/me`. A 401 clears the session.
-- Log out: call A2, then clear state and go to `/login`, even if the call fails; show a notice when it fails.
+- Log out: call `POST /api/auth/logout`, then clear state and go to `/login`, even if the call fails; show a notice when it fails.
 - Any 401 `UNAUTHENTICATED`: clear the session and go to `/login?reason=expired` with a banner.
 - Any 403 `FORBIDDEN`: navigation goes to `/403`; an action on a loaded page shows an error notice.
 
@@ -131,7 +135,7 @@
 - The client checks only required, numeric, integer where needed, and greater than zero.
 - The server owns range and cap validation. Show its field errors inline and keep the entered values after a rejected submit.
 - Durations are entered as minutes and seconds and sent as `durationSec`; display `mm:ss`, or `h mm` at 60 minutes or more.
-- Distance is entered in km with up to 2 decimals. Weight is entered in kg with 1 decimal. Percentages and calories show 1 decimal.
+- Distance is entered in km with up to 2 decimals. Percentages and calories show 1 decimal. Body weight, in Sprint 2, is entered in kg with 1 decimal.
 - Reps modes ask for Sets and Reps per set, then send `sets` and `totalReps = sets * repsPerSet`.
 - Do not show a load/weight input in the Sprint 1 log form; `LedgerEntry` has no `loadKg` field.
 
@@ -142,11 +146,11 @@
 - If the page stays open past midnight, the server returns 400 `LOG_DATE_MISMATCH`; show the notice and reload Today.
 - No date picker exists for logging. Past days are read-only.
 
-##### 3.6 Accessibility and responsive behaviour
+##### 3.6 Accessibility and layout
 
 - Every input has a visible label. Show progress as text as well as a bar.
-- Touch targets are at least 44 px. Layout works from 360 px width.
-- Breakpoints: below 640 px single column; 640-1023 px top navigation; 1024 px and wider two-column Today.
+- Touch targets are at least 44 px. The Sprint 1 layout works from 360 px width in a single column.
+- Tablet and desktop layouts are optional and planned for Sprint 2.
 - Stop decorative motion when `prefers-reduced-motion` is set.
 
 ##### 3.7 Provisional design tokens
@@ -170,16 +174,16 @@ Use soft white for small body text on card teal. Do not use coral as a large bac
 ##### S-00 Welcome (should-have)
 
 - Public entry screen shown to unauthenticated visitors at `/`.
-- Content: FitBunny wordmark, tagline "Move More, Be Healthier", heading "Let's Get Moving!", Thai support text, optional mascot image, and the CTA "เริ่มต้นใช้งาน" that goes to `/login`.
+- Content: BunnyFit wordmark, tagline "Move More, Be Healthier", heading "Let's Get Moving!", Thai support text, optional mascot image, and the CTA "เริ่มต้นใช้งาน" that goes to `/login`.
 - No API call, no auto-advance, no RTM acceptance criterion.
 - If the original mascot artwork is unavailable, ship the wordmark, heading, support text and CTA without `welcome-mascot`. Never substitute a redrawn or generated rabbit.
-- Asset path follows the final SPA root, for example `<spa-root>/public/assets/fitbunny-mascot.png` plus `@2x`.
+- Asset path follows the final SPA root, for example `<spa-root>/public/assets/bunnyfit-mascot.png` plus `@2x`.
 - Test ids: `welcome-title`, `welcome-tagline`, `welcome-cta`, and `welcome-mascot` when the asset exists.
 
 ##### S-01 Login (F-01)
 
-- Fields: email and masked password. Button "Log in". No registration or password recovery links.
-- Flow: A1 returns 200; store the session and go to the role landing page.
+- Fields: email and masked password. Button "Sign in". No registration or password recovery links.
+- Flow: `POST /api/auth/login` returns 200; store the session and go to the role landing page.
 - 401 `INVALID_CREDENTIALS`: show the notice, clear the password, keep the email and focus the password field.
 - 400: show field errors.
 - Already logged in: redirect to the landing page. `?reason=expired` shows the session banner.
@@ -187,14 +191,14 @@ Use soft white for small body text on card teal. Do not use coral as a large bac
 
 ##### S-02 Today (F-04, F-06)
 
-- Header: date. The body-weight chip from P1 (`70.5 kg`, link to Profile, or "Set your body weight") is Sprint 2 with the Profile screen (CHANGE-04); daily overall progress card with a bar, `overallPercent` and `totalScore / totalWeight`.
+- Header: date. The body-weight chip from `GET /api/profile` (`70.5 kg`, link to Profile, or "Set your body weight") is Sprint 2 with the Profile screen (CHANGE-04); daily overall progress card with a bar, `overallPercent` and `totalScore / totalWeight`.
 - When `overallPercent` is null, show "Rest day" instead of a percentage.
 - Rest-day banner: "Rest day - nothing planned. You can still log activity; it is saved but not scored."
 - Plan item card for each `items[]`: name, tracking-mode badge, priority badge, target text, actual vs target, mini bar from `ratio`, item score, and buttons.
-- Quick Complete is enabled when the day is not a rest day and `ratio < 1`. It calls E2, then refreshes from D1 and E3. A 200 with `entry: null` shows "Already at or above target". When `ratio >= 1` the button reads "Completed" and is disabled.
+- Quick Complete is enabled when the day is not a rest day and `ratio < 1`. It calls `POST /api/entries/quick-complete`, then refreshes from `GET /api/progress/daily` and `GET /api/entries`. A 200 with `entry: null` shows "Already at or above target". When `ratio >= 1` the button reads "Completed" and is disabled.
 - "Log" opens S-03 for that exercise.
-- "Entries" expands the entries for that exercise from E3, with the source tag Manual or Quick.
-- Other activity today: list off-plan entries from E3 with an "Add activity" action. The picker lists existing snapshots from `GET /api/user-exercises`; there is no standalone create-exercise endpoint in Sprint 1. Creating a new snapshot requires adding it to the plan.
+- "Entries" expands the entries for that exercise from `GET /api/entries`, with the source tag Manual or Quick.
+- Other activity today: list off-plan entries from `GET /api/entries` with an "Add activity" action. The picker lists existing snapshots from `GET /api/user-exercises`; there is no standalone create-exercise endpoint in Sprint 1. Creating a new snapshot requires adding it to the plan. Rest Day free-form logging follows F-04; AC-04c-d are verified in Sprint 2 (CHANGE-07/08).
 - States: loading skeletons; error notice with Retry; first-time user with no plan shows "Plan your month" and a link to `/plan/new`.
 - Test ids: `today-date`, `today-overall-pct`, `item-<exerciseId>`, `item-quick-complete`, `item-log`, `rest-day-banner`, `add-activity`.
 
@@ -210,26 +214,26 @@ Title: "Log activity - {exercise}". Fields by mode:
 | `CARDIO_DISTANCE` | Distance (km) -> `distanceKm` |
 
 - Show a live preview such as "Adds 20 reps (2 x 10)".
-- Save calls E1 with `logDate`. Success closes the modal and refreshes the card. A 400 keeps it open with inline errors.
+- Save calls `POST /api/entries` with `logDate`. Success closes the modal and refreshes the card. A 400 keeps it open with inline errors.
 - Cancel discards. Save is disabled while pending.
 - Test ids: `log-sets`, `log-reps`, `log-duration-min`, `log-duration-sec`, `log-distance`, `log-save`.
 
 ##### S-05 My Plan (F-03)
 
-- List from G2: exercise name, mode, target, repeat-day chips, priority, date range.
+- List from `GET /api/plan-items`: exercise name, mode, target, repeat-day chips, priority, date range.
 - Empty state: "No plan yet" with a button "Add your first exercise" to `/plan/new`.
 - Button "Add exercise" goes to `/plan/new`.
 - Sprint 2 adds Edit and End actions.
 
-##### S-04 Add to Plan (F-03)
+##### S-04 Add Exercise (F-03)
 
 Two-step page with a step indicator.
 
 **Step 1 - Choose exercise.**
 
-- Templates tab: list from T1 grouped by category, with category and mode filters and client-side name search. Each card shows name, mode, body part and allowed range.
-- Custom tab: name, tracking mode, optional body part, and cardio category only for `CARDIO_DISTANCE`.
-- Selection or custom data is kept in wizard state. Do not call a create-exercise endpoint; Step 2 saves everything in one G1 request.
+- Templates tab: list from `GET /api/templates` grouped by category, with category and mode filters and client-side name search. Each card shows name, mode, body part and allowed range.
+- Custom tab: name, tracking mode, optional body part, and cardio category only for `CARDIO_DISTANCE`. The form is part of Sprint 1; AC-03d and AC-16a-b are verified in Sprint 2 (CHANGE-05/08).
+- Selection or custom data is kept in wizard state. Do not call a create-exercise endpoint; Step 2 saves everything in one `POST /api/plan-items` request.
 
 **Step 2 - Set goal.**
 
@@ -239,7 +243,7 @@ Two-step page with a step indicator.
 - Start date `effectiveFrom`: default today, minimum today.
 - End date: optional, empty by default.
 - Summary line, for example "Every day - 3 sets x 10 reps - from 9 Nov" or "Mon, Wed, Fri - ... - until 30 Nov".
-- Save calls G1 with `source: "TEMPLATE"` and `templateId`, or `source: "CUSTOM"` and `exercise`. A 201 creates both the snapshot and the plan item in one transaction and goes to `/plan` with a toast. A 400 shows inline errors. On failure neither row is stored.
+- Save calls `POST /api/plan-items` with `source: "TEMPLATE"` and `templateId`, or `source: "CUSTOM"` and `exercise`. A 201 creates both the snapshot and the plan item in one transaction and goes to `/plan` with a toast. A 400 shows inline errors. On failure neither row is stored.
 - Test ids: `template-card-<id>`, `wizard-continue`, `target-sets`, `target-reps`, `priority-<1..5>`, `repeat-day-<1..7>`, `plan-save`.
 
 ##### S-06 Monthly Progress (F-06) *(Sprint 2, CHANGE-06)*
@@ -248,9 +252,9 @@ Deferred to Sprint 2 with AC-15; this screen is not part of the Sprint 1 gate.
 
 - Month switcher with previous and next; do not go past the current month.
 - Summary: large `averagePercent` and "Based on N targeted days".
-- Use `days[]` from M1. Derive display state: date after today is FUTURE; `isRestDay` is REST; otherwise TARGETED.
+- Use `days[]` from `GET /api/progress/monthly`. Derive display state: date after today is FUTURE; `isRestDay` is REST; otherwise TARGETED.
 - TARGETED shows its percentage. REST shows "Rest" in muted style. FUTURE is disabled.
-- Selecting a day opens a read-only day drawer using D1. It has no log buttons.
+- Selecting a day opens a read-only day drawer using `GET /api/progress/daily`. It has no log buttons.
 - Empty state: "No targeted days this month".
 - Sprint 2 adds the streak badge.
 
@@ -259,23 +263,23 @@ Deferred to Sprint 2 with AC-15; this screen is not part of the Sprint 1 gate.
 Deferred to Sprint 2 with AC-17a-d; this screen is not part of the Sprint 1 gate.
 
 - Show display name, email (read-only), current weight and its effective date.
-- Field "Body weight (kg)" and Save call P2 with `{ "weightKg": ... }`.
+- Field "Body weight (kg)" and Save call `PUT /api/profile` with `{ "weightKg": ... }`.
 - Success toast and the new value; each save appends a new weight record.
 - Server 400 `VALIDATION_ERROR` is shown inline. If no weight exists, show "No weight set" and the hint "Needed to estimate calories" in Sprint 2.
-- Sprint label: P1/P2 and S-07 are Sprint 2 (CHANGE-04); RTM 1.1.0 defers AC-17 verification to Sprint 2. Do not claim AC-17 in the Sprint 1 gate.
+- Sprint label: `GET/PUT /api/profile` and S-07 are Sprint 2 (CHANGE-04); RTM 1.1.0 defers AC-17 verification to Sprint 2. Do not claim AC-17 in the Sprint 1 gate.
 
-##### S-08 Manager Library (F-02)
+##### S-08 Exercise Library (F-02)
 
-One screen at `/manager/library` with two tabs.
+One screen at `/manager/library` with two areas.
 
-**Templates tab**
+**Templates area**
 
 - Table of name, category, mode, body part, range, MET and actions Edit/Delete.
 - Filters by category and mode. Button "New template".
 - Delete confirmation: "Delete this template? Participants' existing plans are not affected."
 - Empty state: "No templates yet".
 
-**Categories tab**
+**Categories area**
 
 - List of categories with inline add and rename.
 - Delete shows `CATEGORY_HAS_TEMPLATES` as a notice when templates still exist.
@@ -284,7 +288,7 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 
 ##### S-09 Template Form (F-02)
 
-- Route under the Manager Library: `/manager/library/templates/new` and `/manager/library/templates/:id`.
+- Route under the Exercise Library: `/manager/library/templates/new` and `/manager/library/templates/:id`.
 - Fields: category, name, tracking mode, target body part, Valid Range min and max, MET, and cardio category.
 - The unit label follows the mode: `reps`, `seconds` or `km`.
 - MET is greater than 0 and at most 25, step 0.1.
@@ -310,6 +314,7 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 - History screen: date range selector, default 30 days, newest first.
 - Edit Plan Item: confirmation that changes apply from today and do not change past days. End sets the end date.
 - Profile screen (S-07) and AC-17 verification (CHANGE-04).
+- Optional tablet and desktop layouts.
 
 **Sprint 3**
 
@@ -323,10 +328,10 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 | --- | --- | --- | --- | --- |
 | S-02 Today | Card skeletons | "Plan your month" + button, or rest-day banner | Notice + Retry | Card and overall refreshed |
 | S-05 My Plan | List skeleton | "No plan yet" + button | Notice + Retry | - |
-| S-04 Add to Plan | Template skeleton | "No templates available yet" | Notice, inline field errors | Toast, go to `/plan` |
+| S-04 Add Exercise | Template skeleton | "No templates available yet" | Notice, inline field errors | Toast, go to `/plan` |
 | S-06 Progress (S2) | Grid skeleton | "No targeted days this month" | Notice + Retry | - |
 | S-07 Profile (S2) | Field skeleton | "No weight set" hint | Inline error | Toast |
-| S-08 Manager Library | Table skeleton | "No templates yet" or "No categories yet" | Notice + Retry | Toast after delete |
+| S-08 Exercise Library | Table skeleton | "No templates yet" or "No categories yet" | Notice + Retry | Toast after delete |
 
 #### 7. UI to AC and test traceability
 
@@ -351,11 +356,12 @@ Protection of data is always proven by API tests, never by UI behaviour alone.
 7. Off-plan logging uses existing snapshots. A Participant cannot create a standalone snapshot in Sprint 1.
 8. Duration uses minutes and seconds; reps are entered per set and sent as `totalReps`.
 9. App screens use English copy. S-00 is the only Thai screen.
-10. The Add to Plan wizard keeps its selection in memory and creates the snapshot and plan item in one G1 call.
-11. S-00, the FitBunny tokens and final artwork are design-only items. They are not added to the approved RTM.
+10. The Add Exercise wizard keeps its selection in memory and creates the snapshot and plan item in one `POST /api/plan-items` call.
+11. S-00, the BunnyFit design tokens and final artwork are design-only items. They are not added to the approved RTM.
 12. Final tokens and assets are supplied by the user later. The palette in this document is provisional.
-13. Manager templates and categories share `/manager/library`.
+13. The Manager's **Exercise Library** uses one screen at `/manager/library` with a category list and a template table grouped by category.
 14. Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06); Sprint 1 shows only the daily progress panel on Today.
+15. Sprint 1 is mobile-first. Tablet and desktop layouts are optional and planned for Sprint 2.
 
 #### 9. Open items
 
