@@ -18,6 +18,7 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 
 # Internal working notes — never commit
 docs/local/

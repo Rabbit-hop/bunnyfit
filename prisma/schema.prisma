@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  PARTICIPANT
+}
+
+enum TrackingMode {
+  WEIGHT
+  BODYWEIGHT_REPS
+  BODYWEIGHT_TIME
+  YOGA
+  CARDIO_TIME
+  CARDIO_DISTANCE
+}
+
+enum CardioCategory {
+  RUNNING
+  WALKING
+  CYCLING
+  SWIMMING
+}
+
+enum EntryKind {
+  MANUAL
+  QUICK_COMPLETE
+}
+
+model User {
+  id               String             @id @default(uuid()) @db.Uuid
+  email            String             @unique
+  passwordHash     String
+  role             Role
+  displayName      String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  createdTemplates ExerciseTemplate[] @relation("TemplateCreator")
+  revokedTokens    RevokedToken[]
+  userExercises    UserExercise[]
+  planItems        PlanItem[]
+  ledgerEntries    LedgerEntry[]
+  weightLogs       WeightLog[]
+  reminderSettings ReminderSetting[]
+
+  @@map("User")
+}
+
+model RevokedToken {
+  jti       String   @id
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("RevokedToken")
+}
+
+model Category {
+  id        String             @id @default(uuid()) @db.Uuid
+  name      String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  templates ExerciseTemplate[]
+
+  @@map("Category")
+}
+
+model ExerciseTemplate {
+  id             String          @id @default(uuid()) @db.Uuid
+  categoryId     String          @db.Uuid
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name           String
+  targetBodyPart String
+  unit           String
+  trackingMode   TrackingMode
+  cardioCategory CardioCategory?
+  metValue       Decimal         @db.Decimal(4, 1)
+  rangeMin       Decimal         @db.Decimal(8, 2)
+  rangeMax       Decimal         @db.Decimal(8, 2)
+  createdById    String          @db.Uuid
+  createdBy      User            @relation("TemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+  @@map("ExerciseTemplate")
+}
+
+model UserExercise {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @db.Uuid
+  user             User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sourceTemplateId String?         @db.Uuid
+  isCustom         Boolean         @default(false)
+  name             String
+  targetBodyPart   String
+  unit             String
+  trackingMode     TrackingMode
+  cardioCategory   CardioCategory?
+  metValue         Decimal         @db.Decimal(4, 1)
+  rangeMin         Decimal         @db.Decimal(8, 2)
+  rangeMax         Decimal         @db.Decimal(8, 2)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  planItems        PlanItem[]
+  ledgerEntries    LedgerEntry[]
+
+  @@index([userId])
+  @@map("UserExercise")
+}
+
+model PlanItem {
+  id                String       @id @default(uuid()) @db.Uuid
+  planKey           String       @default(uuid()) @db.Uuid
+  version           Int          @default(1)
+  userId            String       @db.Uuid
+  user              User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userExerciseId    String       @db.Uuid
+  userExercise      UserExercise @relation(fields: [userExerciseId], references: [id], onDelete: Restrict)
+  targetSets        Int?
+  targetRepsPerSet  Int?
+  loadKg            Decimal?     @db.Decimal(5, 2)
+  targetDurationSec Int?
+  targetDistanceKm  Decimal?     @db.Decimal(6, 2)
+  priorityWeight    Int
+  repeatDays        Int          @default(127)
+  effectiveFrom     DateTime     @db.Date
+  endDate           DateTime?    @db.Date
+  createdAt         DateTime     @default(now())
+
+  @@unique([planKey, version])
+  @@index([userId, effectiveFrom])
+  @@index([userExerciseId, effectiveFrom])
+  @@map("PlanItem")
+}
+
+model LedgerEntry {
+  id             String          @id @default(uuid()) @db.Uuid
+  userId         String          @db.Uuid
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userExerciseId String          @db.Uuid
+  userExercise   UserExercise    @relation(fields: [userExerciseId], references: [id], onDelete: Restrict)
+  logDate        DateTime        @db.Date
+  sets           Int?
+  totalReps      Int?
+  durationSec    Int?
+  distanceKm     Decimal?        @db.Decimal(6, 2)
+  kind           EntryKind
+  createdAt      DateTime        @default(now())
+
+  @@index([userId, logDate])
+  @@index([userExerciseId, logDate])
+  @@map("LedgerEntry")
+}
+
+model WeightLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  weightKg      Decimal  @db.Decimal(4, 1)
+  effectiveDate DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  @@index([userId, effectiveDate])
+  @@map("WeightLog")
+}
+
+model ReminderSetting {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  timeOfDay  String   @db.VarChar(5)
+  repeatDays Int      @default(127)
+  label      String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@map("ReminderSetting")
+}
