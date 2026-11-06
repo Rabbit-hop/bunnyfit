@@ -35,15 +35,29 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   }
 
   // Malformed JSON body (express.json / body-parser) → 400 VALIDATION_ERROR.
-  const parseFailure = err as { type?: string };
-  if (parseFailure.type === 'entity.parse.failed') {
+  const clientError = err as { type?: string; status?: number; statusCode?: number; limit?: number };
+  if (clientError.type === 'entity.parse.failed') {
     envelope(res, 400, { code: 'VALIDATION_ERROR', message: 'Request body is not valid JSON', fields: [] });
     return;
   }
 
   // Body larger than the parser limit → client error, never 5xx (A.5 has no 413 code).
-  if (parseFailure.type === 'entity.too.large') {
-    envelope(res, 400, { code: 'VALIDATION_ERROR', message: 'Request body is too large', fields: [] });
+  if (clientError.type === 'entity.too.large') {
+    const limit = typeof clientError.limit === 'number' ? `${Math.round(clientError.limit / 1024)}kb` : 'limit';
+    envelope(res, 400, {
+      code: 'VALIDATION_ERROR',
+      message: 'Request body is too large',
+      fields: [{ field: 'body', limit }],
+    });
+    return;
+  }
+
+  // Any other 4xx raised by middleware (unsupported charset/encoding, aborted
+  // request, bad size, ...) is a client error: A.5 has no 413/415 code, so it
+  // maps to 400 VALIDATION_ERROR and must never become a 5xx.
+  const status = clientError.status ?? clientError.statusCode;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    envelope(res, 400, { code: 'VALIDATION_ERROR', message: 'Request could not be processed', fields: [] });
     return;
   }
 

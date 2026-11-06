@@ -2,9 +2,9 @@
  * Declarative route policy registry (SDS §6.3).
  *
  * Every route is registered here with `{ method, path, allowed roles, ownership,
- * feature ID }`. The same registry drives (a) the auth/role/ownership middleware
- * and (b) the Endpoint Access Matrix tests AC-12c / AC-22c, which fail if a
- * registered route has no policy. A new endpoint cannot ship without declaring
+ * feature ID }`. It is intended to drive (a) the auth/role/ownership middleware
+ * and (b) the Endpoint Access Matrix tests AC-12c / AC-22c (both land with F-01;
+ * for now this is a lookup table only). A new endpoint cannot ship without declaring
  * who may call it — add the policy here in the same commit as the route.
  *
  * Paths are stored exactly as mounted (with `:params`), matching the Express

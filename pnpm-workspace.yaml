@@ -3,7 +3,3 @@
 # binary via optional dependencies, so its postinstall is not needed.
 allowBuilds:
   esbuild: false
-# User-level minimumReleaseAge blocks brand-new releases; vite@8.3.6 is
-# pinned by the foundation and explicitly excepted here.
-minimumReleaseAgeExclude:
-  - vite@8.3.6

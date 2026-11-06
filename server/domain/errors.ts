@@ -1,6 +1,9 @@
 /**
  * Error codes and status mapping — SRS Appendix A.5 is the contract.
  * Never invent a code outside this list; add it to the SRS first.
+ *
+ * BODY_WEIGHT_REQUIRED is deliberately NOT here: it is a `calorieError` field
+ * inside a normal 200 calorie response (SRS A.5 / Q27), not an error envelope.
  */
 export type ErrorCode =
   | 'INVALID_CREDENTIALS'
@@ -12,7 +15,6 @@ export type ErrorCode =
   | 'QUICK_COMPLETE_NOT_AVAILABLE'
   | 'CATEGORY_HAS_TEMPLATES'
   | 'ENTRY_NOT_EDITABLE'
-  | 'BODY_WEIGHT_REQUIRED'
   | 'INTERNAL_ERROR';
 
 /** HTTP status per code (SRS Appendix A.5). */
@@ -26,7 +28,6 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   QUICK_COMPLETE_NOT_AVAILABLE: 400,
   CATEGORY_HAS_TEMPLATES: 409,
   ENTRY_NOT_EDITABLE: 409,
-  BODY_WEIGHT_REQUIRED: 200, // returned as `calorieError` — logging is never blocked
   INTERNAL_ERROR: 500,
 };
 

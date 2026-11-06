@@ -4,7 +4,7 @@ Habit & Activity Tracking system — CPE 334 course project (Sprint 1).
 
 ## Requirements
 
-- Node.js ≥ 20 and [pnpm](https://pnpm.io) (`corepack enable` or `npm i -g pnpm`)
+- Node.js ≥ 22.12 (required by Vitest 5 / Vite 8) and [pnpm](https://pnpm.io) (`corepack enable` or `npm i -g pnpm`)
 - PostgreSQL (required from the database setup onward — tracked by issue #2)
 
 ## Setup
@@ -42,9 +42,10 @@ curl http://localhost:8080/api/health   # → {"status":"ok"}
 server/            # API: routes/, middleware/, config/, domain/
 web/               # SPA (pending — issue #2)
 prisma/            # schema, migrations, seed (pending — issue #2)
-tests/             # unit/, integration/, e2e/, system/, performance/
+tests/             # unit/, integration/ exist; e2e/, system/, performance/ planned
 docs/              # srs.md, features.md, traceability.md, system-sds.md, sprints/
-Dockerfile  docker-compose.yml  .env.example  .github/workflows/
+Dockerfile  docker-compose.yml  .github/workflows/   # planned (Lab 5), not created yet
+.env.example                                          # exists
 ```
 
 Foundation conventions worth knowing before touching the code:
@@ -55,8 +56,10 @@ Foundation conventions worth knowing before touching the code:
   `Clock` (`server/domain/clock.ts`); tests substitute `FixedClock`.
 - **Route policy registry** — every route declares
   `{ method, path, featureId, auth, roles, ownership }`
-  (`server/routes/registry.ts`); a route without a policy fails the
-  Access Matrix tests (SDS §6.3).
+  (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3) will
+  fail on a route without a policy once F-01 lands (not enforced yet).
+  Async route handlers must be wrapped in `asyncHandler`
+  (`server/middleware/asyncHandler.ts`) because Express 4 does not forward rejections.
 
 ## Pending (tracked by GitHub issues)
 

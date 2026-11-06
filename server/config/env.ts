@@ -13,23 +13,26 @@ function str(name: string, fallback: string): string {
   return raw === undefined || raw === '' ? fallback : raw;
 }
 
-function int(name: string, fallback: number): number {
+function int(name: string, fallback: number, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): number {
   const raw = process.env[name];
   if (raw === undefined || raw === '') return fallback;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed)) {
     throw new Error(`Environment variable ${name} must be an integer, got "${raw}"`);
   }
+  if (parsed < min || parsed > max) {
+    throw new Error(`Environment variable ${name} must be between ${min} and ${max}, got ${parsed}`);
+  }
   return parsed;
 }
 
 export const env = {
   nodeEnv: str('NODE_ENV', 'development'),
-  port: int('PORT', 8080),
+  port: int('PORT', 8080, 1, 65535),
   logLevel: str('LOG_LEVEL', 'info'),
   appTimezone: str('APP_TIMEZONE', 'Asia/Bangkok'),
-  jwtExpiresInSeconds: int('JWT_EXPIRES_IN_SECONDS', 3600),
-  bcryptCost: int('BCRYPT_COST', 10),
+  jwtExpiresInSeconds: int('JWT_EXPIRES_IN_SECONDS', 3600, 1),
+  bcryptCost: int('BCRYPT_COST', 10, 4, 31),
   // Secrets: empty until the feature that consumes them validates presence.
   databaseUrl: str('DATABASE_URL', ''),
   databaseUrlTest: str('DATABASE_URL_TEST', ''),

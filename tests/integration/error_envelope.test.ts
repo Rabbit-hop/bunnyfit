@@ -82,7 +82,7 @@ describe('oversized request bodies (client error, never 5xx)', () => {
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({ pad: 'x'.repeat(200 * 1024) }));
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'VALIDATION_ERROR', fields: [] });
+    expect(res.body).toMatchObject({ code: 'VALIDATION_ERROR' });
     expect(JSON.stringify(res.body)).not.toMatch(/stack|PayloadTooLarge/i);
   });
 });
