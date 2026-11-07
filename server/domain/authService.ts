@@ -1,7 +1,7 @@
 import type { Clock } from './clock.js';
 import { appError } from './errors.js';
 import { parseLoginBody } from './loginValidation.js';
-import { verifyPassword } from './password.js';
+import { dummyHashFor, verifyPassword } from './password.js';
 import { signToken, type Role } from './token.js';
 
 /**
@@ -64,6 +64,8 @@ const view = (u: UserRecord): UserView => ({
 
 export function createAuthService(deps: AuthServiceDeps): AuthService {
   const { repo, clock, secret, expiresInSeconds, bcryptCost } = deps;
+  // R5: build the dummy hash now, so the first unknown-email login does not pay for it.
+  dummyHashFor(bcryptCost);
 
   return {
     async login(body) {
