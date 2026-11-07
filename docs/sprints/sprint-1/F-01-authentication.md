@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.3.2
+**Contract Version:**  0.3.3
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
@@ -21,6 +21,7 @@
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0 (RTM / SDS / plan 1.1.0, SRS / Feature Inventory 1.1.0): citations updated; AC-01f is now an approved RTM 1.1.0 criterion (Tier A, Sprint 1), no longer *proposed*; §11 item 4 rewritten with the current counts (80 atomic AC, Sprint 1 = 38, Sprint 2 = 34 after CHANGE-03 … CHANGE-08) and the Coverage check no longer conditional (F-01 is verified by 12 atomic AC) Review-fix pass (PR #13): AC-01c wording aligned with RTM ("at least `{id, email, role}`"). Version 0.2.0 was intentionally skipped so that all Sprint 1 contracts share 0.3.0; no 0.2.0 content exists. | Nakagamon | Draft |
 | **0.3.1** | 7 Nov 2026 | Test-path correction only: SUP-01 now names `tests/unit/env.test.ts` (the existing configuration unit test in the repo) instead of `tests/unit/config.test.ts` in §8 Files and the SUP-01 row. No change to ACs, STS cases or scope. | Nakagamon | Draft |
 | **0.3.2** | 7 Nov 2026 | Password length rule measured in UTF-8 **bytes** instead of characters (§4.2, TEST-01f-2): bcrypt uses at most 72 bytes and would silently ignore the rest, so two different longer passwords could be accepted as the same one. ASCII passwords are unchanged (72 accepted / 73 rejected); only multi-byte passwords are affected. No AC, scope or other STS case changes (AC-01f already requires rejecting an over-length password). | Nakagamon | Draft |
+| **0.3.3** | 7 Nov 2026 | SUP-01 action clarified only: the R10 check lives in an exported startup function `requireJwtSecret()` called by `server/index.ts` before listening, not at module load, so the seed script and unit tests that import `server/config/env.ts` without a JWT secret keep working. The length is measured in UTF-8 bytes. No AC, scope or other STS case changes. | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -315,7 +316,7 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-12b-4 | AC-12b | Security | Alice's token; each self-scoped route in the registry | Request with `?userId=<Bob's id>` | 403; no data (stage 2) |
 | **TEST-12c-1** | AC-12c | Security | Registry; two Participants with their own records | For each `resource-owner` route: request Bob's record with Alice's token | 403 each; database unchanged (stage 1: probes; stage 2: all Sprint 1 owner-scoped routes) |
 | TEST-12c-2 | AC-12c | Security | Registry | A route declared `resource-owner` without an owner-lookup function | Registration fails at startup (R11) |
-| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/env.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Load configuration | First two fail fast with a clear error; third starts |
+| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/env.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Call the startup check `requireJwtSecret()` (exported by `server/config/env.ts`; `server/index.ts` calls it before listening) | First two throw a clear error naming `JWT_SECRET`; third returns the secret |
 | **TEST-25** *(sprint-level, AC-25 shared with F-02, F-03, F-04 and F-06)* | AC-25 | UI E2E | All Sprint 1 features integrated; seeded Manager, Alice and Bob; clean database | Playwright journey in `tests/e2e/main_journey.spec.ts`: Manager creates a template → Participant logs in → selects it (3×10, weight 4) → logs 1 set / 10 reps → Quick Complete → progress 100% → logout, login again | Journey completes end-to-end and the values persist after re-login; run at Sprint 1 integration (plan §4.4), not at F-01 merge |
 
 **Coverage check.** Every AC in §7 has at least one test; negative, boundary (3,599/3,600 s, 254/255-character email, 72/73-character password) and role cases are included. F-01 is verified by 12 atomic AC: AC-01a–f (6), AC-22a–c (3) and AC-12a–c (3). TEST-25 (AC-25) is additionally defined here as a sprint-level test and is **not** counted in the 12: AC-25 belongs jointly to F-01 – F-06 in the RTM and runs at Sprint 1 integration.
