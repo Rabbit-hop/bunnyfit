@@ -18,7 +18,7 @@ const app = createApp({
     isRevoked: (jti) => repo.isRevoked(jti),
     userExists: async (id) => (await repo.findUserById(id)) !== null,
   },
-  authService: createAuthService({ repo, clock, secret, expiresInSeconds: env.jwtExpiresInSeconds }),
+  authService: createAuthService({ repo, clock, secret, expiresInSeconds: env.jwtExpiresInSeconds, bcryptCost: env.bcryptCost }),
 });
 
 app.listen(env.port, () => {

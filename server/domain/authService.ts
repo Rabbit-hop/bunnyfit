@@ -51,6 +51,8 @@ export interface AuthServiceDeps {
   clock: Clock;
   secret: string;
   expiresInSeconds: number;
+  /** BCRYPT_COST; the R5 dummy compare uses the same cost as real hashes. */
+  bcryptCost: number;
 }
 
 const view = (u: UserRecord): UserView => ({
@@ -61,14 +63,14 @@ const view = (u: UserRecord): UserView => ({
 });
 
 export function createAuthService(deps: AuthServiceDeps): AuthService {
-  const { repo, clock, secret, expiresInSeconds } = deps;
+  const { repo, clock, secret, expiresInSeconds, bcryptCost } = deps;
 
   return {
     async login(body) {
       const { email, password } = parseLoginBody(body);
       const user = await repo.findUserByEmail(email);
       // R5: unknown email still runs a bcrypt compare, and both failures look identical.
-      const ok = await verifyPassword(password, user?.passwordHash ?? null);
+      const ok = await verifyPassword(password, user?.passwordHash ?? null, bcryptCost);
       if (!user || !ok) {
         throw appError('INVALID_CREDENTIALS', 'Invalid email or password.');
       }

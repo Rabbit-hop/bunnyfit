@@ -6,7 +6,7 @@ import { signToken } from '../../server/domain/token.js';
 import { activePolicies, PROBE_ROUTE_POLICIES } from '../../server/routes/registry.js';
 import { routesMissingPolicy } from '../helpers/expressRoutes.js';
 
-// F-01 §4.5: probe routes (test env only), registry completeness (TEST-22c-2),
+// F-01 §4.5: probe routes (test env only), registry completeness,
 // R11 (a route without a policy cannot be registered). Fakes only — no database.
 const SECRET = 'unit-test-secret-0123456789abcdef-xyz';
 const T = new Date('2026-11-05T03:00:00Z');
@@ -32,11 +32,15 @@ describe('probe routes (§4.5)', () => {
   it('are not mounted outside NODE_ENV=test', async () => {
     const app = build('production');
     const res = await request(app).get('/__test/manager-only').set('Authorization', `Bearer ${await tokenFor('m', 'MANAGER')}`);
-    expect(res.status).toBe(404);
+    // Not 404 unconditionally: when dist/web is built, the SPA fallback answers
+    // unknown non-API GETs with index.html (200). What matters is that the probe
+    // handler (JSON { ok: true }) and its 401/403 auth chain are absent.
+    expect([401, 403]).not.toContain(res.status);
+    expect(res.body.ok).toBeUndefined();
     expect(activePolicies('production').some((p) => p.path.startsWith('/__test'))).toBe(false);
   });
 
-  it('TEST-22b-1: Alice → manager-only = 403; Manager → 200', async () => {
+  it('Alice → manager-only = 403; Manager → 200', async () => {
     const app = build('test');
     const alice = await tokenFor('alice', 'PARTICIPANT');
     expect((await request(app).get('/__test/manager-only').set('Authorization', `Bearer ${alice}`)).status).toBe(403);
@@ -44,7 +48,7 @@ describe('probe routes (§4.5)', () => {
     expect((await request(app).get('/__test/manager-only').set('Authorization', `Bearer ${m}`)).status).toBe(200);
   });
 
-  it('TEST-12a-1 / 22b-2: Manager → participant-only = 403; self-scoped foreign userId = 403', async () => {
+  it('Manager → participant-only = 403; self-scoped foreign userId = 403', async () => {
     const app = build('test');
     const m = await tokenFor('m', 'MANAGER');
     expect((await request(app).get('/__test/participant-only').set('Authorization', `Bearer ${m}`)).status).toBe(403);
@@ -53,7 +57,7 @@ describe('probe routes (§4.5)', () => {
     expect((await request(app).get('/__test/participant-only?userId=bob').set('Authorization', `Bearer ${alice}`)).status).toBe(403);
   });
 
-  it('TEST-12b-1/2/3: owned/:id — foreign 403 on GET/PUT/DELETE, owner 200, missing 404', async () => {
+  it('owned/:id — foreign 403 on GET/PUT/DELETE, owner 200, missing 404', async () => {
     const app = build('test');
     const alice = `Bearer ${await tokenFor('alice', 'PARTICIPANT')}`;
     const bob = `Bearer ${await tokenFor('bob', 'PARTICIPANT')}`;
@@ -65,7 +69,7 @@ describe('probe routes (§4.5)', () => {
   });
 });
 
-describe('TEST-22c-1: every non-public policy → 401 without token, 403 with a wrong-role token', () => {
+describe('every non-public policy → 401 without token, 403 with a wrong-role token', () => {
   for (const policy of PROBE_ROUTE_POLICIES) {
     it(`${policy.method} ${policy.path}`, async () => {
       const app = build('test');
@@ -81,10 +85,16 @@ describe('TEST-22c-1: every non-public policy → 401 without token, 403 with a 
   }
 });
 
-describe('TEST-22c-2: registry completeness', () => {
+describe('registry completeness', () => {
   it('no route of the running app is missing from the registry', () => {
     expect(routesMissingPolicy(build('test'), activePolicies('test'))).toEqual([]);
     expect(routesMissingPolicy(build('production'), activePolicies('production'))).toEqual([]);
+  });
+
+  it('a regex route other than the SPA fallback is still reported', () => {
+    const app = build('test');
+    app.get(/^\/sneaky-regex/, (_req, res) => res.json({}));
+    expect(routesMissingPolicy(app, activePolicies('test'))).toEqual(['GET /^\\/sneaky-regex/']);
   });
 
   it('a deliberately unregistered route makes the check report it', () => {

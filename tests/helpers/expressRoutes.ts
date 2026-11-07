@@ -1,13 +1,14 @@
 import type { Express } from 'express';
+import { SPA_FALLBACK_ROUTE } from '../../server/app.js';
 import { findRoutePolicy, type RoutePolicy } from '../../server/routes/registry.js';
 
 /** Every `METHOD path` mounted directly on the Express app (route layers only). */
-export function listExpressRoutes(app: Express): { method: string; path: string }[] {
+export function listExpressRoutes(app: Express): { method: string; path: string | RegExp }[] {
   // Express 4 keeps the route table on the private `_router`; there is no public API.
   const stack = ((app as unknown as { _router?: { stack: unknown[] } })._router?.stack ?? []) as {
-    route?: { path: string; methods: Record<string, boolean> };
+    route?: { path: string | RegExp; methods: Record<string, boolean> };
   }[];
-  const out: { method: string; path: string }[] = [];
+  const out: { method: string; path: string | RegExp }[] = [];
   for (const layer of stack) {
     if (!layer.route) continue;
     for (const method of Object.keys(layer.route.methods)) {
@@ -23,8 +24,11 @@ export function routesMissingPolicy(
   policies: readonly RoutePolicy[],
 ): string[] {
   return listExpressRoutes(app)
+    // Only the exact SPA fallback RegExp is exempt; every other route, string or
+    // regex, must have a policy.
+    .filter((r) => r.path !== SPA_FALLBACK_ROUTE)
     .filter((r) => !policies.some((p) => p.method === r.method && p.path === r.path))
-    .map((r) => `${r.method} ${r.path}`);
+    .map((r) => `${r.method} ${String(r.path)}`);
 }
 
 export { findRoutePolicy };

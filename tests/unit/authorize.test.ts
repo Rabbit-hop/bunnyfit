@@ -6,7 +6,7 @@ import type { AuthIdentity } from '../../server/middleware/auth.js';
 import { createAuthorize } from '../../server/middleware/authorize.js';
 import type { RoutePolicy } from '../../server/routes/registry.js';
 
-// F-01 §3.2 steps 2-3; STS TEST-22b, TEST-12a/b/c at middleware level (fakes, no DB).
+// F-01 §3.2 steps 2-3 at middleware level (fakes, no DB); RTM-mapped cases are in tests/integration/security_access.test.ts.
 const policy = (p: Partial<RoutePolicy>): RoutePolicy => ({
   method: 'GET',
   path: '/x',
@@ -47,14 +47,14 @@ const noData = (body: Record<string, unknown>) =>
   expect(Object.keys(body).sort()).toEqual(['code', 'fields', 'message']);
 
 describe('authorize — role (step 2)', () => {
-  it('TEST-22b-1: Participant on a MANAGER-only route → 403 envelope only', async () => {
+  it('Participant on a MANAGER-only route → 403 envelope only', async () => {
     const res = await request(appWith(policy({ roles: ['MANAGER'] }))).get('/x').set('x-test-user', 'alice:PARTICIPANT');
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject(FORBIDDEN);
     noData(res.body);
   });
 
-  it('TEST-22b-2 / TEST-12a-1: Manager on a PARTICIPANT-only route → 403, no data', async () => {
+  it('Manager on a PARTICIPANT-only route → 403, no data', async () => {
     const res = await request(appWith(policy({ ownership: 'self-scoped' }))).get('/x').set('x-test-user', 'm:MANAGER');
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject(FORBIDDEN);
@@ -76,7 +76,7 @@ describe('authorize — role (step 2)', () => {
 describe('authorize — self-scoped (step 3)', () => {
   const app = appWith(policy({ ownership: 'self-scoped' }));
 
-  it('TEST-12b-4: foreign ?userId → 403, no data', async () => {
+  it('foreign ?userId → 403, no data', async () => {
     const res = await request(app).get('/x?userId=bob').set('x-test-user', 'alice:PARTICIPANT');
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject(FORBIDDEN);
@@ -99,18 +99,18 @@ describe('authorize — resource-owner (step 3)', () => {
   const lookup = async (id: string) => owners[id] ?? null;
   const app = appWith(policy({ ownership: 'resource-owner' }), lookup);
 
-  it.each(['GET', 'PUT', 'DELETE'] as const)('TEST-12b-1: %s on another user\'s record → 403', async (m) => {
+  it.each(['GET', 'PUT', 'DELETE'] as const)('%s on another user\'s record → 403', async (m) => {
     const res = await request(app)[m.toLowerCase() as 'get' | 'put' | 'delete']('/x/r1').set('x-test-user', 'alice:PARTICIPANT');
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject(FORBIDDEN);
     noData(res.body);
   });
 
-  it('TEST-12b-2: the owner → 200', async () => {
+  it('the owner → 200', async () => {
     expect((await request(app).get('/x/r1').set('x-test-user', 'bob:PARTICIPANT')).status).toBe(200);
   });
 
-  it('TEST-12b-3: record does not exist → 404 NOT_FOUND', async () => {
+  it('record does not exist → 404 NOT_FOUND', async () => {
     const res = await request(app).get('/x/nope').set('x-test-user', 'alice:PARTICIPANT');
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('NOT_FOUND');
@@ -126,7 +126,7 @@ describe('authorize — resource-owner (step 3)', () => {
 });
 
 describe('authorize — registration (R11)', () => {
-  it('TEST-12c-2: resource-owner without an owner lookup throws at registration', () => {
+  it('resource-owner without an owner lookup throws at registration', () => {
     expect(() => createAuthorize(policy({ ownership: 'resource-owner' }))).toThrow(/owner/i);
   });
 

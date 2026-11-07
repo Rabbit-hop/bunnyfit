@@ -3,15 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { FixedClock } from '../../server/domain/clock.js';
 import { signToken, verifyToken } from '../../server/domain/token.js';
 
-// F-01 R2–R4, STS TEST-01a-1 (claims), TEST-22a-3..6 (token layer only; the
-// HTTP-level cases live in tests/integration/security_access.test.ts).
+// F-01 R2–R4, token layer only; the RTM-mapped HTTP-level cases live in
+// tests/integration/auth.test.ts and security_access.test.ts.
 const SECRET = 'unit-test-secret-0123456789abcdef-xyz';
 const T = new Date('2026-11-05T03:00:00Z');
 const key = (s: string) => new TextEncoder().encode(s);
 const at = (seconds: number) => new FixedClock(new Date(T.getTime() + seconds * 1000));
 
 describe('signToken (R2)', () => {
-  it('TEST-01a-1: sub, role, uuid jti, iat and exp = iat + 3600', async () => {
+  it('sub, role, uuid jti, iat and exp = iat + 3600', async () => {
     const issued = await signToken(
       { sub: 'user-1', role: 'PARTICIPANT' },
       { secret: SECRET, clock: new FixedClock(T), expiresInSeconds: 3600 },
@@ -41,26 +41,26 @@ describe('verifyToken', () => {
       { secret: SECRET, clock: new FixedClock(T), expiresInSeconds: 3600 },
     );
 
-  it('TEST-22a-5: valid at T + 3,599 s', async () => {
+  it('valid at T + 3,599 s', async () => {
     const { token } = await sign();
     await expect(verifyToken(token, { secret: SECRET, clock: at(3599) })).resolves.toMatchObject({
       sub: 'user-1',
     });
   });
 
-  it('TEST-22a-6: expired at T + 3,600 s (R3)', async () => {
+  it('expired at T + 3,600 s (R3)', async () => {
     const { token } = await sign();
     await expect(verifyToken(token, { secret: SECRET, clock: at(3600) })).rejects.toThrow();
   });
 
-  it('TEST-22a-3: rejects a token signed with a different secret', async () => {
+  it('rejects a token signed with a different secret', async () => {
     const { token } = await sign();
     await expect(
       verifyToken(token, { secret: 'another-secret-0123456789abcdef-xyz', clock: new FixedClock(T) }),
     ).rejects.toThrow();
   });
 
-  it('TEST-22a-4: rejects alg none (R4)', async () => {
+  it('rejects alg none (R4)', async () => {
     const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
     const iat = Math.floor(T.getTime() / 1000);
     const token = `${b64({ alg: 'none', typ: 'JWT' })}.${b64({
@@ -69,7 +69,7 @@ describe('verifyToken', () => {
     await expect(verifyToken(token, { secret: SECRET, clock: new FixedClock(T) })).rejects.toThrow();
   });
 
-  it('TEST-22a-4: rejects HS512 signed with the correct secret (R4)', async () => {
+  it('rejects HS512 signed with the correct secret (R4)', async () => {
     const iat = Math.floor(T.getTime() / 1000);
     const token = await new SignJWT({ role: 'PARTICIPANT' })
       .setProtectedHeader({ alg: 'HS512' })
@@ -81,7 +81,7 @@ describe('verifyToken', () => {
     await expect(verifyToken(token, { secret: SECRET, clock: new FixedClock(T) })).rejects.toThrow();
   });
 
-  it.each(['', 'a.b', 'not-a-jwt', 'a.b.c'])('TEST-22a-2: rejects malformed token %j', async (t) => {
+  it.each(['', 'a.b', 'not-a-jwt', 'a.b.c'])('rejects malformed token %j', async (t) => {
     await expect(verifyToken(t, { secret: SECRET, clock: new FixedClock(T) })).rejects.toThrow();
   });
 

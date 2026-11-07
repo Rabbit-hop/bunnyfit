@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AppError } from '../../server/domain/errors.js';
 import { parseLoginBody } from '../../server/domain/loginValidation.js';
 
-// F-01 §4.2 / AC-01f / TEST-01f-1 (unit level; the HTTP 400 check is integration).
+// F-01 §4.2 (AC-01f at unit level; the RTM-mapped HTTP check is tests/integration/auth.test.ts).
 const email254 = `${'a'.repeat(242)}@example.com`; // 242 + 12 = 254
 const fieldsOf = (body: unknown): string[] => {
   try {
@@ -25,7 +25,7 @@ describe('parseLoginBody — valid input', () => {
     });
   });
 
-  it('TEST-01b-4: 254-char email and 72-char password are valid boundaries', () => {
+  it('254-char email and 72-char password are valid boundaries', () => {
     expect(email254).toHaveLength(254);
     const out = parseLoginBody({ email: email254, password: 'p'.repeat(72) });
     expect(out.email).toBe(email254);
@@ -37,7 +37,7 @@ describe('parseLoginBody — valid input', () => {
   });
 });
 
-describe('parseLoginBody — TEST-01f-2 password limit is 72 UTF-8 bytes (contract 0.3.2)', () => {
+describe('parseLoginBody — password limit is 72 UTF-8 bytes (contract 0.3.2)', () => {
   it('24 Thai characters (72 bytes) is accepted', () => {
     const pw = 'ก'.repeat(24);
     expect(Buffer.byteLength(pw)).toBe(72);
@@ -56,7 +56,7 @@ describe('parseLoginBody — TEST-01f-2 password limit is 72 UTF-8 bytes (contra
   });
 });
 
-describe('parseLoginBody — TEST-01f-1 invalid bodies', () => {
+describe('parseLoginBody — invalid bodies', () => {
   it('missing email', () => expect(fieldsOf({ password: 'x' })).toContain('email'));
   it('missing password', () => expect(fieldsOf({ email: 'a@b.co' })).toContain('password'));
   it('email "ab" (below 3 characters)', () =>

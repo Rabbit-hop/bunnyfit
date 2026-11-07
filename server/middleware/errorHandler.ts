@@ -37,7 +37,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   // Malformed JSON body (express.json / body-parser) → 400 VALIDATION_ERROR.
   const clientError = err as { type?: string; status?: number; statusCode?: number; limit?: number };
   if (clientError.type === 'entity.parse.failed') {
-    envelope(res, 400, { code: 'VALIDATION_ERROR', message: 'Request body is not valid JSON', fields: [] });
+    envelope(res, 400, {
+      code: 'VALIDATION_ERROR',
+      message: 'Request body is not valid JSON',
+      fields: [{ field: 'body', limit: 'must be valid JSON' }],
+    });
     return;
   }
 

@@ -27,6 +27,13 @@ export interface AppOptions {
 const webDist = fileURLToPath(new URL('../dist/web', import.meta.url));
 const serveWeb = express.static(webDist);
 
+/**
+ * Client-route fallback: any non-`/api` GET. It serves the SPA shell, not an API
+ * endpoint, so it is the one route the registry-completeness check (TEST-22c-2)
+ * tolerates without a policy.
+ */
+export const SPA_FALLBACK_ROUTE = /^(?!\/api(?:\/|$)).*/i;
+
 function isApiPath(path: string): boolean {
   const lower = path.toLowerCase();
   return lower === '/api' || lower.startsWith('/api/');
@@ -80,7 +87,7 @@ export function createApp(options: AppOptions = {}): Express {
   // HTML with 200 (a stale cached index.html must not mask a missing bundle).
   // Non-GET requests and `/api/*` (case-insensitively) keep the 404 envelope
   // from `notFoundHandler`.
-  app.get(/^(?!\/api(?:\/|$)).*/i, (req, res, next) => {
+  app.get(SPA_FALLBACK_ROUTE, (req, res, next) => {
     if (extname(req.path) !== '') {
       next();
       return;
