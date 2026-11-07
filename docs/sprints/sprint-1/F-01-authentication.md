@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.3.1
+**Contract Version:**  0.3.2
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
@@ -20,6 +20,7 @@
 | **0.1.2** | 6 Nov 2026 | Baseline reconciliation (SRS / RTM / SDS / plan 1.0.0): §11 item 4 updated for the corrected proposed-AC IDs after renumbering — the Sprint 1 proposals are now AC-01f (F-01), AC-02d (F-02), AC-03d (F-03), AC-04d (F-04) and AC-06g (F-06); F-06's former "AC-06d" is restored to the RTM 1.0.0 meaning, so it is no longer a proposal. Baseline citations confirmed (RTM 1.0.0 and SDS 1.0.0 — no "RTM 1.2.0" or "SDS 0.1.0" exists in any baseline document) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0 (RTM / SDS / plan 1.1.0, SRS / Feature Inventory 1.1.0): citations updated; AC-01f is now an approved RTM 1.1.0 criterion (Tier A, Sprint 1), no longer *proposed*; §11 item 4 rewritten with the current counts (80 atomic AC, Sprint 1 = 38, Sprint 2 = 34 after CHANGE-03 … CHANGE-08) and the Coverage check no longer conditional (F-01 is verified by 12 atomic AC) Review-fix pass (PR #13): AC-01c wording aligned with RTM ("at least `{id, email, role}`"). Version 0.2.0 was intentionally skipped so that all Sprint 1 contracts share 0.3.0; no 0.2.0 content exists. | Nakagamon | Draft |
 | **0.3.1** | 7 Nov 2026 | Test-path correction only: SUP-01 now names `tests/unit/env.test.ts` (the existing configuration unit test in the repo) instead of `tests/unit/config.test.ts` in §8 Files and the SUP-01 row. No change to ACs, STS cases or scope. | Nakagamon | Draft |
+| **0.3.2** | 7 Nov 2026 | Password length rule measured in UTF-8 **bytes** instead of characters (§4.2, TEST-01f-2): bcrypt uses at most 72 bytes and would silently ignore the rest, so two different longer passwords could be accepted as the same one. ASCII passwords are unchanged (72 accepted / 73 rejected); only multi-byte passwords are affected. No AC, scope or other STS case changes (AC-01f already requires rejecting an over-length password). | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -159,7 +160,7 @@ JWT payload: `{ "sub": "uuid", "role": "PARTICIPANT", "jti": "uuid", "iat": 1793
 | Field | Rule |
 | ------ | ------ |
 | `email` | Required string, trimmed, 3–254 characters, valid email format; normalized to lower-case |
-| `password` | Required string, 1–72 characters (bcrypt processes at most 72 bytes) |
+| `password` | Required string, 1–72 **bytes** when UTF-8 encoded (bcrypt processes at most 72 bytes; ASCII characters are 1 byte each, so ASCII behaves as 1–72 characters). Not trimmed |
 | Body | Must be JSON; unknown fields are rejected |
 
 ##### 4.3 `GET /api/auth/me`  (any authenticated role)
@@ -292,6 +293,7 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | **TEST-01e-1** | AC-01e | API/DB Integration | Seeded users | Read `passwordHash` of every seeded user directly from the database | Each matches `^\$2[aby]\$\d{2}\$` and has length 60; none equals the seed plaintext |
 | TEST-01e-2 | AC-01e | API/DB Integration | Same | `bcrypt.compare(plaintext, hash)` and cost factor | True; cost equals `BCRYPT_COST` |
 | **TEST-01f-1** | AC-01f | API/DB Integration | None | Login with each invalid body: missing email; missing password; `email: "ab"` (shorter than the 3-character minimum); `email: "not-an-email"`; email of 255 characters; empty password; password of 73 characters; unknown extra field; body that is not JSON | Each returns 400 `VALIDATION_ERROR`; `fields` names the offending field; no `token`; no database change |
+| TEST-01f-2 | AC-01f | API/DB Integration | None | Login with a password of 72 UTF-8 bytes made of multi-byte characters (e.g. 24 Thai characters), then one of 75 bytes (25 Thai characters) | 72 bytes: not a validation error (401 for a wrong password); 75 bytes: 400 `VALIDATION_ERROR` naming `password`; no `token`; no database change |
 | **TEST-22a-1** | AC-22a | Security | Route `GET /me`; no Authorization header | Request | 401 `UNAUTHENTICATED` |
 | TEST-22a-2 | AC-22a | Security | Same | Header `Authorization: Basic abc`; header `Bearer` with empty token; header `Bearer a.b` | 401 each |
 | TEST-22a-3 | AC-22a | Security | Token signed with a different secret | Request | 401 |
@@ -325,7 +327,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.3.1 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.2 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-01a/01b/01c written; routes absent | Failing run output |
 | 3 | `feat` (green) | Login and `/me`; migration and seed | Passing run output |
 | 4 | `test` (red) | TEST-22a (all cases) and TEST-01d | Failing run showing e.g. `alg:none` accepted or logout not revoking |

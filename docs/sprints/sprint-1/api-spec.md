@@ -2,7 +2,7 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.6.0
+**Document Version:** 0.6.1
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
 **Status:** Approved: specification-only, implementation may start
@@ -35,6 +35,7 @@
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, Sprint route column, plan/entry shape and mode rules, Rest Day/Quick Complete semantics, full traceability rows, and resolved repository-layout and `BODY_WEIGHT_REQUIRED` wording. No baseline or contract change. | Onsinee | Draft |
 | **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: stated the health response shape and public-route matrix exception, removed the JSON key-order claim and the PR citation from the layout note, added mode-discriminator rejection and per-entry minimums, and restricted the Quick Complete validation order to the order defined by F-04. No baseline or contract change. | Onsinee | Draft |
 | **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved; no specification, baseline or contract content changed. | Onsinee | Approved |
+| **0.6.1** | 7 Nov 2026 | Login `password` limit stated as 1-72 UTF-8 bytes (was "characters"), following F-01 contract 0.3.2; ASCII behaviour unchanged. No other content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
@@ -321,7 +322,7 @@ Request:
 { "email": "alice@exercise.test", "password": "<seed password>" }
 ```
 
-Validation: `email` required, trimmed, 3-254 characters, valid format, lower-cased; `password` required, 1-72 characters; non-JSON body and unknown fields are rejected.
+Validation: `email` required, trimmed, 3-254 characters, valid format, lower-cased; `password` required, 1-72 bytes (UTF-8; ASCII = 1 byte per character); non-JSON body and unknown fields are rejected.
 
 Success `200`:
 
