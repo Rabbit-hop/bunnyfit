@@ -2,9 +2,11 @@ import { extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express, { type Express } from 'express';
 import { env } from './config/env.js';
+import type { AuthService } from './domain/authService.js';
 import { createAuthenticate, type AuthenticateDeps } from './middleware/auth.js';
 import type { OwnerLookup } from './middleware/authorize.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { registerAuthRoutes } from './routes/auth.js';
 import { healthHandler } from './routes/health.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { createRouteRegistrar } from './routes/register.js';
@@ -15,6 +17,8 @@ export interface AppOptions {
   nodeEnv?: string;
   /** Authentication dependencies; without them only public routes are mounted. */
   auth?: AuthenticateDeps;
+  /** Login/me/logout use cases; the routes are mounted only when provided. */
+  authService?: AuthService;
   /** Owner lookup for the `/__test/owned/:id` probes (test env only). */
   probeOwnerLookup?: OwnerLookup;
 }
@@ -54,6 +58,8 @@ export function createApp(options: AppOptions = {}): Express {
   const health = findRoutePolicy('GET', '/api/health', policies);
   if (!health) throw new Error('GET /api/health has no route policy');
   registrar.register(health, healthHandler);
+
+  if (options.authService) registerAuthRoutes(registrar, policies, options.authService);
 
   if (nodeEnv === 'test' && options.auth && options.probeOwnerLookup) {
     registerProbeRoutes(registrar, options.probeOwnerLookup);

@@ -43,6 +43,9 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     roles: [],
     ownership: 'none',
   },
+  { method: 'POST', path: '/api/auth/login', featureId: 'F-01', auth: 'public', roles: [], ownership: 'none' },
+  { method: 'GET', path: '/api/auth/me', featureId: 'F-01', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
+  { method: 'POST', path: '/api/auth/logout', featureId: 'F-01', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
 ];
 
 /**
