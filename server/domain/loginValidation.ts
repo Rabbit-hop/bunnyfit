@@ -9,7 +9,7 @@ export interface LoginInput {
 
 const LIMITS: Record<string, string> = {
   email: 'required string, 3-254 characters, valid email format',
-  password: 'required string, 1-72 characters',
+  password: 'required string, 1-72 bytes (UTF-8)',
   body: 'must be a JSON object with only email and password',
 };
 
@@ -22,7 +22,11 @@ const schema = z
       .max(254)
       .pipe(z.email())
       .transform((v) => v.toLowerCase()),
-    password: z.string().min(1).max(72),
+    // 72 UTF-8 bytes, not characters: bcrypt ignores everything past byte 72 (contract 0.3.2).
+    password: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') <= 72),
   })
   .strict();
 
