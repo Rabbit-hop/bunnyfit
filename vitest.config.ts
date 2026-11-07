@@ -1,11 +1,14 @@
-import { defineConfig } from 'vitest/config';
+import 'dotenv/config'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    // Integration suites hit a real PostgreSQL test DB (DATABASE_URL_TEST);
-    // they are enabled per-suite once the Prisma setup (issue #2) lands.
+    exclude: ['tests/e2e/**', 'node_modules/**'],
     pool: 'forks',
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
+    globalSetup: ['./tests/globalSetup.ts'],
   },
-});
+})
