@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.3.0
+**Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
 **Status:**  Draft: specification-only, awaiting reviewer approval before implementation
@@ -19,6 +19,7 @@
 | **0.1.1** | 5 Nov 2026 | Cross-review fixes against the baselines: §2 limited to the three requirements Feature Inventory 1.0.0 maps to F-01 (removed the NFR-01/NFR-04 partial rows); §3.2 completed with SDS §6.2 steps 4–5; §6 no longer cites AC-23 (its three cases are domain cases of F-04/F-05 and contain no login case); AC-12b and AC-22c restored to the exact RTM 1.0.0 wording; §7 register status aligned to the RTM §3.1 vocabulary (`INCOMPLETE` instead of an invented "stage 1 only"); §8 gains TEST-25 (AC-25, sprint-level), the SUP-01 file path and the missing e-mail length case; DoD items 7 and 9 qualified with their real evidence; §11 corrected (SRS 1.0.0 Appendix A.5 already contains `NOT_FOUND` and `INTERNAL_ERROR`), counts made provisional across contracts, and the login field-error gap recorded; R10 aligned to SDS §8 (bytes) | Nakagamon | Draft |
 | **0.1.2** | 6 Nov 2026 | Baseline reconciliation (SRS / RTM / SDS / plan 1.0.0): §11 item 4 updated for the corrected proposed-AC IDs after renumbering — the Sprint 1 proposals are now AC-01f (F-01), AC-02d (F-02), AC-03d (F-03), AC-04d (F-04) and AC-06g (F-06); F-06's former "AC-06d" is restored to the RTM 1.0.0 meaning, so it is no longer a proposal. Baseline citations confirmed (RTM 1.0.0 and SDS 1.0.0 — no "RTM 1.2.0" or "SDS 0.1.0" exists in any baseline document) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0 (RTM / SDS / plan 1.1.0, SRS / Feature Inventory 1.1.0): citations updated; AC-01f is now an approved RTM 1.1.0 criterion (Tier A, Sprint 1), no longer *proposed*; §11 item 4 rewritten with the current counts (80 atomic AC, Sprint 1 = 38, Sprint 2 = 34 after CHANGE-03 … CHANGE-08) and the Coverage check no longer conditional (F-01 is verified by 12 atomic AC) Review-fix pass (PR #13): AC-01c wording aligned with RTM ("at least `{id, email, role}`"). Version 0.2.0 was intentionally skipped so that all Sprint 1 contracts share 0.3.0; no 0.2.0 content exists. | Nakagamon | Draft |
+| **0.3.1** | 7 Nov 2026 | Test-path correction only: SUP-01 now names `tests/unit/env.test.ts` (the existing configuration unit test in the repo) instead of `tests/unit/config.test.ts` in §8 Files and the SUP-01 row. No change to ACs, STS cases or scope. | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -269,7 +270,7 @@ AC text is identical to RTM 1.1.0, which includes AC-01f (approved 6 Nov 2026, T
 --------------------------------------------------------------------------------
 
 #### 8. Software Test Specification (STS)
-Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_access.test.ts` (AC-12, AC-22), `tests/e2e/main_journey.spec.ts` (AC-25, sprint-level), `tests/unit/config.test.ts` (SUP-01). Fixtures: seeded users from §5.2 (`alice` and `bob` are Participants); real PostgreSQL test database; injectable Clock; test-only probe routes. "Restart" means creating a new application instance on the same database. TEST-25 spans F-01 – F-06; F-01 defines it here because no other Sprint 1 contract claims it, and it runs at Sprint 1 integration (like stage 2 of §7), not at F-01 merge.
+Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_access.test.ts` (AC-12, AC-22), `tests/e2e/main_journey.spec.ts` (AC-25, sprint-level), `tests/unit/env.test.ts` (SUP-01). Fixtures: seeded users from §5.2 (`alice` and `bob` are Participants); real PostgreSQL test database; injectable Clock; test-only probe routes. "Restart" means creating a new application instance on the same database. TEST-25 spans F-01 – F-06; F-01 defines it here because no other Sprint 1 contract claims it, and it runs at Sprint 1 integration (like stage 2 of §7), not at F-01 merge.
 
 | Test ID | AC | Level | Precondition / Input | Action | Expected result |
 | ------ | ------ | ------ | ------ | ------ | ------ |
@@ -312,7 +313,7 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-12b-4 | AC-12b | Security | Alice's token; each self-scoped route in the registry | Request with `?userId=<Bob's id>` | 403; no data (stage 2) |
 | **TEST-12c-1** | AC-12c | Security | Registry; two Participants with their own records | For each `resource-owner` route: request Bob's record with Alice's token | 403 each; database unchanged (stage 1: probes; stage 2: all Sprint 1 owner-scoped routes) |
 | TEST-12c-2 | AC-12c | Security | Registry | A route declared `resource-owner` without an owner-lookup function | Registration fails at startup (R11) |
-| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/config.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Load configuration | First two fail fast with a clear error; third starts |
+| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/env.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Load configuration | First two fail fast with a clear error; third starts |
 | **TEST-25** *(sprint-level, AC-25 shared with F-02, F-03, F-04 and F-06)* | AC-25 | UI E2E | All Sprint 1 features integrated; seeded Manager, Alice and Bob; clean database | Playwright journey in `tests/e2e/main_journey.spec.ts`: Manager creates a template → Participant logs in → selects it (3×10, weight 4) → logs 1 set / 10 reps → Quick Complete → progress 100% → logout, login again | Journey completes end-to-end and the values persist after re-login; run at Sprint 1 integration (plan §4.4), not at F-01 merge |
 
 **Coverage check.** Every AC in §7 has at least one test; negative, boundary (3,599/3,600 s, 254/255-character email, 72/73-character password) and role cases are included. F-01 is verified by 12 atomic AC: AC-01a–f (6), AC-22a–c (3) and AC-12a–c (3). TEST-25 (AC-25) is additionally defined here as a sprint-level test and is **not** counted in the 12: AC-25 belongs jointly to F-01 – F-06 in the RTM and runs at Sprint 1 integration.
@@ -324,7 +325,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.1 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-01a/01b/01c written; routes absent | Failing run output |
 | 3 | `feat` (green) | Login and `/me`; migration and seed | Passing run output |
 | 4 | `test` (red) | TEST-22a (all cases) and TEST-01d | Failing run showing e.g. `alg:none` accepted or logout not revoking |
