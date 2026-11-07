@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express, { type Express } from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -9,7 +9,8 @@ const webDist = fileURLToPath(new URL('../dist/web', import.meta.url));
 const serveWeb = express.static(webDist);
 
 function isApiPath(path: string): boolean {
-  return path === '/api' || path.startsWith('/api/');
+  const lower = path.toLowerCase();
+  return lower === '/api' || lower.startsWith('/api/');
 }
 
 /**
@@ -38,10 +39,17 @@ export function createApp(): Express {
   });
 
   // Client-side routes (`/today`, `/manager/library`, …) resolve to index.html
-  // so React Router can render them. Non-GET requests and `/api/*` keep the
-  // JSON 404 envelope from `notFoundHandler`.
-  app.get(/^(?!\/api(?:\/|$)).*/, (req, res, next) => {
-    res.sendFile(join(webDist, 'index.html'), (err) => {
+  // so React Router can render them. A path with a file extension is an asset
+  // request, not a client route: it keeps the JSON 404 instead of receiving
+  // HTML with 200 (a stale cached index.html must not mask a missing bundle).
+  // Non-GET requests and `/api/*` (case-insensitively) keep the 404 envelope
+  // from `notFoundHandler`.
+  app.get(/^(?!\/api(?:\/|$)).*/i, (req, res, next) => {
+    if (extname(req.path) !== '') {
+      next();
+      return;
+    }
+    res.sendFile('index.html', { root: webDist }, (err) => {
       if (!err) {
         return;
       }

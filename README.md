@@ -38,6 +38,12 @@ single-page app, with PostgreSQL accessed through Prisma.
                           # bunnyfit and bunnyfit_test databases on first start
    ```
 
+   ```bash
+   # Already have a pgdata volume from before? The init script only runs on an empty volume:
+   docker compose exec db createdb -U user bunnyfit_test
+   # or start clean (deletes dev data): docker compose down -v && docker compose up -d
+   ```
+
    The port is `5432` by default; set `POSTGRES_PORT` in `.env` to override it
    (e.g. when another PostgreSQL already listens on 5432). Instead of Docker
    you may use any local PostgreSQL — just create the databases named in
