@@ -7,7 +7,8 @@ single-page app, with PostgreSQL accessed through Prisma.
 ## Requirements
 
 - Node.js ≥ 22.12 (required by Vitest 5 / Vite 8) and [pnpm](https://pnpm.io) (`corepack enable` or `npm i -g pnpm`)
-- PostgreSQL (the SDS mandates no specific version)
+- PostgreSQL (the SDS mandates no specific version) — or use the dev database
+  from `docker-compose.yml` (postgres:17)
 
 ## Setup
 
@@ -29,8 +30,18 @@ single-page app, with PostgreSQL accessed through Prisma.
    environment variables only through `server/config/env.ts`; the Prisma CLI
    reads `DATABASE_URL` directly.
 
-3. Create the databases named in `DATABASE_URL` and `DATABASE_URL_TEST`, then
-   generate the client, apply migrations to the development database and seed:
+3. Start PostgreSQL, then generate the client, apply migrations to the
+   development database and seed:
+
+   ```bash
+   docker compose up -d   # postgres:17 with a named volume; creates the
+                          # bunnyfit and bunnyfit_test databases on first start
+   ```
+
+   The port is `5432` by default; set `POSTGRES_PORT` in `.env` to override it
+   (e.g. when another PostgreSQL already listens on 5432). Instead of Docker
+   you may use any local PostgreSQL — just create the databases named in
+   `DATABASE_URL` and `DATABASE_URL_TEST` first. Then:
 
    ```bash
    pnpm run prisma:generate
@@ -110,7 +121,8 @@ web/               # React SPA
 prisma/            # schema, migrations, seed
 tests/             # unit/, integration/, e2e/ exist; system/, performance/ planned
 docs/              # srs.md, features.md, traceability.md, system-sds.md, sprints/
-Dockerfile  docker-compose.yml  .github/workflows/   # planned (Lab 5), not created yet
+docker-compose.yml   # dev database only (postgres:17); app image is Lab 5
+Dockerfile  .github/workflows/             # planned (Lab 5), not created yet
 .env.example
 ```
 
@@ -137,5 +149,5 @@ Foundation conventions worth knowing before touching the code:
 
 ## Pending (tracked by GitHub issues)
 
-- `docker compose up` / Dockerfile — not started (deployment, Lab 5)
-- CI gates — Lab 5
+- App image / full `docker compose up` (app + DB) / CI gates — Lab 5
+  (`docker-compose.yml` currently starts the dev database only)
