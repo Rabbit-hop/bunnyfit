@@ -116,8 +116,20 @@ pnpm run test:e2e
 warning and skips locally only when no test database URL is configured.
 `pnpm run test:e2e` starts both the API and the Vite server automatically and
 runs the Playwright smoke tests (SPA shell + `/api/health` through the proxy).
-The API has no PostgreSQL dependency yet; later E2E tests that need data must
-provide `DATABASE_URL_TEST`.
+
+The API needs PostgreSQL (F-01 auth reads users and the token denylist from it)
+and the integration suites run against a real database. Before `pnpm test`,
+`.env` must define:
+
+- `DATABASE_URL_TEST` — a database different from `DATABASE_URL`; `tests/globalSetup.ts`
+  migrates and seeds it. Without it the database-backed integration suites skip locally
+  (with a warning) and fail when `CI=true`.
+- `SEED_MANAGER_PASSWORD` and `SEED_PARTICIPANT_PASSWORD` — the seed and the login tests
+  use them; if either is missing the integration `beforeAll` throws.
+- `JWT_SECRET`, at least 32 bytes — needed to start the API (`pnpm run dev` / `pnpm start`),
+  which refuses to boot without it. Generate one with `openssl rand -base64 48`. The
+  placeholder in `.env.example` is deliberately too short to run with. The test suites
+  use their own fixed test secret.
 
 ## Repository layout (SDS §2.5)
 
@@ -140,8 +152,10 @@ Foundation conventions worth knowing before touching the code:
   `Clock` (`server/domain/clock.ts`); tests substitute `FixedClock`.
 - **Route policy registry** — every route declares
   `{ method, path, featureId, auth, roles, ownership }`
-  (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3) will
-  fail on a route without a policy once F-01 lands (not enforced yet).
+  (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3,
+  `tests/integration/security_access.test.ts`) fail on a route without a policy.
+  F-01 routes and its test-only probe routes are covered now; the real routes of
+  F-02/03/04/06 are added in stage 2.
   Async route handlers must be wrapped in `asyncHandler`
   (`server/middleware/asyncHandler.ts`) because Express 4 does not forward rejections.
 - **Prisma schema** follows `docs/system-sds.md` v1.1.0, including

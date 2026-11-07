@@ -90,12 +90,12 @@ $$\text{Requirement ID (FR/BR/NFR)} \longrightarrow \text{Feature ID (F-xx)} \lo
 
 | AC | Feature | Sprint | Planned Test (Level) | Planned File | Actual Test Name | Implemented | Executed | Result | Commit |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| AC-01a | F-01 | 1 | TEST-01a (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
-| AC-01b | F-01 | 1 | TEST-01b (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
-| AC-01c | F-01 | 1 | TEST-01c (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
-| AC-01d | F-01 | 1 | TEST-01d (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
-| AC-01e | F-01 | 1 | TEST-01e (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
-| AC-01f | F-01 | 1 | TEST-01f (API/DB Integration) | tests/integration/auth.test.ts | - | No | No | PLANNED | - |
+| AC-01a | F-01 | 1 | TEST-01a (API/DB Integration) | tests/integration/auth.test.ts | TEST-01a-1 … 01a-4 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-01b | F-01 | 1 | TEST-01b (API/DB Integration) | tests/integration/auth.test.ts | TEST-01b-1/2/3, 01b-4 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-01c | F-01 | 1 | TEST-01c (API/DB Integration) | tests/integration/auth.test.ts | TEST-01c-1, 01c-2 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-01d | F-01 | 1 | TEST-01d (API/DB Integration) | tests/integration/auth.test.ts | TEST-01d-1/2, 01d-3 (restart), 01d-4, 01d-5 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-01e | F-01 | 1 | TEST-01e (API/DB Integration) | tests/integration/auth.test.ts | TEST-01e-1, 01e-2 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-01f | F-01 | 1 | TEST-01f (API/DB Integration) | tests/integration/auth.test.ts | TEST-01f-1 (10 invalid bodies), 01f-2 in `tests/integration/auth.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
 | AC-02a | F-02 | 1 | TEST-02a (API/DB Integration) | tests/integration/manager_template.test.ts | - | No | No | PLANNED | - |
 | AC-02b | F-02 | 1 | TEST-02b (API/DB Integration) | tests/integration/manager_template.test.ts | - | No | No | PLANNED | - |
 | AC-02c | F-02 | 1 | TEST-02c (API/DB Integration) | tests/integration/manager_template.test.ts | - | No | No | PLANNED | - |
@@ -130,9 +130,9 @@ $$\text{Requirement ID (FR/BR/NFR)} \longrightarrow \text{Feature ID (F-xx)} \lo
 | AC-10b | F-04 | 1 | TEST-10b (Boundary) | tests/integration/daily_logging.test.ts | - | No | No | PLANNED | - |
 | AC-10c | F-04 | 2 | TEST-10c (Boundary) | tests/integration/daily_logging.test.ts | - | No | No | PLANNED | - |
 | AC-11 | F-02, F-03, F-04 | 1 | TEST-11 (Unit) | tests/unit/boundary_validation.test.ts | - | No | No | PLANNED | - |
-| AC-12a | F-01 | 1 | TEST-12a (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
-| AC-12b | F-01 | 1 | TEST-12b (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
-| AC-12c | F-01, SYS-01 | 1, 2, 3 | TEST-12c (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
+| AC-12a | F-01 | 1 | TEST-12a (Security) | tests/integration/security_access.test.ts | TEST-12a-1 in `tests/integration/security_access.test.ts`; 12a-2 (stage 2) not written | No (not merged to `staging/sprint-1`) | Yes | INCOMPLETE | `06b03b2` |
+| AC-12b | F-01 | 1 | TEST-12b (Security) | tests/integration/security_access.test.ts | TEST-12b-1/2/3 in `tests/integration/security_access.test.ts` (probe resource = a User row); 12b-4 (stage 2) not written | No (not merged to `staging/sprint-1`) | Yes | INCOMPLETE | `06b03b2` |
+| AC-12c | F-01, SYS-01 | 1, 2, 3 | TEST-12c (Security) | tests/integration/security_access.test.ts | TEST-12c-1 (probes), 12c-2 in `tests/integration/security_access.test.ts`; stage-2 routes not yet present | No (not merged to `staging/sprint-1`) | Yes | INCOMPLETE | `06b03b2` |
 | AC-13a | F-04 | 1 | TEST-13a (API/DB Integration) | tests/integration/quick_complete.test.ts | - | No | No | PLANNED | - |
 | AC-13b | F-04 | 1 | TEST-13b (API/DB Integration) | tests/integration/quick_complete.test.ts | - | No | No | PLANNED | - |
 | AC-13c | F-04 | 1 | TEST-13c (API/DB Integration) | tests/integration/quick_complete.test.ts | - | No | No | PLANNED | - |
@@ -156,9 +156,9 @@ $$\text{Requirement ID (FR/BR/NFR)} \longrightarrow \text{Feature ID (F-xx)} \lo
 | AC-20c | F-11 | 2 | TEST-20c (Unit) | tests/unit/calorie_calc.test.ts | - | No | No | PLANNED | - |
 | AC-21a | F-06 | 2 | TEST-21a (Performance) | tests/performance/latency.test.ts | - | No | No | PLANNED | - |
 | AC-21b | SYS-01 | 3 | TEST-21b (Performance) | tests/performance/latency.test.ts | - | No | No | PLANNED | - |
-| AC-22a | F-01 | 1 | TEST-22a (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
-| AC-22b | F-01 | 1 | TEST-22b (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
-| AC-22c | F-01, SYS-01 | 1, 2, 3 | TEST-22c (Security) | tests/integration/security_access.test.ts | - | No | No | PLANNED | - |
+| AC-22a | F-01 | 1 | TEST-22a (Security) | tests/integration/security_access.test.ts | TEST-22a-1 … 22a-9 (22a-8 on `/me` and on a probe route) in `tests/integration/security_access.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-22b | F-01 | 1 | TEST-22b (Security) | tests/integration/security_access.test.ts | TEST-22b-1, 22b-2 in `tests/integration/security_access.test.ts` | No (not merged to `staging/sprint-1`) | Yes | PASS | `06b03b2` |
+| AC-22c | F-01, SYS-01 | 1, 2, 3 | TEST-22c (Security) | tests/integration/security_access.test.ts | TEST-22c-1, 22c-2 in `tests/integration/security_access.test.ts` (stage 1: F-01 routes and probes only) | No (not merged to `staging/sprint-1`) | Yes | INCOMPLETE | `06b03b2` |
 | AC-23 | F-04, F-05, SYS-01 | 1, 2, 3 | TEST-23 (UI E2E) | tests/e2e/validation_feedback.spec.ts | - | No | No | PLANNED | - |
 | AC-24a | F-04 | 1 | TEST-24a (Persistence) | tests/integration/persistence.test.ts | - | No | No | PLANNED | - |
 | AC-24b | SYS-01 | 3 | TEST-24b (Persistence) | tests/integration/persistence.test.ts | - | No | No | PLANNED | - |
