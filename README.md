@@ -45,8 +45,8 @@ single-page app, with PostgreSQL accessed through Prisma.
 
    Re-running the seed does not overwrite existing users or templates. Changing
    `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` therefore does not
-   update an existing user's password hash; reset that user (or the database)
-   to re-seed it.
+   update an existing user's password hash; reset that user (or drop and
+   recreate the database) before re-seeding if the new password is required.
 
 ## Development
 
@@ -64,7 +64,7 @@ pnpm run dev:web   # Vite SPA on http://127.0.0.1:5173, proxies /api to the API
 | `pnpm run typecheck` | Type-check server, web, tests and tooling configs (no emit) |
 | `pnpm test` | Run all Vitest suites once |
 | `pnpm run test:watch` | Run Vitest in watch mode |
-| `pnpm run test:e2e` | Run the Playwright E2E suite (starts Vite automatically) |
+| `pnpm run test:e2e` | Run the Playwright E2E suite (starts the API and Vite automatically) |
 | `pnpm run build` | Type-check, then build the API to `dist/` and the SPA to `dist/web/` |
 | `pnpm start` | Run the compiled API (`node dist/index.js`) |
 | `pnpm run preview` | Preview the built SPA |
@@ -78,7 +78,12 @@ pnpm run dev:web   # Vite SPA on http://127.0.0.1:5173, proxies /api to the API
 ```bash
 pnpm run build && pnpm start
 curl http://localhost:8080/api/health   # → {"status":"ok"}
+curl http://localhost:8080/             # → the built SPA (index.html)
 ```
+
+The Express app serves `dist/web` and falls back to `index.html` for non-`/api`
+GET requests, so the SPA and the API share one origin (SDS §2.1). Before
+`pnpm run build:web`, those requests return the JSON `NOT_FOUND` envelope.
 
 ## Verification
 
@@ -90,9 +95,12 @@ pnpm run test:e2e
 ```
 
 `pnpm test` runs Vitest. The persistence suite (AC-24a / TEST-24a) needs
-`DATABASE_URL_TEST`; it fails instead of skipping when `CI=true`, and is skipped
-locally only when no test database URL is configured. `pnpm run test:e2e` starts
-the Vite server automatically and runs the Playwright smoke test.
+`DATABASE_URL_TEST`; it fails instead of skipping when `CI=true`, and prints a
+warning and skips locally only when no test database URL is configured.
+`pnpm run test:e2e` starts both the API and the Vite server automatically and
+runs the Playwright smoke tests (SPA shell + `/api/health` through the proxy).
+The API has no PostgreSQL dependency yet; later E2E tests that need data must
+provide `DATABASE_URL_TEST`.
 
 ## Repository layout (SDS §2.5)
 
@@ -121,9 +129,11 @@ Foundation conventions worth knowing before touching the code:
 - **Prisma schema** follows `docs/system-sds.md` v1.1.0, including
   `PlanItem.planKey/version`, the Monday–Sunday `repeatDays` bitmask,
   `LedgerEntry.kind` and a `UserExercise.sourceTemplateId` column with no FK.
-  The migration also adds hand-written CHECK constraints and a
-  case-insensitive unique index on `Category.name` that `schema.prisma` cannot
-  express; keep them in sync when changing the schema.
+  The migration also adds hand-written constraints that `schema.prisma` cannot
+  express: CHECK constraints (including one coherent target group per
+  `PlanItem`), a case-insensitive unique index on `Category.name`, and composite
+  `(userExerciseId, userId)` foreign keys so an entry cannot point at another
+  user's exercise. Keep them in sync when changing the schema.
 
 ## Pending (tracked by GitHub issues)
 

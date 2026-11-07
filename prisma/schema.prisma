@@ -114,6 +114,9 @@ model UserExercise {
   planItems        PlanItem[]
   ledgerEntries    LedgerEntry[]
 
+  // Referenced by the composite (userExerciseId, userId) foreign keys on
+  // PlanItem/LedgerEntry so an entry cannot point at another user's exercise.
+  @@unique([id, userId])
   @@index([userId])
   @@map("UserExercise")
 }
@@ -125,7 +128,7 @@ model PlanItem {
   userId            String       @db.Uuid
   user              User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   userExerciseId    String       @db.Uuid
-  userExercise      UserExercise @relation(fields: [userExerciseId], references: [id], onDelete: Restrict)
+  userExercise      UserExercise @relation(fields: [userExerciseId, userId], references: [id, userId], onDelete: Restrict)
   targetSets        Int?
   targetRepsPerSet  Int?
   loadKg            Decimal?     @db.Decimal(5, 2)
@@ -148,7 +151,7 @@ model LedgerEntry {
   userId         String          @db.Uuid
   user           User            @relation(fields: [userId], references: [id], onDelete: Restrict)
   userExerciseId String          @db.Uuid
-  userExercise   UserExercise    @relation(fields: [userExerciseId], references: [id], onDelete: Restrict)
+  userExercise   UserExercise    @relation(fields: [userExerciseId, userId], references: [id, userId], onDelete: Restrict)
   logDate        DateTime        @db.Date
   sets           Int?
   totalReps      Int?

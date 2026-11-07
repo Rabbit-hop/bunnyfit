@@ -139,6 +139,8 @@ async function seedUsers() {
 
     await prisma.user.upsert({
       where: { email: user.email },
+      // Keep an existing hash on re-runs (a Manager may have changed it). The
+      // README explains how to reset a user after changing SEED_*_PASSWORD.
       update: {},
       create: {
         email: user.email,
@@ -196,6 +198,7 @@ async function seedLibrary(managerId: string) {
           name: template.name,
         },
       },
+      // Do not overwrite a Manager's edits when the seed runs again.
       update: {},
       create: data,
     })

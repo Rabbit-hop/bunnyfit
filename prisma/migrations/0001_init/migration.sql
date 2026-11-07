@@ -166,6 +166,9 @@ CREATE UNIQUE INDEX "ExerciseTemplate_categoryId_name_key" ON "ExerciseTemplate"
 CREATE INDEX "UserExercise_userId_idx" ON "UserExercise"("userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "UserExercise_id_userId_key" ON "UserExercise"("id", "userId");
+
+-- CreateIndex
 CREATE INDEX "PlanItem_userId_effectiveFrom_idx" ON "PlanItem"("userId", "effectiveFrom");
 
 -- CreateIndex
@@ -202,13 +205,13 @@ ALTER TABLE "UserExercise" ADD CONSTRAINT "UserExercise_userId_fkey" FOREIGN KEY
 ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_userExerciseId_fkey" FOREIGN KEY ("userExerciseId") REFERENCES "UserExercise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_userExerciseId_userId_fkey" FOREIGN KEY ("userExerciseId", "userId") REFERENCES "UserExercise"("id", "userId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_userExerciseId_fkey" FOREIGN KEY ("userExerciseId") REFERENCES "UserExercise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_userExerciseId_userId_fkey" FOREIGN KEY ("userExerciseId", "userId") REFERENCES "UserExercise"("id", "userId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WeightLog" ADD CONSTRAINT "WeightLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -240,6 +243,13 @@ ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_load_check" CHECK ("loadKg" IS N
 ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_duration_check" CHECK ("targetDurationSec" IS NULL OR "targetDurationSec" BETWEEN 1 AND 10800);
 ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_distance_check" CHECK ("targetDistanceKm" IS NULL OR ("targetDistanceKm" > 0 AND "targetDistanceKm" <= 100));
 ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_end_date_check" CHECK ("endDate" IS NULL OR "endDate" >= "effectiveFrom");
+-- Target columns depend on the exercise's trackingMode (SDS §3.2). The DB can
+-- only enforce one coherent group; the service also checks it against the
+-- userExercise's trackingMode (a cross-table rule a CHECK cannot express).
+ALTER TABLE "PlanItem" ADD CONSTRAINT "PlanItem_measurement_group_check" CHECK (
+  (("targetSets" IS NOT NULL) = ("targetRepsPerSet" IS NOT NULL)) AND
+  ((("targetSets" IS NOT NULL)::int + ("targetDurationSec" IS NOT NULL)::int + ("targetDistanceKm" IS NOT NULL)::int) = 1)
+);
 
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_sets_check" CHECK ("sets" IS NULL OR "sets" BETWEEN 1 AND 20);
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_total_reps_check" CHECK ("totalReps" IS NULL OR "totalReps" >= 1);
