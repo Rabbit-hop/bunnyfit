@@ -37,6 +37,25 @@ describe('parseLoginBody — valid input', () => {
   });
 });
 
+describe('parseLoginBody — TEST-01f-2 password limit is 72 UTF-8 bytes (contract 0.3.2)', () => {
+  it('24 Thai characters (72 bytes) is accepted', () => {
+    const pw = 'ก'.repeat(24);
+    expect(Buffer.byteLength(pw)).toBe(72);
+    expect(parseLoginBody({ email: 'a@b.co', password: pw }).password).toBe(pw);
+  });
+
+  it('25 Thai characters (75 bytes) is rejected, naming password', () => {
+    const pw = 'ก'.repeat(25);
+    expect(Buffer.byteLength(pw)).toBe(75);
+    expect(fieldsOf({ email: 'a@b.co', password: pw })).toContain('password');
+  });
+
+  it('73 ASCII characters is still rejected; 72 ASCII still accepted', () => {
+    expect(fieldsOf({ email: 'a@b.co', password: 'p'.repeat(73) })).toContain('password');
+    expect(parseLoginBody({ email: 'a@b.co', password: 'p'.repeat(72) }).password).toHaveLength(72);
+  });
+});
+
 describe('parseLoginBody — TEST-01f-1 invalid bodies', () => {
   it('missing email', () => expect(fieldsOf({ password: 'x' })).toContain('email'));
   it('missing password', () => expect(fieldsOf({ email: 'a@b.co' })).toContain('password'));
