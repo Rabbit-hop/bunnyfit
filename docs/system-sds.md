@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Document Version:**  1.1.1
 **SRS Baseline Version:**  1.1.0
-**Date:**  6 November 2026
+**Date:**  8 November 2026
 **Status:**  Approved Baseline
 
 --------------------------------------------------------------------------------
