@@ -60,10 +60,10 @@ single-page app, with PostgreSQL accessed through Prisma.
    first and run `DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:migrate` from a
    POSIX shell (the inline `VAR=...` form does not work in PowerShell).
 
-   Re-running the seed does not overwrite existing users or templates. Changing
-   `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` therefore does not
-   update an existing user's password hash; reset that user (or drop and
-   recreate the database) before re-seeding if the new password is required.
+   Re-running the seed resets the seeded users (password hash, role, display
+   name) and seeded templates to the seed values, so changing
+   `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` and re-seeding takes
+   effect. It also reverts any edit made to those seeded rows.
 
 ## Development
 
@@ -116,8 +116,21 @@ pnpm run test:e2e
 warning and skips locally only when no test database URL is configured.
 `pnpm run test:e2e` starts both the API and the Vite server automatically and
 runs the Playwright smoke tests (SPA shell + `/api/health` through the proxy).
-The API has no PostgreSQL dependency yet; later E2E tests that need data must
-provide `DATABASE_URL_TEST`.
+
+The API needs PostgreSQL (F-01 auth reads users and the token denylist from it)
+and the integration suites run against a real database. Before `pnpm test`,
+`.env` must define:
+
+- `DATABASE_URL_TEST` — a database different from `DATABASE_URL`; `tests/globalSetup.ts`
+  migrates and seeds it. Without it the database-backed integration suites skip locally
+  (with a warning) and fail when `CI=true`.
+- `SEED_MANAGER_PASSWORD` and `SEED_PARTICIPANT_PASSWORD` — the seed and the login tests
+  use them; if either is missing the integration `beforeAll` throws.
+
+`JWT_SECRET` (at least 32 bytes) is **not** needed for `pnpm test`, which uses its own
+fixed test secret. It is needed only to start the API (`pnpm run dev` / `pnpm start`),
+which refuses to boot without it. Generate one with `openssl rand -base64 48`; the
+placeholder in `.env.example` is deliberately too short to run with.
 
 ## Repository layout (SDS §2.5)
 
@@ -140,8 +153,10 @@ Foundation conventions worth knowing before touching the code:
   `Clock` (`server/domain/clock.ts`); tests substitute `FixedClock`.
 - **Route policy registry** — every route declares
   `{ method, path, featureId, auth, roles, ownership }`
-  (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3) will
-  fail on a route without a policy once F-01 lands (not enforced yet).
+  (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3,
+  `tests/integration/security_access.test.ts`) fail on a route without a policy (the only exemption is the SPA shell fallback; F-01 contract §4.5).
+  F-01 routes and its test-only probe routes are covered now; the real routes of
+  F-02/03/04/06 are added in stage 2.
   Async route handlers must be wrapped in `asyncHandler`
   (`server/middleware/asyncHandler.ts`) because Express 4 does not forward rejections.
 - **Prisma schema** follows `docs/system-sds.md` v1.1.0, including

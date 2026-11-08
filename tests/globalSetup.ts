@@ -37,6 +37,13 @@ export default function setup() {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: databaseUrl },
   })
+
+  // Known seed (AGENTS.md: integration suites run from migrations + a known seed).
+  // The seed upserts, so repeated runs are safe; it needs SEED_*_PASSWORD in .env.
+  execSync('pnpm exec tsx prisma/seed.ts', {
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  })
 }
 
 function sameDatabase(left: string, right: string): boolean {

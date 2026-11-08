@@ -1,5 +1,5 @@
 import { CardioCategory, PrismaClient, Role, TrackingMode } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { hashPassword } from '../server/domain/password.js'
 import { env } from '../server/config/env.js'
 
 const prisma = new PrismaClient()
@@ -133,15 +133,15 @@ async function seedUsers() {
     let passwordHash = passwordHashes.get(password)
 
     if (!passwordHash) {
-      passwordHash = await bcrypt.hash(password, bcryptCost)
+      passwordHash = await hashPassword(password, bcryptCost)
       passwordHashes.set(password, passwordHash)
     }
 
     await prisma.user.upsert({
       where: { email: user.email },
-      // Keep an existing hash on re-runs (a Manager may have changed it). The
-      // README explains how to reset a user after changing SEED_*_PASSWORD.
-      update: {},
+      // Re-running the seed brings seeded users back to the seed values, so a
+      // changed SEED_*_PASSWORD takes effect (PR #19 audit item 3).
+      update: { passwordHash, role: user.role, displayName: user.displayName },
       create: {
         email: user.email,
         passwordHash,
@@ -198,8 +198,8 @@ async function seedLibrary(managerId: string) {
           name: template.name,
         },
       },
-      // Do not overwrite a Manager's edits when the seed runs again.
-      update: {},
+      // Seeded templates are reset to the seed values on re-run.
+      update: data,
       create: data,
     })
   }

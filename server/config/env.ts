@@ -42,3 +42,20 @@ export const env = {
 } as const;
 
 export type Env = typeof env;
+
+/**
+ * Startup check for R10 / SDS §8: JWT_SECRET must be present and at least
+ * 32 UTF-8 bytes. Called by server/index.ts before listening — not at module
+ * load, so the seed script and unit tests that import this file without a
+ * JWT secret keep working.
+ */
+export function requireJwtSecret(): string {
+  const secret = env.jwtSecret;
+  if (secret === '') {
+    throw new Error('Environment variable JWT_SECRET is required');
+  }
+  if (Buffer.byteLength(secret, 'utf8') < 32) {
+    throw new Error('Environment variable JWT_SECRET must be at least 32 bytes');
+  }
+  return secret;
+}

@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.3.0
+**Contract Version:**  0.3.7
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
-**Status:**  Draft: specification-only, awaiting reviewer approval before implementation
+**Status:**  Approved: contract v0.3.0 approved by the reviewer in PR #13 (approval at `177a533`, merged 6 Nov 2026); amendments v0.3.1–0.3.3 (7 Nov 2026) and v0.3.5–0.3.7 (8 Nov 2026) are review-pending
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-01-authentication.md`
 
@@ -19,6 +19,13 @@
 | **0.1.1** | 5 Nov 2026 | Cross-review fixes against the baselines: §2 limited to the three requirements Feature Inventory 1.0.0 maps to F-01 (removed the NFR-01/NFR-04 partial rows); §3.2 completed with SDS §6.2 steps 4–5; §6 no longer cites AC-23 (its three cases are domain cases of F-04/F-05 and contain no login case); AC-12b and AC-22c restored to the exact RTM 1.0.0 wording; §7 register status aligned to the RTM §3.1 vocabulary (`INCOMPLETE` instead of an invented "stage 1 only"); §8 gains TEST-25 (AC-25, sprint-level), the SUP-01 file path and the missing e-mail length case; DoD items 7 and 9 qualified with their real evidence; §11 corrected (SRS 1.0.0 Appendix A.5 already contains `NOT_FOUND` and `INTERNAL_ERROR`), counts made provisional across contracts, and the login field-error gap recorded; R10 aligned to SDS §8 (bytes) | Nakagamon | Draft |
 | **0.1.2** | 6 Nov 2026 | Baseline reconciliation (SRS / RTM / SDS / plan 1.0.0): §11 item 4 updated for the corrected proposed-AC IDs after renumbering — the Sprint 1 proposals are now AC-01f (F-01), AC-02d (F-02), AC-03d (F-03), AC-04d (F-04) and AC-06g (F-06); F-06's former "AC-06d" is restored to the RTM 1.0.0 meaning, so it is no longer a proposal. Baseline citations confirmed (RTM 1.0.0 and SDS 1.0.0 — no "RTM 1.2.0" or "SDS 0.1.0" exists in any baseline document) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0 (RTM / SDS / plan 1.1.0, SRS / Feature Inventory 1.1.0): citations updated; AC-01f is now an approved RTM 1.1.0 criterion (Tier A, Sprint 1), no longer *proposed*; §11 item 4 rewritten with the current counts (80 atomic AC, Sprint 1 = 38, Sprint 2 = 34 after CHANGE-03 … CHANGE-08) and the Coverage check no longer conditional (F-01 is verified by 12 atomic AC) Review-fix pass (PR #13): AC-01c wording aligned with RTM ("at least `{id, email, role}`"). Version 0.2.0 was intentionally skipped so that all Sprint 1 contracts share 0.3.0; no 0.2.0 content exists. | Nakagamon | Draft |
+| **0.3.1** | 7 Nov 2026 | Test-path correction only: SUP-01 now names `tests/unit/env.test.ts` (the existing configuration unit test in the repo) instead of `tests/unit/config.test.ts` in §8 Files and the SUP-01 row. No change to ACs, STS cases or scope. | Nakagamon | Draft |
+| **0.3.2** | 7 Nov 2026 | Password length rule measured in UTF-8 **bytes** instead of characters (§4.2, TEST-01f-2): bcrypt uses at most 72 bytes and would silently ignore the rest, so two different longer passwords could be accepted as the same one. ASCII passwords are unchanged (72 accepted / 73 rejected); only multi-byte passwords are affected. No AC, scope or other STS case changes (AC-01f already requires rejecting an over-length password). | Nakagamon | Draft |
+| **0.3.3** | 7 Nov 2026 | SUP-01 action clarified only: the R10 check lives in an exported startup function `requireJwtSecret()` called by `server/index.ts` before listening, not at module load, so the seed script and unit tests that import `server/config/env.ts` without a JWT secret keep working. The length is measured in UTF-8 bytes. No AC, scope or other STS case changes. | Nakagamon | Draft |
+| **0.3.4** | 8 Nov 2026 | Status record only; no change to ACs, STS cases, scope or behaviour. Contract v0.3.0 (content merged into `staging/sprint-1` by PR #13 on 6 Nov 2026) was approved by the reviewer (Onsinee, account `justfepwx12`) in that PR: review state APPROVED at commit `177a533`, 6 Nov 2026 13:25 UTC. The later amendments v0.3.1, v0.3.2 and v0.3.3 (7 Nov 2026) were made after that approval and have not yet been reviewed; they are reviewed in the F-01 implementation PR. | Nakagamon | Approved (v0.3.0); v0.3.1–0.3.3 pending review |
+| **0.3.5** | 8 Nov 2026 | Review-fix pass after the issue #3 check; no AC, scope or STS-case change. Documentation corrected to the implementation: §5.2 migration is `0001_init` (not `<timestamp>_auth_user_revoked_token`); §9 item 1 no longer names a stale contract version; §4.5 wording "excluded from production builds" → "never mounted unless `NODE_ENV=test`". Clarified behaviour: R5's dummy hash uses the configured `BCRYPT_COST` (same cost as real hashes); a non-JSON body returns `fields: [{field: "body"}]` like a JSON array body (TEST-01f-1 now asserts it); TEST-01a-1 asserts the JWT header `alg` is `HS256`; TEST-22a-8 gains a second case that checks the deleted-user rule on a route that never loads the user (`/__test/participant-only`). | Nakagamon | Draft |
+| **0.3.6** | 8 Nov 2026 | Aligns §8 and R5 with what v0.3.5 already described; no AC, scope or new STS-case ID. TEST-01a-1 also asserts the JWT header `alg` = `HS256`; TEST-01f-1 adds a JSON-array body and states that a body that is not JSON (or not a JSON object) names `body` in `fields`; TEST-22a-8 gets its second case (deleted-user rule on a route that never loads the user). R5: the dummy hash uses `BCRYPT_COST` and is built when the auth service is created, so the first unknown-email login after start-up does no extra hashing. | Nakagamon | Draft |
+| **0.3.7** | 8 Nov 2026 | Review-fix pass for PR #19 (reviewer: Onsinee). (1) **Correction of row 0.3.2:** 0.3.2 *does* add one STS case, `TEST-01f-2`, under the existing AC-01f; its text "No … other STS case changes" is wrong. The history rows 0.3.1–0.3.6 are left as written and this row is the correction. (2) **§4.5 / TEST-22c-2:** the completeness rule is "every route in the running application except the non-API SPA shell fallback" (the catch-all that serves `index.html`; it carries no data and has no role); routes mounted through a sub-`Router` are included, plain `app.use()` middleware is not a route. SDS §6.3 gets the same note (SDS 1.1.1). (3) **New rule R12 and new STS case `TEST-01f-3`** (AC-01f, in `tests/integration/auth.test.ts`, no database needed): hashing a password longer than 72 UTF-8 bytes is refused with `VALIDATION_ERROR` (field `password`) instead of bcrypt silently truncating it, and the seed hashes through the same function. (4) **TEST-01d-3** is run in a separate Node process so that an in-process revocation cache cannot pass it. (5) Test-only: `startup.test.ts` runs on Windows (`shell` on win32). No AC or scope change. Row order only: the `TEST-01f-3` row of the §8 table now sits after `TEST-01f-2` (it was between 22b and 22c); no content change. | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -99,13 +106,14 @@ Steps 1–3 return the error envelope only; no private field is ever included in
 | R2 | A JWT contains `sub` (user ID), `role`, `jti` (new UUID per login), `iat`, `exp = iat + 3600`; it is signed HS256 with `JWT_SECRET` |
 | R3 | A token is valid while `now < exp` (at exactly `exp` it is expired). Time comes from the injectable Clock |
 | R4 | Verification accepts **only HS256**; `alg: none` and any other algorithm are rejected |
-| R5 | Unknown email and wrong password produce an identical 401 `INVALID_CREDENTIALS` response (same status, code, message); for an unknown email the server still performs a bcrypt comparison against a dummy hash to avoid revealing which emails exist by timing |
+| R5 | Unknown email and wrong password produce an identical 401 `INVALID_CREDENTIALS` response (same status, code, message); for an unknown email the server still performs a bcrypt comparison against a dummy hash (same cost as real hashes, `BCRYPT_COST`, built when the auth service is created) to avoid revealing which emails exist by timing |
 | R6 | Emails are compared case-insensitively (stored lower-case) |
 | R7 | Logout revokes only the presented token; other tokens of the same user are unaffected |
 | R8 | A revoked, expired, malformed or forged token is always 401, never 403 or 500 |
 | R9 | Role mismatch is 403; a Manager receives no Participant activity data (BR-04) |
 | R10 | The application refuses to start when `JWT_SECRET` is missing or shorter than 32 bytes (SDS §8: ≥ 32 random bytes; for an ASCII secret that is 32 characters) |
 | R11 | Every route is registered with a policy (§4.5); a route without a policy cannot be registered |
+| R12 | A password longer than 72 UTF-8 bytes is never hashed: the hashing function throws `VALIDATION_ERROR` (field `password`), because bcrypt would silently ignore the excess bytes. The seed script hashes through the same function (v0.3.7) |
 
 ##### 3.4 Failure and Boundary Cases
 | Case | Expected behavior |
@@ -158,7 +166,7 @@ JWT payload: `{ "sub": "uuid", "role": "PARTICIPANT", "jti": "uuid", "iat": 1793
 | Field | Rule |
 | ------ | ------ |
 | `email` | Required string, trimmed, 3–254 characters, valid email format; normalized to lower-case |
-| `password` | Required string, 1–72 characters (bcrypt processes at most 72 bytes) |
+| `password` | Required string, 1–72 **bytes** when UTF-8 encoded (bcrypt processes at most 72 bytes; ASCII characters are 1 byte each, so ASCII behaves as 1–72 characters). Not trimmed |
 | Body | Must be JSON; unknown fields are rejected |
 
 ##### 4.3 `GET /api/auth/me`  (any authenticated role)
@@ -181,8 +189,8 @@ interface RoutePolicy {
 - `none`: any caller with an allowed role (e.g. read-only catalog).
 - `self-scoped`: data is always the caller's own; a different `userId` query parameter → 403.
 - `resource-owner`: a `:id` record whose owner must equal the caller (an owner-lookup function is supplied with the policy).
-- The registry is the **single source** for the middleware and for the Endpoint Access Matrix tests (AC-12c, AC-22c). A completeness test fails if any route in the running application is not in the registry.
-- **Test-only probe routes** (`/__test/…`, registered only when `NODE_ENV=test`): `GET /__test/manager-only` (role MANAGER), `GET /__test/participant-only` (role PARTICIPANT, self-scoped), `GET|PUT|DELETE /__test/owned/:id` (resource-owner). They let F-01 verify enforcement before real features exist, and are excluded from production builds.
+- The registry is the **single source** for the middleware and for the Endpoint Access Matrix tests (AC-12c, AC-22c). A completeness test fails if any route in the running application is not in the registry, except the non-API SPA shell fallback (v0.3.7); routes inside a sub-`Router` count as routes.
+- **Test-only probe routes** (`/__test/…`, registered only when `NODE_ENV=test`): `GET /__test/manager-only` (role MANAGER), `GET /__test/participant-only` (role PARTICIPANT, self-scoped), `GET|PUT|DELETE /__test/owned/:id` (resource-owner). They let F-01 verify enforcement before real features exist, and are never mounted unless `NODE_ENV=test` (the code is part of the build but unreachable otherwise; not removed from the bundle).
 
 --------------------------------------------------------------------------------
 
@@ -213,7 +221,7 @@ model RevokedToken {
 Constraints beyond Prisma (raw SQL in the migration): `CHECK (email = lower(email))`.
 
 ##### 5.2 Migration and Seed
-- Migration: `<timestamp>_auth_user_revoked_token` creates the enum and both tables; applied with `prisma migrate dev` locally and `prisma migrate deploy` in CI.
+- Migration: `0001_init` (the single baseline migration, `prisma/migrations/0001_init`) creates the enum and both tables; applied with `prisma migrate dev` locally and `prisma migrate deploy` in CI.
 - Seed (idempotent, synthetic data, `.test` domain): 
 
 | Email | Role | Display name | Password source |
@@ -269,11 +277,11 @@ AC text is identical to RTM 1.1.0, which includes AC-01f (approved 6 Nov 2026, T
 --------------------------------------------------------------------------------
 
 #### 8. Software Test Specification (STS)
-Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_access.test.ts` (AC-12, AC-22), `tests/e2e/main_journey.spec.ts` (AC-25, sprint-level), `tests/unit/config.test.ts` (SUP-01). Fixtures: seeded users from §5.2 (`alice` and `bob` are Participants); real PostgreSQL test database; injectable Clock; test-only probe routes. "Restart" means creating a new application instance on the same database. TEST-25 spans F-01 – F-06; F-01 defines it here because no other Sprint 1 contract claims it, and it runs at Sprint 1 integration (like stage 2 of §7), not at F-01 merge.
+Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_access.test.ts` (AC-12, AC-22), `tests/e2e/main_journey.spec.ts` (AC-25, sprint-level), `tests/unit/env.test.ts` (SUP-01). Fixtures: seeded users from §5.2 (`alice` and `bob` are Participants); real PostgreSQL test database; injectable Clock; test-only probe routes. "Restart" means creating a new application instance on the same database. TEST-25 spans F-01 – F-06; F-01 defines it here because no other Sprint 1 contract claims it, and it runs at Sprint 1 integration (like stage 2 of §7), not at F-01 merge.
 
 | Test ID | AC | Level | Precondition / Input | Action | Expected result |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| **TEST-01a-1** | AC-01a | API/DB Integration | Alice and Manager seeded; Clock fixed at T | `POST /login` with Alice's email and correct password | 200; `token` present; decoded payload: `sub` = Alice's id, `role` = PARTICIPANT, `jti` is a UUID, `exp − iat` = 3600; `expiresIn` = 3600; `user` has id, email, role, displayName |
+| **TEST-01a-1** | AC-01a | API/DB Integration | Alice and Manager seeded; Clock fixed at T | `POST /login` with Alice's email and correct password | 200; `token` present; decoded payload: `sub` = Alice's id, `role` = PARTICIPANT, `jti` is a UUID, `exp − iat` = 3600; JWT header `alg` = `HS256`; `expiresIn` = 3600; `user` has id, email, role, displayName |
 | TEST-01a-2 | AC-01a | API/DB Integration | Same | Login as Manager | 200; `role` = MANAGER in token and body |
 | TEST-01a-3 | AC-01a | API/DB Integration | Same | Login with `ALICE@Exercise.TEST` and correct password | 200 (case-insensitive email, R6) |
 | TEST-01a-4 | AC-01a | API/DB Integration | Same | Inspect the response JSON of 01a-1 for any key or value resembling `password` or a bcrypt hash | None present |
@@ -285,12 +293,14 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-01c-2 | AC-01c | API/DB Integration | Manager logged in | `GET /me` | 200 with `role` = MANAGER |
 | **TEST-01d-1** | AC-01d | API/DB Integration | Alice logged in (token T1, jti J1) | `POST /logout` with T1 | 204; `RevokedToken` has a row `jti = J1`, `userId` = Alice, `expiresAt` = token `exp` |
 | TEST-01d-2 | AC-01d | API/DB Integration | After 01d-1 | `GET /me` with T1 | 401 `UNAUTHENTICATED` |
-| TEST-01d-3 | AC-01d | API/DB Integration | After 01d-1; new application instance on the same database | `GET /me` with T1 | 401 (revocation survives restart) |
+| TEST-01d-3 | AC-01d | API/DB Integration | After 01d-1; the API is started as a **new Node process** on the same database | `GET /me` with T1 | 401 (revocation survives restart; an in-process cache cannot satisfy this) |
 | TEST-01d-4 | AC-01d | API/DB Integration | Alice has two tokens T1 (revoked) and T2 (different jti) | `GET /me` with T2 | 200 (R7) |
 | TEST-01d-5 | AC-01d | API/DB Integration | No token | `POST /logout` | 401 |
 | **TEST-01e-1** | AC-01e | API/DB Integration | Seeded users | Read `passwordHash` of every seeded user directly from the database | Each matches `^\$2[aby]\$\d{2}\$` and has length 60; none equals the seed plaintext |
 | TEST-01e-2 | AC-01e | API/DB Integration | Same | `bcrypt.compare(plaintext, hash)` and cost factor | True; cost equals `BCRYPT_COST` |
-| **TEST-01f-1** | AC-01f | API/DB Integration | None | Login with each invalid body: missing email; missing password; `email: "ab"` (shorter than the 3-character minimum); `email: "not-an-email"`; email of 255 characters; empty password; password of 73 characters; unknown extra field; body that is not JSON | Each returns 400 `VALIDATION_ERROR`; `fields` names the offending field; no `token`; no database change |
+| **TEST-01f-1** | AC-01f | API/DB Integration | None | Login with each invalid body: missing email; missing password; `email: "ab"` (shorter than the 3-character minimum); `email: "not-an-email"`; email of 255 characters; empty password; password of 73 characters; unknown extra field; body that is not JSON; body that is a JSON array | Each returns 400 `VALIDATION_ERROR`; `fields` names the offending field (`body` when the body is not JSON or not a JSON object); no `token`; no database change |
+| TEST-01f-2 | AC-01f | API/DB Integration | None | Login with a password of 72 UTF-8 bytes made of multi-byte characters (e.g. 24 Thai characters), then one of 75 bytes (25 Thai characters) | 72 bytes: not a validation error (401 for a wrong password); 75 bytes: 400 `VALIDATION_ERROR` naming `password`; no `token`; no database change |
+| TEST-01f-3 | AC-01f | API/DB Integration | None | Call the password-hashing function with a 72-byte password, then 73 ASCII characters and 25 Thai characters (75 bytes) | 72 bytes: a bcrypt hash; the others: `VALIDATION_ERROR` naming `password`; nothing hashed (R12) |
 | **TEST-22a-1** | AC-22a | Security | Route `GET /me`; no Authorization header | Request | 401 `UNAUTHENTICATED` |
 | TEST-22a-2 | AC-22a | Security | Same | Header `Authorization: Basic abc`; header `Bearer` with empty token; header `Bearer a.b` | 401 each |
 | TEST-22a-3 | AC-22a | Security | Token signed with a different secret | Request | 401 |
@@ -298,12 +308,12 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-22a-5 | AC-22a | Security | Valid token issued at T; Clock set to T + 3,599 s | Request | 200 (boundary) |
 | TEST-22a-6 | AC-22a | Security | Same token; Clock set to T + 3,600 s | Request | 401 (expired, R3) |
 | TEST-22a-7 | AC-22a | Security | Token revoked by logout | Request | 401 |
-| TEST-22a-8 | AC-22a | Security | Valid token whose user was deleted | Request | 401, not 500 |
+| TEST-22a-8 | AC-22a | Security | Valid token whose user was deleted | Request to `GET /me`; and to `GET /__test/participant-only`, a route that never loads the user (so the check is proven to live in the middleware) | 401, not 500, in both cases |
 | TEST-22a-9 | AC-22a | Security | Responses of 22a-1 to 22a-8 | Inspect bodies | Error envelope only; no private data; no database writes |
 | **TEST-22b-1** | AC-22b | Security | Alice's valid token; probe `GET /__test/manager-only` | Request | 403 `FORBIDDEN`; body is the envelope only |
 | TEST-22b-2 | AC-22b | Security | Manager's valid token; probe `GET /__test/participant-only` | Request | 403 `FORBIDDEN`; no data |
 | **TEST-22c-1** | AC-22c | Security | Registry listing every route with its policy | For each non-public route: no token; then a token of a role not in `roles` | 401, then 403 (stage 1: F-01 routes and probes; stage 2: all Sprint 1 routes) |
-| TEST-22c-2 | AC-22c | Security | Running application | Compare the application's registered routes with the registry | No route missing from the registry; a deliberately unregistered route makes the test fail (checked once with a temporary route) |
+| TEST-22c-2 | AC-22c | Security | Running application | Compare the application's registered routes with the registry | No route missing from the registry (the SPA shell fallback is the only exemption; routes in a sub-`Router` are included); a deliberately unregistered route, also inside a sub-`Router`, makes the test fail |
 | **TEST-12a-1** | AC-12a | Security | Manager token; probe `GET /__test/participant-only` | Request | 403; no data (stage 1) |
 | TEST-12a-2 | AC-12a | Security | Manager token; every `PARTICIPANT`-only route in the registry | Request | 403 for each (stage 2) |
 | **TEST-12b-1** | AC-12b | Security | Probe resource owned by Bob; Alice's token | `GET`, `PUT`, `DELETE /__test/owned/:id` | 403 each; Bob's record unchanged in the database |
@@ -312,7 +322,7 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-12b-4 | AC-12b | Security | Alice's token; each self-scoped route in the registry | Request with `?userId=<Bob's id>` | 403; no data (stage 2) |
 | **TEST-12c-1** | AC-12c | Security | Registry; two Participants with their own records | For each `resource-owner` route: request Bob's record with Alice's token | 403 each; database unchanged (stage 1: probes; stage 2: all Sprint 1 owner-scoped routes) |
 | TEST-12c-2 | AC-12c | Security | Registry | A route declared `resource-owner` without an owner-lookup function | Registration fails at startup (R11) |
-| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/config.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Load configuration | First two fail fast with a clear error; third starts |
+| **SUP-01** *(supporting, no AC)* | R10 | Unit | `tests/unit/env.test.ts`: `JWT_SECRET` missing; ASCII `JWT_SECRET` of 31 bytes; ASCII `JWT_SECRET` of 32 bytes | Call the startup check `requireJwtSecret()` (exported by `server/config/env.ts`; `server/index.ts` calls it before listening) | First two throw a clear error naming `JWT_SECRET`; third returns the secret |
 | **TEST-25** *(sprint-level, AC-25 shared with F-02, F-03, F-04 and F-06)* | AC-25 | UI E2E | All Sprint 1 features integrated; seeded Manager, Alice and Bob; clean database | Playwright journey in `tests/e2e/main_journey.spec.ts`: Manager creates a template → Participant logs in → selects it (3×10, weight 4) → logs 1 set / 10 reps → Quick Complete → progress 100% → logout, login again | Journey completes end-to-end and the values persist after re-login; run at Sprint 1 integration (plan §4.4), not at F-01 merge |
 
 **Coverage check.** Every AC in §7 has at least one test; negative, boundary (3,599/3,600 s, 254/255-character email, 72/73-character password) and role cases are included. F-01 is verified by 12 atomic AC: AC-01a–f (6), AC-22a–c (3) and AC-12a–c (3). TEST-25 (AC-25) is additionally defined here as a sprint-level test and is **not** counted in the 12: AC-25 belongs jointly to F-01 – F-06 in the RTM and runs at Sprint 1 integration.
@@ -324,7 +334,7 @@ Meaningful rule work is done red → green, and the failing run is retained as e
 
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-01a/01b/01c written; routes absent | Failing run output |
 | 3 | `feat` (green) | Login and `/me`; migration and seed | Passing run output |
 | 4 | `test` (red) | TEST-22a (all cases) and TEST-01d | Failing run showing e.g. `alg:none` accepted or logout not revoking |
