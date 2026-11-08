@@ -7,13 +7,24 @@ interface Layer {
   name?: string;
   handle?: { stack?: Layer[] };
   regexp?: RegExp;
+  keys?: { name: string | number }[];
 }
 
-/** Mount prefix of a sub-Router layer, rebuilt from the `app.use` path regexp (Express 4 keeps no plain string). */
+/**
+ * Mount prefix of a sub-Router layer, rebuilt from the `app.use` path regexp
+ * (Express 4 keeps no plain string). Handles literal segments (regex escapes
+ * removed, so `/a.b` stays `/a.b`) and `:param` segments (named from `layer.keys`).
+ * Wildcards and regex-valued mount paths are not rebuilt.
+ */
 function mountPrefix(layer: Layer): string {
   const src = layer.regexp?.source ?? '';
   if (src === '^\\/?(?=\\/|$)') return '';
-  return src.replace(/^\^/, '').replace(/\\\/\?\(\?=\\\/\|\$\)$/, '').replace(/\\\//g, '/');
+  const keys = [...(layer.keys ?? [])];
+  return src
+    .replace(/^\^/, '')
+    .replace(/\\\/\?\(\?=\\\/\|\$\)$/, '')
+    .replace(/\(\?:\\\/\(\[\^\/\]\+\?\)\)/g, () => `/:${String(keys.shift()?.name ?? '?')}`)
+    .replace(/\\(.)/g, '$1');
 }
 
 function collect(stack: Layer[], prefix: string, out: { method: string; path: string | RegExp }[]): void {
