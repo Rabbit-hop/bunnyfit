@@ -60,10 +60,10 @@ single-page app, with PostgreSQL accessed through Prisma.
    first and run `DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:migrate` from a
    POSIX shell (the inline `VAR=...` form does not work in PowerShell).
 
-   Re-running the seed does not overwrite existing users or templates. Changing
-   `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` therefore does not
-   update an existing user's password hash; reset that user (or drop and
-   recreate the database) before re-seeding if the new password is required.
+   Re-running the seed resets the seeded users (password hash, role, display
+   name) and seeded templates to the seed values, so changing
+   `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` and re-seeding takes
+   effect. It also reverts any edit made to those seeded rows.
 
 ## Development
 
