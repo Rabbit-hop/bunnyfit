@@ -1,3 +1,4 @@
+import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../server/app.js';
@@ -95,6 +96,18 @@ describe('registry completeness', () => {
     const app = build('test');
     app.get(/^\/sneaky-regex/, (_req, res) => res.json({}));
     expect(routesMissingPolicy(app, activePolicies('test'))).toEqual(['GET /^\\/sneaky-regex/']);
+  });
+
+  it('a route inside a sub-Router mounted with app.use is also reported (TEST-22c-2)', () => {
+    const app = build('test');
+    const sub = express.Router();
+    sub.get('/stray', (_req, res) => res.json({}));
+    sub.post('/stray2', (_req, res) => res.json({}));
+    app.use('/api/sub', sub);
+    expect(routesMissingPolicy(app, activePolicies('test')).sort()).toEqual([
+      'GET /api/sub/stray',
+      'POST /api/sub/stray2',
+    ]);
   });
 
   it('a deliberately unregistered route makes the check report it', () => {

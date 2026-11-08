@@ -1,9 +1,11 @@
+import { spawnSync } from 'node:child_process';
 import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { decodeJwt } from 'jose';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { env } from '../../server/config/env.js';
+import { hashPassword } from '../../server/domain/password.js';
 import { buildIntegrationApp, databaseUrl, MutableClock, newPrisma } from '../helpers/integrationApp.js';
 
 // F-01 STS §8: TEST-01a–f against a real PostgreSQL test database seeded by
@@ -141,17 +143,27 @@ describeWithDatabase('F-01 authentication (real PostgreSQL)', () => {
       expect(me.body.code).toBe('UNAUTHENTICATED');
     });
 
-    it('TEST-01d-3: revocation survives a restart (new app + new database connection)', async () => {
+    it('TEST-01d-3: revocation survives a restart (the check runs in a new Node process)', async () => {
       const token = await tokenOf();
       await request(app).post('/api/auth/logout').set('Authorization', `Bearer ${token}`);
-      const restartedPrisma = newPrisma();
-      try {
-        const restarted = buildIntegrationApp(restartedPrisma, clock);
-        const me = await request(restarted).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
-        expect(me.status).toBe(401);
-      } finally {
-        await restartedPrisma.$disconnect();
-      }
+      // A fresh process has no module-level state, so an in-memory revocation cache cannot pass this.
+      const res = spawnSync('pnpm', ['exec', 'tsx', 'tests/helpers/restartProbe.ts'], {
+        env: { ...process.env, PROBE_TOKEN: token },
+        encoding: 'utf8',
+        timeout: 60_000,
+        shell: process.platform === 'win32',
+      });
+      expect(res.error).toBeUndefined();
+      expect(res.stdout.trim().split('\n').pop()).toBe('status=401');
+      // Control: the same fresh process accepts a token that was never revoked.
+      const live = spawnSync('pnpm', ['exec', 'tsx', 'tests/helpers/restartProbe.ts'], {
+        env: { ...process.env, PROBE_TOKEN: await tokenOf() },
+        encoding: 'utf8',
+        timeout: 60_000,
+        shell: process.platform === 'win32',
+      });
+      expect(live.error).toBeUndefined();
+      expect(live.stdout.trim().split('\n').pop()).toBe('status=200');
     });
 
     it('TEST-01d-4: a second token of the same user stays valid (R7)', async () => {
@@ -224,5 +236,19 @@ describeWithDatabase('F-01 authentication (real PostgreSQL)', () => {
       expect(tooLong.body.token).toBeUndefined();
       expect(await counts()).toEqual(before);
     });
+  });
+});
+
+// TEST-01f-3 / R12: needs no database, so it runs even when DATABASE_URL_TEST is unset.
+describe('AC-01f / R12: hashing refuses a password over 72 UTF-8 bytes', () => {
+  it('TEST-01f-3: 72 bytes hash; 73 ASCII chars and 25 Thai chars (75 bytes) are VALIDATION_ERROR on password', async () => {
+    await expect(hashPassword('a'.repeat(72), 4)).resolves.toMatch(/^\$2[aby]\$/);
+    await expect(hashPassword('ก'.repeat(24), 4)).resolves.toMatch(/^\$2[aby]\$/);
+    for (const tooLong of ['a'.repeat(73), 'ก'.repeat(25)]) {
+      await expect(hashPassword(tooLong, 4)).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        fields: [expect.objectContaining({ field: 'password' })],
+      });
+    }
   });
 });
