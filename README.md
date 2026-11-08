@@ -126,10 +126,11 @@ and the integration suites run against a real database. Before `pnpm test`,
   (with a warning) and fail when `CI=true`.
 - `SEED_MANAGER_PASSWORD` and `SEED_PARTICIPANT_PASSWORD` — the seed and the login tests
   use them; if either is missing the integration `beforeAll` throws.
-- `JWT_SECRET`, at least 32 bytes — needed to start the API (`pnpm run dev` / `pnpm start`),
-  which refuses to boot without it. Generate one with `openssl rand -base64 48`. The
-  placeholder in `.env.example` is deliberately too short to run with. The test suites
-  use their own fixed test secret.
+
+`JWT_SECRET` (at least 32 bytes) is **not** needed for `pnpm test`, which uses its own
+fixed test secret. It is needed only to start the API (`pnpm run dev` / `pnpm start`),
+which refuses to boot without it. Generate one with `openssl rand -base64 48`; the
+placeholder in `.env.example` is deliberately too short to run with.
 
 ## Repository layout (SDS §2.5)
 
@@ -153,7 +154,7 @@ Foundation conventions worth knowing before touching the code:
 - **Route policy registry** — every route declares
   `{ method, path, featureId, auth, roles, ownership }`
   (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3,
-  `tests/integration/security_access.test.ts`) fail on a route without a policy.
+  `tests/integration/security_access.test.ts`) fail on a route without a policy (the only exemption is the SPA shell fallback; F-01 contract §4.5).
   F-01 routes and its test-only probe routes are covered now; the real routes of
   F-02/03/04/06 are added in stage 2.
   Async route handlers must be wrapped in `asyncHandler`

@@ -1,7 +1,7 @@
 ### System-Level Software Design Specification (System-Level SDS)
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.1.0
+**Document Version:**  1.1.1
 **SRS Baseline Version:**  1.1.0
 **Date:**  6 November 2026
 **Status:**  Approved Baseline
@@ -14,6 +14,7 @@
 | **0.1.0** | 4 Nov 2026 | Initial draft derived from SRS 1.0.0, Feature Inventory 1.0.0 and RTM 1.0.0: architecture and stack, data model, UI structure, API conventions, role/permission matrix, authentication design, configuration, delivery and deployment plan, testability design | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Synchronized error codes (`NOT_FOUND`, `CATEGORY_HAS_TEMPLATES`, `INTERNAL_ERROR`, `QUICK_COMPLETE_NOT_AVAILABLE`), explicit backend HTTP 400 validation for Quick Complete on Rest Days, retained `ReminderSetting` fields (`label`, `enabled`), and added explicit AC references for template snapshot isolation (AC-27) and historical `WeightLog` lookup (AC-28a–c). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 | **1.1.0** | 6 Nov 2026 | Endpoint catalog corrected against the Sprint 1 contracts (v0.2.0), Section 5.2: removed the non-existent `GET/POST /api/exercises` and `GET /api/exercises/:id`, added `GET /api/plan-items/:id` (F-03), `GET /api/user-exercises`, `GET /api/plan?date=` (F-03) and `GET /api/entries/:id` (F-04). Added the API representation of `repeatDays` (ISO weekday array exchanged at the boundary, stored as the Section 3.2 Monday–Sunday bitmask), which resolves contract pending item F-03 P3-9. Schema and Section 3.3 unchanged (already matched by contracts 0.2.0). Review-fix pass before merge: Section 1 cites SRS / Feature Inventory / RTM 1.1.0 and the SRS Baseline Version header is 1.1.0; Section 5.2 `GET/PUT /api/profile` is Sprint 2 (CHANGE-04, AC-17a–d deferred) and `GET /api/progress/monthly` is Sprint 2 (CHANGE-06, AC-15 deferred); the service-layer row (Section 4) states the entry/Quick Complete row lock (SRS Q45) and the decision log cites SRS Q1–Q49. Review-fix pass (PR #13): NFR-01 row now lists AC-21a as Sprint 2 (CHANGE-03). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
+| **1.1.1** | 8 Nov 2026 | Section 6.3: the completeness rule ("every route is registered") has one explicit exemption, the non-API SPA shell fallback that serves `index.html`; routes inside a sub-`Router` are included. Source: F-01 contract v0.3.7 (PR #19 review). No other change. | Nakagamon (67070501064) | Draft (review-pending) |
 
 --------------------------------------------------------------------------------
 
@@ -300,7 +301,7 @@ Legend: **Allow** = permitted; **401** = rejected as unauthenticated; **403** = 
 5. **Execute the use case** (service layer, rules, transaction) → business-rule errors as in SRS Appendix A.5.
 
 ##### 6.3 Declarative Route Policy
-Every route is registered together with a **policy object** (`method`, `path`, allowed roles, ownership type, feature ID). The same registry drives (a) the middleware above and (b) the **Endpoint Access Matrix tests** AC-12c / AC-22c, which fail if a registered route has no policy or is missing from the matrix. A new endpoint therefore cannot be added without declaring who may call it, which covers endpoints added after Sprint 1.
+Every route is registered together with a **policy object** (`method`, `path`, allowed roles, ownership type, feature ID). The same registry drives (a) the middleware above and (b) the **Endpoint Access Matrix tests** AC-12c / AC-22c, which fail if a registered route has no policy or is missing from the matrix. A new endpoint therefore cannot be added without declaring who may call it, which covers endpoints added after Sprint 1. *Exemption (1.1.1):* the non-API SPA shell fallback (the catch-all that serves `index.html`) is not a policy route; every other route, including those inside a sub-`Router`, must be registered.
 
 --------------------------------------------------------------------------------
 

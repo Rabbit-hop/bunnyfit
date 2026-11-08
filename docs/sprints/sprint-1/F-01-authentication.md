@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-01
 **Sprint:**  1
-**Contract Version:**  0.3.6
+**Contract Version:**  0.3.7
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:**  6 November 2026
-**Status:**  Approved: contract v0.3.0 approved by the reviewer in PR #13 (approval at `177a533`, merged 6 Nov 2026); amendments v0.3.1–0.3.3 (7 Nov 2026) and v0.3.5–0.3.6 (8 Nov 2026) are review-pending
+**Status:**  Approved: contract v0.3.0 approved by the reviewer in PR #13 (approval at `177a533`, merged 6 Nov 2026); amendments v0.3.1–0.3.3 (7 Nov 2026) and v0.3.5–0.3.7 (8 Nov 2026) are review-pending
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-01-authentication.md`
 
@@ -25,6 +25,7 @@
 | **0.3.4** | 8 Nov 2026 | Status record only; no change to ACs, STS cases, scope or behaviour. Contract v0.3.0 (content merged into `staging/sprint-1` by PR #13 on 6 Nov 2026) was approved by the reviewer (Onsinee, account `justfepwx12`) in that PR: review state APPROVED at commit `177a533`, 6 Nov 2026 13:25 UTC. The later amendments v0.3.1, v0.3.2 and v0.3.3 (7 Nov 2026) were made after that approval and have not yet been reviewed; they are reviewed in the F-01 implementation PR. | Nakagamon | Approved (v0.3.0); v0.3.1–0.3.3 pending review |
 | **0.3.5** | 8 Nov 2026 | Review-fix pass after the issue #3 check; no AC, scope or STS-case change. Documentation corrected to the implementation: §5.2 migration is `0001_init` (not `<timestamp>_auth_user_revoked_token`); §9 item 1 no longer names a stale contract version; §4.5 wording "excluded from production builds" → "never mounted unless `NODE_ENV=test`". Clarified behaviour: R5's dummy hash uses the configured `BCRYPT_COST` (same cost as real hashes); a non-JSON body returns `fields: [{field: "body"}]` like a JSON array body (TEST-01f-1 now asserts it); TEST-01a-1 asserts the JWT header `alg` is `HS256`; TEST-22a-8 gains a second case that checks the deleted-user rule on a route that never loads the user (`/__test/participant-only`). | Nakagamon | Draft |
 | **0.3.6** | 8 Nov 2026 | Aligns §8 and R5 with what v0.3.5 already described; no AC, scope or new STS-case ID. TEST-01a-1 also asserts the JWT header `alg` = `HS256`; TEST-01f-1 adds a JSON-array body and states that a body that is not JSON (or not a JSON object) names `body` in `fields`; TEST-22a-8 gets its second case (deleted-user rule on a route that never loads the user). R5: the dummy hash uses `BCRYPT_COST` and is built when the auth service is created, so the first unknown-email login after start-up does no extra hashing. | Nakagamon | Draft |
+| **0.3.7** | 8 Nov 2026 | Review-fix pass for PR #19 (reviewer: Onsinee). (1) **Correction of row 0.3.2:** 0.3.2 *does* add one STS case, `TEST-01f-2`, under the existing AC-01f; its text "No … other STS case changes" is wrong. The history rows 0.3.1–0.3.6 are left as written and this row is the correction. (2) **§4.5 / TEST-22c-2:** the completeness rule is "every route in the running application except the non-API SPA shell fallback" (the catch-all that serves `index.html`; it carries no data and has no role); routes mounted through a sub-`Router` are included, plain `app.use()` middleware is not a route. SDS §6.3 gets the same note (SDS 1.1.1). (3) **New rule R12 and new STS case `TEST-01f-3`** (AC-01f, in `tests/integration/auth.test.ts`, no database needed): hashing a password longer than 72 UTF-8 bytes is refused with `VALIDATION_ERROR` (field `password`) instead of bcrypt silently truncating it, and the seed hashes through the same function. (4) **TEST-01d-3** is run in a separate Node process so that an in-process revocation cache cannot pass it. (5) Test-only: `startup.test.ts` runs on Windows (`shell` on win32). No AC or scope change. | Nakagamon | Draft |
 
 *Rule: this file is committed as a specification-only commit before any F-01 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -112,6 +113,7 @@ Steps 1–3 return the error envelope only; no private field is ever included in
 | R9 | Role mismatch is 403; a Manager receives no Participant activity data (BR-04) |
 | R10 | The application refuses to start when `JWT_SECRET` is missing or shorter than 32 bytes (SDS §8: ≥ 32 random bytes; for an ASCII secret that is 32 characters) |
 | R11 | Every route is registered with a policy (§4.5); a route without a policy cannot be registered |
+| R12 | A password longer than 72 UTF-8 bytes is never hashed: the hashing function throws `VALIDATION_ERROR` (field `password`), because bcrypt would silently ignore the excess bytes. The seed script hashes through the same function (v0.3.7) |
 
 ##### 3.4 Failure and Boundary Cases
 | Case | Expected behavior |
@@ -187,7 +189,7 @@ interface RoutePolicy {
 - `none`: any caller with an allowed role (e.g. read-only catalog).
 - `self-scoped`: data is always the caller's own; a different `userId` query parameter → 403.
 - `resource-owner`: a `:id` record whose owner must equal the caller (an owner-lookup function is supplied with the policy).
-- The registry is the **single source** for the middleware and for the Endpoint Access Matrix tests (AC-12c, AC-22c). A completeness test fails if any route in the running application is not in the registry.
+- The registry is the **single source** for the middleware and for the Endpoint Access Matrix tests (AC-12c, AC-22c). A completeness test fails if any route in the running application is not in the registry, except the non-API SPA shell fallback (v0.3.7); routes inside a sub-`Router` count as routes.
 - **Test-only probe routes** (`/__test/…`, registered only when `NODE_ENV=test`): `GET /__test/manager-only` (role MANAGER), `GET /__test/participant-only` (role PARTICIPANT, self-scoped), `GET|PUT|DELETE /__test/owned/:id` (resource-owner). They let F-01 verify enforcement before real features exist, and are never mounted unless `NODE_ENV=test` (the code is part of the build but unreachable otherwise; not removed from the bundle).
 
 --------------------------------------------------------------------------------
@@ -291,7 +293,7 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-01c-2 | AC-01c | API/DB Integration | Manager logged in | `GET /me` | 200 with `role` = MANAGER |
 | **TEST-01d-1** | AC-01d | API/DB Integration | Alice logged in (token T1, jti J1) | `POST /logout` with T1 | 204; `RevokedToken` has a row `jti = J1`, `userId` = Alice, `expiresAt` = token `exp` |
 | TEST-01d-2 | AC-01d | API/DB Integration | After 01d-1 | `GET /me` with T1 | 401 `UNAUTHENTICATED` |
-| TEST-01d-3 | AC-01d | API/DB Integration | After 01d-1; new application instance on the same database | `GET /me` with T1 | 401 (revocation survives restart) |
+| TEST-01d-3 | AC-01d | API/DB Integration | After 01d-1; the API is started as a **new Node process** on the same database | `GET /me` with T1 | 401 (revocation survives restart; an in-process cache cannot satisfy this) |
 | TEST-01d-4 | AC-01d | API/DB Integration | Alice has two tokens T1 (revoked) and T2 (different jti) | `GET /me` with T2 | 200 (R7) |
 | TEST-01d-5 | AC-01d | API/DB Integration | No token | `POST /logout` | 401 |
 | **TEST-01e-1** | AC-01e | API/DB Integration | Seeded users | Read `passwordHash` of every seeded user directly from the database | Each matches `^\$2[aby]\$\d{2}\$` and has length 60; none equals the seed plaintext |
@@ -309,8 +311,9 @@ Files: `tests/integration/auth.test.ts` (AC-01), `tests/integration/security_acc
 | TEST-22a-9 | AC-22a | Security | Responses of 22a-1 to 22a-8 | Inspect bodies | Error envelope only; no private data; no database writes |
 | **TEST-22b-1** | AC-22b | Security | Alice's valid token; probe `GET /__test/manager-only` | Request | 403 `FORBIDDEN`; body is the envelope only |
 | TEST-22b-2 | AC-22b | Security | Manager's valid token; probe `GET /__test/participant-only` | Request | 403 `FORBIDDEN`; no data |
+| TEST-01f-3 | AC-01f | API/DB Integration | None | Call the password-hashing function with a 72-byte password, then 73 ASCII characters and 25 Thai characters (75 bytes) | 72 bytes: a bcrypt hash; the others: `VALIDATION_ERROR` naming `password`; nothing hashed (R12) |
 | **TEST-22c-1** | AC-22c | Security | Registry listing every route with its policy | For each non-public route: no token; then a token of a role not in `roles` | 401, then 403 (stage 1: F-01 routes and probes; stage 2: all Sprint 1 routes) |
-| TEST-22c-2 | AC-22c | Security | Running application | Compare the application's registered routes with the registry | No route missing from the registry; a deliberately unregistered route makes the test fail (checked once with a temporary route) |
+| TEST-22c-2 | AC-22c | Security | Running application | Compare the application's registered routes with the registry | No route missing from the registry (the SPA shell fallback is the only exemption; routes in a sub-`Router` are included); a deliberately unregistered route, also inside a sub-`Router`, makes the test fail |
 | **TEST-12a-1** | AC-12a | Security | Manager token; probe `GET /__test/participant-only` | Request | 403; no data (stage 1) |
 | TEST-12a-2 | AC-12a | Security | Manager token; every `PARTICIPANT`-only route in the registry | Request | 403 for each (stage 2) |
 | **TEST-12b-1** | AC-12b | Security | Probe resource owned by Bob; Alice's token | `GET`, `PUT`, `DELETE /__test/owned/:id` | 403 each; Bob's record unchanged in the database |
