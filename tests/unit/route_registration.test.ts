@@ -110,6 +110,27 @@ describe('registry completeness', () => {
     ]);
   });
 
+  it('sub-Router mount paths with a param, a dot, or nesting are rebuilt as written', () => {
+    const app = build('test');
+    const mk = () => {
+      const r = express.Router();
+      r.get('/z', (_req, res) => res.json({}));
+      return r;
+    };
+    const outer = express.Router();
+    outer.use('/inner', mk());
+    app.use('/api/:org', mk());
+    app.use('/a.b', mk());
+    app.use('/x/:a/y/:b', mk());
+    app.use('/n', outer);
+    expect(routesMissingPolicy(app, activePolicies('test')).sort()).toEqual([
+      'GET /a.b/z',
+      'GET /api/:org/z',
+      'GET /n/inner/z',
+      'GET /x/:a/y/:b/z',
+    ]);
+  });
+
   it('a deliberately unregistered route makes the check report it', () => {
     const app = build('test');
     app.get('/api/sneaky', (_req, res) => res.json({}));
