@@ -16,7 +16,7 @@ const app = createApp({
     secret,
     clock,
     isRevoked: (jti) => repo.isRevoked(jti),
-    userExists: async (id) => (await repo.findUserById(id)) !== null,
+    userExists: (id) => repo.userExists(id),
   },
   authService: createAuthService({ repo, clock, secret, expiresInSeconds: env.jwtExpiresInSeconds, bcryptCost: env.bcryptCost }),
 });

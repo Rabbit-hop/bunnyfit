@@ -97,7 +97,7 @@ describe('authorize — self-scoped (step 3)', () => {
 describe('authorize — resource-owner (step 3)', () => {
   const owners: Record<string, string> = { r1: 'bob' };
   const lookup = async (id: string) => owners[id] ?? null;
-  const app = appWith(policy({ ownership: 'resource-owner' }), lookup);
+  const app = appWith(policy({ ownership: 'resource-owner', path: '/x/:id' }), lookup);
 
   it.each(['GET', 'PUT', 'DELETE'] as const)('%s on another user\'s record → 403', async (m) => {
     const res = await request(app)[m.toLowerCase() as 'get' | 'put' | 'delete']('/x/r1').set('x-test-user', 'alice:PARTICIPANT');
@@ -118,10 +118,25 @@ describe('authorize — resource-owner (step 3)', () => {
 
   it('role is checked before the owner lookup (wrong role never reaches the lookup)', async () => {
     let called = false;
-    const a = appWith(policy({ ownership: 'resource-owner' }), async () => ((called = true), 'bob'));
+    const a = appWith(policy({ ownership: 'resource-owner', path: '/x/:id' }), async () => ((called = true), 'bob'));
     const res = await request(a).get('/x/r1').set('x-test-user', 'm:MANAGER');
     expect(res.status).toBe(403);
     expect(called).toBe(false);
+  });
+});
+
+describe('authorize — resource-owner path parameter name', () => {
+  it('uses the policy path\'s own param (:entryId), not a hard-coded `id`', async () => {
+    const app = express();
+    app.use(express.json());
+    app.get('/e/:entryId', fakeAuth, createAuthorize(policy({ ownership: 'resource-owner', path: '/e/:entryId' }), async (id) => (id === 'r1' ? 'bob' : null)), (_req, res) => res.json({ ok: true }));
+    app.use(errorHandler);
+    expect((await request(app).get('/e/r1').set('x-test-user', 'bob:PARTICIPANT')).status).toBe(200);
+    expect((await request(app).get('/e/r1').set('x-test-user', 'alice:PARTICIPANT')).status).toBe(403);
+  });
+
+  it('a resource-owner policy whose path has no :param is rejected at registration', () => {
+    expect(() => createAuthorize(policy({ ownership: 'resource-owner', path: '/x' }), async () => 'bob')).toThrow(/:param/);
   });
 });
 

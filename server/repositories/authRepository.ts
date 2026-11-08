@@ -24,6 +24,15 @@ export function createPrismaAuthRepository(prisma: PrismaClient): AuthRepository
       }
     },
 
+    async userExists(id) {
+      try {
+        return (await prisma.user.count({ where: { id } })) > 0;
+      } catch (err) {
+        if (isInvalidId(err)) return false;
+        throw err;
+      }
+    },
+
     async isRevoked(jti) {
       return (await prisma.revokedToken.count({ where: { jti } })) > 0;
     },

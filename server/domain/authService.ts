@@ -27,6 +27,8 @@ export interface UserView {
 export interface AuthRepository {
   findUserByEmail(email: string): Promise<UserRecord | null>;
   findUserById(id: string): Promise<UserRecord | null>;
+  /** Existence check without loading the row (runs on every authenticated request). */
+  userExists(id: string): Promise<boolean>;
   isRevoked(jti: string): Promise<boolean>;
   /** Stores the denylist row and deletes rows whose `expiresAt` is before `now` (§4.4). */
   revoke(entry: { jti: string; userId: string; expiresAt: Date }, now: Date): Promise<void>;

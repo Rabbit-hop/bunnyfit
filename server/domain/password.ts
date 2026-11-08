@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { appError } from './errors.js';
 
 /**
  * Password hashing — F-01 R1 (bcrypt, cost from BCRYPT_COST) and R5.
@@ -19,7 +20,15 @@ export function dummyHashFor(cost: number): string {
   return hash;
 }
 
-export function hashPassword(plain: string, cost: number): Promise<string> {
+/** bcrypt ignores every byte after the 72nd (F-01 R12). */
+export const MAX_PASSWORD_BYTES = 72;
+
+export async function hashPassword(plain: string, cost: number): Promise<string> {
+  if (Buffer.byteLength(plain, 'utf8') > MAX_PASSWORD_BYTES) {
+    throw appError('VALIDATION_ERROR', 'Password is too long.', [
+      { field: 'password', limit: `1-${MAX_PASSWORD_BYTES} bytes (UTF-8)` },
+    ]);
+  }
   return bcrypt.hash(plain, cost);
 }
 

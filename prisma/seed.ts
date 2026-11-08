@@ -1,5 +1,5 @@
 import { CardioCategory, PrismaClient, Role, TrackingMode } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { hashPassword } from '../server/domain/password.js'
 import { env } from '../server/config/env.js'
 
 const prisma = new PrismaClient()
@@ -133,7 +133,7 @@ async function seedUsers() {
     let passwordHash = passwordHashes.get(password)
 
     if (!passwordHash) {
-      passwordHash = await bcrypt.hash(password, bcryptCost)
+      passwordHash = await hashPassword(password, bcryptCost)
       passwordHashes.set(password, passwordHash)
     }
 

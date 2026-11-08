@@ -41,7 +41,7 @@ export function buildIntegrationApp(prisma: PrismaClient, clock: Clock): Express
       secret: TEST_SECRET,
       clock,
       isRevoked: (jti) => repo.isRevoked(jti),
-      userExists: async (id) => (await repo.findUserById(id)) !== null,
+      userExists: (id) => repo.userExists(id),
     },
     authService: createAuthService({ repo, clock, secret: TEST_SECRET, expiresInSeconds: 3600, bcryptCost: env.bcryptCost }),
     probeOwnerLookup: async (id) => (await repo.findUserById(id))?.id ?? null,

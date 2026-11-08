@@ -21,6 +21,12 @@ export function createAuthorize(policy: RoutePolicy, ownerLookup?: OwnerLookup):
     );
   }
 
+  // The record id is the policy path's last `:param`; a resource-owner path without one is rejected now.
+  const idParam = /:([A-Za-z_]\w*)\??(?!.*:[A-Za-z_])/.exec(policy.path)?.[1];
+  if (policy.ownership === 'resource-owner' && !idParam) {
+    throw new Error(`Route ${policy.method} ${policy.path} is resource-owner but its path has no :param`);
+  }
+
   const forbidden = () => appError('FORBIDDEN', 'You do not have access to this resource.');
 
   return async (req, _res, next) => {
@@ -39,7 +45,7 @@ export function createAuthorize(policy: RoutePolicy, ownerLookup?: OwnerLookup):
           if (values.some((v) => v !== auth.userId)) throw forbidden();
         }
       } else if (policy.ownership === 'resource-owner' && ownerLookup) {
-        const owner = await ownerLookup(String(req.params['id'] ?? ''));
+        const owner = await ownerLookup(String(req.params[idParam ?? 'id'] ?? ''));
         if (owner === null) throw appError('NOT_FOUND', 'Resource not found.');
         if (owner !== auth.userId) throw forbidden();
       }

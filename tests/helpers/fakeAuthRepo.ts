@@ -30,6 +30,10 @@ export class FakeAuthRepo implements AuthRepository {
     return this.users.find((u) => u.id === id) ?? null;
   }
 
+  async userExists(id: string) {
+    return this.users.some((u) => u.id === id);
+  }
+
   async isRevoked(jti: string) {
     return this.revoked.has(jti);
   }
