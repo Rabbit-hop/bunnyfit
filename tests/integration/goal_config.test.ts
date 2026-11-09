@@ -362,4 +362,111 @@ describeWithDatabase('F-03 goal configuration (real PostgreSQL)', () => {
       expect(one.body.userExercise.name).toBe('Barbell Squat');
     });
   });
+  describe('AC-03d / AC-16a / AC-16b custom exercise source', () => {
+    const custom = (exercise: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+      source: 'CUSTOM',
+      exercise,
+      priorityWeight: 2,
+      ...extra,
+    });
+    const expectRejected = async (body: unknown, field: string) => {
+      const before = await snapshot();
+      const res = await post(body);
+      expect(res.status, JSON.stringify(res.body)).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields.map((f: { field: string }) => f.field)).toContain(field);
+      expect(await snapshot()).toEqual(before);
+    };
+
+    it('TEST-03d-1: one custom exercise per tracking mode → 201; isCustom true, no source template, units as derived, rows stored', async () => {
+      const before = await snapshot();
+      const cases: Array<[Record<string, unknown>, Record<string, unknown>, string]> = [
+        [{ name: 'Goblet Squat', targetBodyPart: 'Legs', trackingMode: 'WEIGHT' }, { targetSets: 3, targetRepsPerSet: 12, loadKg: 16 }, 'reps'],
+        [{ name: 'Pike Push-up', targetBodyPart: 'Shoulders', trackingMode: 'BODYWEIGHT_REPS' }, { targetSets: 3, targetRepsPerSet: 8 }, 'reps'],
+        [{ name: 'Wall Sit', targetBodyPart: 'Legs', trackingMode: 'BODYWEIGHT_TIME' }, { targetDurationSec: 60 }, 'seconds'],
+        [{ name: 'Stretch Flow', targetBodyPart: 'Full body', trackingMode: 'YOGA' }, { targetDurationSec: 900 }, 'seconds'],
+        [{ name: 'Rowing', targetBodyPart: 'Back', trackingMode: 'CARDIO_TIME' }, { targetDurationSec: 1200 }, 'seconds'],
+        [{ name: 'Hill Walk', targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' }, { targetDistanceKm: 3.5 }, 'km'],
+      ];
+      for (const [exercise, target, unit] of cases) {
+        const res = await post(custom(exercise, target));
+        expect(res.status, JSON.stringify(res.body)).toBe(201);
+        expect(res.body.userExercise).toMatchObject({ isCustom: true, sourceTemplateId: null, name: exercise['name'], unit });
+        expect(res.body.planItem).toMatchObject({ userExerciseId: res.body.userExercise.id, version: 1, priorityWeight: 2 });
+        expect(res.body.planItem.planKey).toMatch(UUID);
+        expect(JSON.stringify(res.body)).not.toContain('userId');
+      }
+      const after = await snapshot();
+      expect(after.exercises).toHaveLength(before.exercises.length + 6);
+      expect(after.items).toHaveLength(before.items.length + 6);
+      const stored = after.exercises.filter((e) => e.isCustom);
+      expect(stored).toHaveLength(6);
+      expect(stored.every((e) => e.userId === aliceId && e.sourceTemplateId === null)).toBe(true);
+    });
+
+    it('TEST-03d-2: CARDIO_DISTANCE with each cardio category → 201; category stored as sent', async () => {
+      for (const category of ['RUNNING', 'WALKING', 'CYCLING', 'SWIMMING']) {
+        const res = await post(custom({ name: `Dist ${category}`, targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: category }, { targetDistanceKm: 2 }));
+        expect(res.status, JSON.stringify(res.body)).toBe(201);
+        expect(res.body.userExercise.cardioCategory).toBe(category);
+      }
+    });
+
+    it('TEST-03d-3: CARDIO_DISTANCE without cardioCategory, and WEIGHT with cardioCategory → 400 naming cardioCategory; DB unchanged', async () => {
+      await expectRejected(custom({ name: 'No cat', targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE' }, { targetDistanceKm: 2 }), 'cardioCategory');
+      await expectRejected(
+        custom({ name: 'Cat on weight', targetBodyPart: 'Legs', trackingMode: 'WEIGHT', cardioCategory: 'RUNNING' }, { targetSets: 3, targetRepsPerSet: 5, loadKg: 20 }),
+        'cardioCategory',
+      );
+    });
+
+    it('TEST-03d-4: CUSTOM with templateId, TEMPLATE with an exercise object, unknown trackingMode, CUSTOM without exercise → 400 naming the field; DB unchanged', async () => {
+      const ex = { name: 'X', targetBodyPart: 'Legs', trackingMode: 'WEIGHT' };
+      const target = { targetSets: 3, targetRepsPerSet: 5, loadKg: 20 };
+      await expectRejected(custom(ex, { ...target, templateId: templateIds['Barbell Squat'] }), 'templateId');
+      await expectRejected(squat({ exercise: ex }), 'exercise');
+      await expectRejected(custom({ ...ex, trackingMode: 'TELEPORT' }, target), 'trackingMode');
+      await expectRejected({ source: 'CUSTOM', priorityWeight: 2, ...target }, 'exercise');
+    });
+
+    it('TEST-03d-5: custom targets are validated like template targets (R6) and the plan fields (R8-R11) still apply', async () => {
+      const ex = { name: 'Wall Sit', targetBodyPart: 'Legs', trackingMode: 'BODYWEIGHT_TIME' };
+      await expectRejected(custom(ex, {}), 'targetDurationSec');
+      await expectRejected(custom(ex, { targetDurationSec: 60, loadKg: 5 }), 'loadKg');
+      await expectRejected(custom(ex, { targetDurationSec: 60, priorityWeight: 6 }), 'priorityWeight');
+      await expectRejected(custom(ex, { targetDurationSec: 60, effectiveFrom: '2026-11-04' }), 'effectiveFrom');
+    });
+
+    it('TEST-16a-2: metValue / unit / rangeMin / rangeMax in the exercise → 400 naming the field; DB unchanged', async () => {
+      const ex = { name: 'Cheat', targetBodyPart: 'Legs', trackingMode: 'WEIGHT' };
+      const target = { targetSets: 3, targetRepsPerSet: 5, loadKg: 20 };
+      await expectRejected(custom({ ...ex, metValue: 20 }, target), 'metValue');
+      await expectRejected(custom({ ...ex, unit: 'reps' }, target), 'unit');
+      await expectRejected(custom({ ...ex, rangeMin: 1 }, target), 'rangeMin');
+      await expectRejected(custom({ ...ex, rangeMax: 99 }, target), 'rangeMax');
+    });
+
+    it('TEST-16a-3: stored metValue is 3.5 for WEIGHT and 8.0 for CARDIO_DISTANCE + CYCLING', async () => {
+      const w = await post(custom({ name: 'Met weight', targetBodyPart: 'Legs', trackingMode: 'WEIGHT' }, { targetSets: 3, targetRepsPerSet: 5, loadKg: 20 }));
+      const c = await post(custom({ name: 'Met cycle', targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'CYCLING' }, { targetDistanceKm: 10 }));
+      expect(w.status).toBe(201);
+      expect(c.status).toBe(201);
+      const rows = await prisma.userExercise.findMany({ where: { id: { in: [w.body.userExercise.id, c.body.userExercise.id] } } });
+      const met = (id: string) => rows.find((r) => r.id === id)?.metValue.toNumber();
+      expect(met(w.body.userExercise.id)).toBe(3.5);
+      expect(met(c.body.userExercise.id)).toBe(8);
+    });
+
+    it('TEST-16b-2 (API part): default range accepts 20 x 200 reps, 10,800 s, 100 km and rejects 21 sets, 10,801 s, 100.01 km', async () => {
+      const weight = { name: 'Limit weight', targetBodyPart: 'Legs', trackingMode: 'WEIGHT' };
+      const yoga = { name: 'Limit yoga', targetBodyPart: 'Legs', trackingMode: 'YOGA' };
+      const dist = { name: 'Limit run', targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'RUNNING' };
+      expect((await post(custom(weight, { targetSets: 20, targetRepsPerSet: 200, loadKg: 10 }))).status).toBe(201);
+      expect((await post(custom(yoga, { targetDurationSec: 10800 }))).status).toBe(201);
+      expect((await post(custom(dist, { targetDistanceKm: 100 }))).status).toBe(201);
+      await expectRejected(custom(weight, { targetSets: 21, targetRepsPerSet: 200, loadKg: 10 }), 'targetSets');
+      await expectRejected(custom(yoga, { targetDurationSec: 10801 }), 'targetDurationSec');
+      await expectRejected(custom(dist, { targetDistanceKm: 100.01 }), 'targetDistanceKm');
+    });
+  });
 });
