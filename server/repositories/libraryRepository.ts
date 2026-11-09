@@ -29,9 +29,16 @@ export interface TemplateFilter {
   trackingMode?: TrackingMode;
 }
 
+export type DeleteCategoryResult = 'deleted' | 'not_found' | 'has_templates';
+
 /** Exercise library storage (F-02): the shared catalog of categories and base templates. */
 export interface LibraryRepository {
   listCategories(): Promise<CategorySummary[]>;
+  /** Returns null when a category with that name already exists. */
+  createCategory(name: string): Promise<{ id: string; name: string } | null>;
+  /** `not_found` when the id does not exist; `duplicate` when the name is taken. */
+  renameCategory(id: string, name: string): Promise<{ id: string; name: string } | 'not_found' | 'duplicate'>;
+  deleteCategory(id: string): Promise<DeleteCategoryResult>;
   listTemplates(filter: TemplateFilter): Promise<TemplateRecord[]>;
   findTemplate(id: string): Promise<TemplateRecord | null>;
 }
@@ -75,6 +82,15 @@ function isInvalidId(err: unknown): boolean {
   return err instanceof PrismaRuntime.PrismaClientKnownRequestError && err.code === 'P2023';
 }
 
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof PrismaRuntime.PrismaClientKnownRequestError && err.code === 'P2002';
+}
+
+/** P2025 = record to update/delete not found. */
+function isNotFound(err: unknown): boolean {
+  return err instanceof PrismaRuntime.PrismaClientKnownRequestError && err.code === 'P2025';
+}
+
 export function createPrismaLibraryRepository(prisma: PrismaClient): LibraryRepository {
   return {
     async listCategories() {
@@ -83,6 +99,41 @@ export function createPrismaLibraryRepository(prisma: PrismaClient): LibraryRepo
         select: { id: true, name: true, _count: { select: { templates: true } } },
       });
       return rows.map((r) => ({ id: r.id, name: r.name, templateCount: r._count.templates }));
+    },
+
+    async createCategory(name) {
+      try {
+        const row = await prisma.category.create({ data: { name }, select: { id: true, name: true } });
+        return row;
+      } catch (err) {
+        if (isUniqueViolation(err)) return null;
+        throw err;
+      }
+    },
+
+    async renameCategory(id, name) {
+      try {
+        return await prisma.category.update({ where: { id }, data: { name }, select: { id: true, name: true } });
+      } catch (err) {
+        if (isUniqueViolation(err)) return 'duplicate';
+        if (isNotFound(err)) return 'not_found';
+        throw err;
+      }
+    },
+
+    async deleteCategory(id) {
+      try {
+        const row = await prisma.category.findUnique({ where: { id }, select: { _count: { select: { templates: true } } } });
+        if (!row) return 'not_found';
+        if (row._count.templates > 0) return 'has_templates';
+        await prisma.category.delete({ where: { id } });
+        return 'deleted';
+      } catch (err) {
+        if (isNotFound(err)) return 'not_found';
+        // Foreign key (ON DELETE RESTRICT) caught a template added between the count and the delete.
+        if (err instanceof PrismaRuntime.PrismaClientKnownRequestError && err.code === 'P2003') return 'has_templates';
+        throw err;
+      }
     },
 
     async listTemplates(filter) {
