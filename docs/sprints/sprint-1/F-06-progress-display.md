@@ -6,7 +6,7 @@
 **Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0)
 **Date:**  9 November 2026
-**Status:**  Draft: specification-only, awaiting reviewer approval before implementation
+**Status:**  Approved: v0.3.1 by the reviewer's reply on PR #24 (9 Nov 2026); implementation may start (DoD #1)
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-06-progress-display.md`
 
@@ -19,6 +19,7 @@
 | **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citations corrected (RTM 1.0.0, SDS 1.0.0 — neither "RTM 1.2.0" nor "SDS 0.1.0" exists; F-01 0.1.2, F-02–F-04 0.2.0); AC restored to the RTM 1.0.0 numbering — AC-06a–f are back to their approved meanings (item score, cap, time/distance ratio, Daily Overall %, 0%/null, load and body weight invariance), AC-15 keeps the monthly-average criterion with the RTM example, and the only genuinely new criterion (real-time, private, unaffected scores) is re-suffixed as proposed AC-06g; every test ID realigned to its AC suffix (old TEST-06b→06d/06e, old TEST-06c→15, old TEST-06d→06f/06g, plus new TEST-06b-1, TEST-06c-1); `entry source` renamed to `entry kind` to match SDS §3.2; pending item P6-8 removed because its premise was false (RTM §3 already lists AC-06a–f under Unit Testing) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0); AC-06g is now an RTM 1.1.0 criterion (no longer *proposed*); AC-06g (CHANGE-08), AC-15 (CHANGE-06) and AC-21a (CHANGE-03) are marked **deferred to Sprint 2** in §1, §2, §7, §8, §9, §10 and §12 — STS rows kept; the Sprint 1 scope of F-06 is AC-06a–f; `tests/integration/progress_api.test.ts` is now listed in RTM §2 (P6-6 applied); §12 pending items given a status column | Nakagamon | Draft |
 | **0.3.1** | 9 Nov 2026 | Test-row fixes only, requested by the reviewer on PR #24 (issuecomment-6741224888): `TEST-06e-3` (line 237 in 0.3.0) now requests the past date 2026-11-03 with the Clock fixed at 2026-11-05 (it requested the future date 2026-11-10, which R13, SRS Q47 and TEST-06g-4 answer with 400); `TEST-06f-1` (line 238 in 0.3.0) inserts a `WeightLog` row directly instead of calling `PUT /api/profile` (Sprint 2, CHANGE-04). No AC, API, schema or scope change. Also §9 step 1 now names v0.3.1 | Nakagamon | Draft |
+| **0.3.1** | 9 Nov 2026 | Status only, no content change: the reviewer's reply on PR #24 (issuecomment-6743198059, 9 Nov 2026 14:57 UTC) records `F-06 v0.3.1: approved` after re-reading the diff `548407c..27dd0c5` (both test-row fixes, header, this table and §9 step 1) | Nakagamon | Approved |
 
 *Rule: committed as a specification-only commit before any F-06 implementation; later changes are new versions with a reason, never silent rewrites.*
 
