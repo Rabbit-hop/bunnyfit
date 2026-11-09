@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildCustomExercise } from '../../server/domain/customExercise.js';
+import { validateEntry, validateWeight } from '../../server/domain/entryValidation.js';
 import { validateTarget } from '../../server/domain/planValidation.js';
 import { validateTemplate } from '../../server/domain/templateValidation.js';
 
 // TEST-11 (F-02 cases) — F-02 STS §8: `validateTemplate` boundary pairs and unit/mode
 // derivation, asserted without HTTP. F-03 cases (`validateTarget`, F-03 STS TEST-11) follow below;
-// the F-04 cases of AC-11 join this file later.
+// the F-04 cases of AC-11 (`validateEntry`, `validateWeight`) are the last two blocks.
 
 const CATEGORY_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -167,6 +168,103 @@ function targetRejected(mode: TargetMode, input: Record<string, unknown>, range 
   for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
   return result.fields.map((f) => f.field);
 }
+
+// TEST-11 (F-04 cases) — F-04 §8 TEST-11-1/11-2: boundary pairs of the entry value field per
+// tracking mode (R4) and the cumulative rule (R5), asserted without HTTP. Totals are day totals
+// of the OTHER entries for the same exercise on the same day; `NONE` = first entry of the day.
+type EntryValues = Record<string, unknown>;
+type DayTotals = { sets?: number | null; seconds?: number | null; km?: number | null };
+
+const NONE: DayTotals = {};
+const RANGE = FULL_RANGE.WEIGHT; // R4 uses the same published ranges as R3
+
+function entry(values: EntryValues, mode: string, totals: DayTotals = NONE) {
+  return validateEntry(values, mode, totals);
+}
+function entryAccepted(values: EntryValues, mode: string, totals: DayTotals = NONE) {
+  const result = entry(values, mode, totals);
+  if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
+  return result.value;
+}
+function entryRejected(values: EntryValues, mode: string, totals: DayTotals = NONE): string[] {
+  const result = entry(values, mode, totals);
+  if (!('fields' in result)) throw new Error('expected rejected, got accepted');
+  for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
+  return result.fields.map((f) => f.field);
+}
+function weightAccepted(input: unknown) {
+  const result = validateWeight(input);
+  if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
+  return result.value;
+}
+function weightRejected(input: unknown): string[] {
+  const result = validateWeight(input);
+  if (!('fields' in result)) throw new Error('expected rejected, got accepted');
+  for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
+  return result.fields.map((f) => f.field);
+}
+
+describe('TEST-11 (F-04 cases): validateEntry (R4/R5)', () => {
+  it('WEIGHT: 20 kg accepted; 21 kg rejected; 0 kg rejected', () => {
+    expect(entryAccepted({ kg: 20 }, 'WEIGHT')).toEqual({ sets: 20 });
+    expect(entryRejected({ kg: 21 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ kg: 0 }, 'WEIGHT')).toEqual(['sets']);
+  });
+
+  it('BODYWEIGHT_REPS: 400 reps accepted; 401 rejected (R5: 19 + 1 = 20)', () => {
+    expect(entryAccepted({ reps: 400 }, 'BODYWEIGHT_REPS')).toEqual({ sets: 400 });
+    expect(entryRejected({ reps: 401 }, 'BODYWEIGHT_REPS')).toEqual(['sets']);
+    expect(entryAccepted({ reps: 1 }, 'BODYWEIGHT_REPS', { sets: 19 })).toEqual({ sets: 20 });
+    expect(entryRejected({ reps: 2 }, 'BODYWEIGHT_REPS', { sets: 19 })).toEqual(['sets']);
+  });
+
+  it('rangeMax applies: 50 kg accepted at cap, 51 kg rejected', () => {
+    expect(entryAccepted({ kg: 50 }, 'WEIGHT', NONE)).toEqual({ sets: 50 });
+    expect(entryRejected({ kg: 51 }, 'WEIGHT', NONE)).toEqual(['sets']);
+  });
+
+  it('BODYWEIGHT_TIME/YOGA/CARDIO_TIME: 10800 s accepted; 10801 rejected; cumulative at cap', () => {
+    for (const mode of ['BODYWEIGHT_TIME', 'YOGA', 'CARDIO_TIME']) {
+      expect(entryAccepted({ seconds: 10800 }, mode)).toEqual({ seconds: 10800 });
+      expect(entryRejected({ seconds: 10801 }, mode)).toEqual(['seconds']);
+      expect(entryAccepted({ seconds: 800 }, mode, { seconds: 10000 })).toEqual({ seconds: 800 });
+      expect(entryRejected({ seconds: 801 }, mode, { seconds: 10000 })).toEqual(['seconds']);
+    }
+  });
+
+  it('CARDIO_DISTANCE: 100.00 km accepted, 100.01 km and 0 km rejected; cumulative at cap', () => {
+    expect(entryAccepted({ km: 100 }, 'CARDIO_DISTANCE')).toEqual({ km: 100 });
+    expect(entryAccepted({ km: 100.00 }, 'CARDIO_DISTANCE')).toEqual({ km: 100 });
+    expect(entryRejected({ km: 100.01 }, 'CARDIO_DISTANCE')).toEqual(['km']);
+    expect(entryRejected({ km: 0 }, 'CARDIO_DISTANCE')).toEqual(['km']);
+    expect(entryAccepted({ km: 2.555 }, 'CARDIO_DISTANCE')).toEqual({ km: 2.555 }); // R4 precision kept
+    expect(entryAccepted({ km: 1 }, 'CARDIO_DISTANCE', { km: 99 })).toEqual({ km: 1 });
+    expect(entryRejected({ km: 1.01 }, 'CARDIO_DISTANCE', { km: 99 })).toEqual(['km']);
+  });
+
+  it('a value field for another mode is rejected (R6) and missing fields are rejected', () => {
+    expect(entryRejected({ seconds: 60 }, 'WEIGHT')).toEqual(['seconds']);
+    expect(entryRejected({ sets: 5 }, 'YOGA')).toEqual(['sets']);
+    expect(entryRejected({}, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ seconds: '60' }, 'BODYWEIGHT_TIME')).toEqual(['seconds']);
+  });
+});
+
+describe('TEST-11 (F-04 cases): validateWeight (WeightLog bounds)', () => {
+  it('1.0 kg and 800.0 kg accepted; 0.9, 0.99, 800.01 rejected (R4)', () => {
+    expect(weightAccepted(1)).toBe(1);
+    expect(weightAccepted(1.0)).toBe(1);
+    expect(weightAccepted(800)).toBe(800);
+    expect(weightRejected(0.9)).toEqual(['weightKg']);
+    expect(weightRejected(0.99)).toEqual(['weightKg']);
+    expect(weightRejected(800.01)).toEqual(['weightKg']);
+  });
+
+  it('5 decimal places rejected, 2 accepted (R4 precision)', () => {
+    expect(weightAccepted(70.55)).toBe(70.55);
+    expect(weightRejected(70.555)).toEqual(['weightKg']);
+  });
+});
 
 describe('TEST-11 (F-03 cases): validateTarget', () => {
   const weight = { targetSets: 4, targetRepsPerSet: 10, loadKg: 40 };
