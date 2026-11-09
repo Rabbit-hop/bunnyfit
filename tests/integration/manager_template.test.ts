@@ -36,7 +36,7 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
   const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000';
   /** Names created by this suite; removed in afterAll (and before, in case of a crashed earlier run). */
-  const TEST_CATEGORIES = ['Mobility', 'Mobility & Stretch', 'Disposable'];
+  const TEST_CATEGORIES = ['Mobility', 'Mobility & Stretch', 'Disposable', 'Mobility Extra'];
   const cleanup = async () => {
     await prisma.exerciseTemplate.deleteMany({ where: { category: { name: { in: TEST_CATEGORIES } } } });
     await prisma.category.deleteMany({ where: { name: { in: TEST_CATEGORIES } } });
@@ -148,6 +148,192 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
       expect(put.body.message).not.toMatch(/No route matches/);
       expect(del.body.message).not.toMatch(/No route matches/);
       expect(await prisma.category.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    });
+  });
+
+  describe('AC-02a / AC-02b templates (Manager)', () => {
+    const MODES = [
+      { trackingMode: 'WEIGHT', unit: 'reps' },
+      { trackingMode: 'BODYWEIGHT_REPS', unit: 'reps' },
+      { trackingMode: 'BODYWEIGHT_TIME', unit: 'seconds' },
+      { trackingMode: 'YOGA', unit: 'seconds' },
+      { trackingMode: 'CARDIO_TIME', unit: 'seconds' },
+      { trackingMode: 'CARDIO_DISTANCE', unit: 'km', cardioCategory: 'RUNNING' },
+    ];
+    const created: Array<{ id: string; trackingMode: string }> = [];
+    let categoryId: string;
+
+    const templateBody = (extra: Record<string, unknown>) => ({
+      categoryId,
+      name: `Tpl ${String(extra['trackingMode'])} ${String(extra['cardioCategory'] ?? '')}`.trim(),
+      targetBodyPart: 'Full body',
+      metValue: 4.5,
+      ...extra,
+    });
+
+    beforeAll(async () => {
+      categoryId = (await prisma.category.create({ data: { name: 'Mobility' } })).id;
+    });
+
+    it('TEST-02a-2: POST one template per tracking mode → 201, unit reps/reps/seconds/seconds/seconds/km, 6 new rows', async () => {
+      const token = await managerToken();
+      const before = await prisma.exerciseTemplate.count();
+      for (const m of MODES) {
+        const res = await request(app)
+          .post('/api/templates')
+          .set(bearer(token))
+          .send(templateBody({ trackingMode: m.trackingMode, ...(m.cardioCategory ? { cardioCategory: m.cardioCategory } : {}) }));
+        expect(res.status).toBe(201);
+        expect(res.body.unit).toBe(m.unit);
+        expect(res.body.trackingMode).toBe(m.trackingMode);
+        expect(res.body.category).toEqual({ id: categoryId, name: 'Mobility' });
+        expect(JSON.stringify(res.body)).not.toContain('createdById');
+        created.push({ id: res.body.id, trackingMode: m.trackingMode });
+      }
+      expect(await prisma.exerciseTemplate.count()).toBe(before + 6);
+      const row = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: created[5]?.id ?? '' } });
+      expect(row.metValue.toNumber()).toBe(4.5);
+      expect(row.createdById).toBeTruthy();
+    });
+
+    it('TEST-02a-3: CARDIO_DISTANCE with RUNNING, WALKING, CYCLING, SWIMMING → 201; cardioCategory stored as sent', async () => {
+      const token = await managerToken();
+      for (const cardioCategory of ['WALKING', 'CYCLING', 'SWIMMING']) {
+        const res = await request(app)
+          .post('/api/templates')
+          .set(bearer(token))
+          .send(templateBody({ trackingMode: 'CARDIO_DISTANCE', cardioCategory }));
+        expect(res.status).toBe(201);
+        expect(res.body.cardioCategory).toBe(cardioCategory);
+        const row = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: res.body.id } });
+        expect(row.cardioCategory).toBe(cardioCategory);
+      }
+      // RUNNING was stored by TEST-02a-2.
+      const running = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: created[5]?.id ?? '' } });
+      expect(running.cardioCategory).toBe('RUNNING');
+    });
+
+    it('TEST-02a-4: CARDIO_DISTANCE without cardioCategory → 400 VALIDATION_ERROR naming cardioCategory; no new row', async () => {
+      const token = await managerToken();
+      const before = await prisma.exerciseTemplate.count();
+      const res = await request(app)
+        .post('/api/templates')
+        .set(bearer(token))
+        .send(templateBody({ name: 'No cardio category', trackingMode: 'CARDIO_DISTANCE' }));
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields.map((f: { field: string }) => f.field)).toContain('cardioCategory');
+      expect(await prisma.exerciseTemplate.count()).toBe(before);
+    });
+
+    it('TEST-02a-5: after a restart (new application instance) GET /api/templates/:id returns the same data', async () => {
+      const token = await managerToken();
+      expect(created).toHaveLength(6); // precondition: the templates of TEST-02a-2 exist
+      const otherPrisma = newPrisma();
+      try {
+        const restarted = buildIntegrationApp(otherPrisma, new MutableClock(new Date()));
+        const login2 = await request(restarted)
+          .post('/api/auth/login')
+          .send({ email: 'manager@exercise.test', password: env.seedManagerPassword });
+        expect(login2.status).toBe(200);
+        for (const t of created) {
+          const before = await request(app).get(`/api/templates/${t.id}`).set(bearer(token));
+          const after = await request(restarted).get(`/api/templates/${t.id}`).set(bearer(login2.body.token));
+          expect(after.status).toBe(200);
+          expect(after.body).toEqual(before.body);
+          expect(after.body.trackingMode).toBe(t.trackingMode);
+        }
+      } finally {
+        await otherPrisma.$disconnect();
+      }
+    });
+
+    it('TEST-02b-2: PUT changes name, targetBodyPart, metValue, rangeMax and categoryId → 200; response and database show them; updatedAt later', async () => {
+      const token = await managerToken();
+      const other = await prisma.category.create({ data: { name: 'Mobility Extra' } });
+      const target = created[0];
+      const beforeRow = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: target?.id ?? '' } });
+      await new Promise((r) => setTimeout(r, 15));
+      const res = await request(app)
+        .put(`/api/templates/${target?.id}`)
+        .set(bearer(token))
+        .send({ categoryId: other.id, name: 'Renamed squat', targetBodyPart: 'Legs and core', metValue: 5.5, rangeMax: 3000 });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        id: target?.id,
+        category: { id: other.id, name: 'Mobility Extra' },
+        name: 'Renamed squat',
+        targetBodyPart: 'Legs and core',
+        metValue: 5.5,
+        rangeMax: 3000,
+        trackingMode: 'WEIGHT',
+      });
+      const row = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: target?.id ?? '' } });
+      expect([row.categoryId, row.name, row.targetBodyPart, row.metValue.toNumber(), row.rangeMax.toNumber()]).toEqual([
+        other.id,
+        'Renamed squat',
+        'Legs and core',
+        5.5,
+        3000,
+      ]);
+      expect(row.updatedAt.getTime()).toBeGreaterThan(beforeRow.updatedAt.getTime());
+    });
+
+    it('TEST-02b-4: DELETE a template → 204, then GET → 404 NOT_FOUND', async () => {
+      const token = await managerToken();
+      const target = created[1];
+      const del = await request(app).delete(`/api/templates/${target?.id}`).set(bearer(token));
+      expect(del.status).toBe(204);
+      const get = await request(app).get(`/api/templates/${target?.id}`).set(bearer(token));
+      expect(get.status).toBe(404);
+      expect(get.body.code).toBe('NOT_FOUND');
+      expect(get.body.message).not.toMatch(/No route matches/);
+    });
+
+    it('TEST-02b-5 (template part): PUT and DELETE on a well-formed unknown id → 404 NOT_FOUND; database unchanged', async () => {
+      const token = await managerToken();
+      const before = await prisma.exerciseTemplate.findMany({ orderBy: { id: 'asc' } });
+      const put = await request(app)
+        .put(`/api/templates/${NO_SUCH_ID}`)
+        .set(bearer(token))
+        .send({ categoryId, name: 'Ghost', targetBodyPart: 'None', metValue: 3 });
+      const del = await request(app).delete(`/api/templates/${NO_SUCH_ID}`).set(bearer(token));
+      for (const res of [put, del]) {
+        expect(res.status).toBe(404);
+        expect(res.body.code).toBe('NOT_FOUND');
+        expect(res.body.message).not.toMatch(/No route matches/);
+      }
+      expect(await prisma.exerciseTemplate.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    });
+  });
+
+  describe('AC-02c participant cannot write', () => {
+    it('TEST-02c-2: Alice POST/PUT/DELETE on templates and categories (one with an invalid body) → 403 FORBIDDEN; database unchanged', async () => {
+      const token = await aliceToken();
+      const auth = bearer(token);
+      const snapshot = async () => ({
+        categories: await prisma.category.findMany({ orderBy: { id: 'asc' } }),
+        templates: await prisma.exerciseTemplate.findMany({ orderBy: { id: 'asc' } }),
+      });
+      const someTemplate = await prisma.exerciseTemplate.findFirstOrThrow();
+      const someCategory = await prisma.category.findFirstOrThrow();
+      const before = await snapshot();
+
+      const responses = [
+        await request(app).post('/api/templates').set(auth).send({ categoryId: someCategory.id, name: 'X', targetBodyPart: 'Y', trackingMode: 'WEIGHT', metValue: 3 }),
+        await request(app).put(`/api/templates/${someTemplate.id}`).set(auth).send({ name: 'Hacked' }),
+        await request(app).delete(`/api/templates/${someTemplate.id}`).set(auth),
+        await request(app).post('/api/categories').set(auth).send({ name: 'Hacked' }),
+        await request(app).put(`/api/categories/${someCategory.id}`).set(auth).send({ name: 'Hacked' }),
+        await request(app).delete(`/api/categories/${someCategory.id}`).set(auth),
+        // invalid body: authorization is checked before validation (R1)
+        await request(app).post('/api/templates').set(auth).send({ name: '' }),
+      ];
+      for (const res of responses) {
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe('FORBIDDEN');
+      }
+      expect(await snapshot()).toEqual(before);
     });
   });
 });
