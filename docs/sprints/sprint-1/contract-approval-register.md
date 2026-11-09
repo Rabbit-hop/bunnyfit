@@ -4,7 +4,7 @@
 
 **Reviewer:** Onsinee (GitHub `justfepwx12`). **Author of all five contracts:** Nakagamon (`fahsai-02`).
 
-**Document version:** 0.1.1 · **Date:** 8 November 2026 · **Status:** Draft: waiting for the reviewer's explicit reply (section 3)
+**Document version:** 0.1.2 · **Date:** 9 November 2026 · **Status:** Draft: F-01–F-04 approval relayed in private chat, F-06 changes needed; waiting for the reviewer's reply on the PR (section 3)
 
 ## 1. Evidence on GitHub (read 8 Nov 2026)
 
@@ -26,6 +26,22 @@
 | F-06 `F-06-progress-display.md` | 0.3.0 | Draft | PR #13 approval at `177a533` names F-06 only as a nit (line 213) | An explicit statement that F-06 v0.3.0 is approved |
 
 F-02, F-03, F-04 and F-06 have not changed since the approved commit `177a533` (`git diff 177a533 HEAD` on the four files is empty). `177a533` itself changed F-03 and F-04 (4 lines each, `git show --stat`); F-02 and F-06 were last changed in `2395581`. Their text at `177a533` is what the reviewer's approval covers, and the approval review says it re-read only the diff `2395581..177a533`.
+
+### 2.1 Reviewer's private chat reply, 9 Nov 2026 (relayed by the author, not on GitHub)
+
+The reviewer sent this to the author in a private chat and said they will post it on PR #24 themselves. It is **not** in the five-line format of section 3 and names no contract version except v0.3.0 for F-06, so the headers of F-01–F-04 say "approval relayed" until the PR reply exists.
+
+| Contract | Chat reply | Recorded as |
+| --- | --- | --- |
+| F-01, F-02, F-03, F-04 | "F-01/F-02/F-03/F-04 = approved" | Approved (headers and revision rows updated 9 Nov 2026) |
+| F-06 v0.3.0 | Two changes needed (below) | **Not approved**; header stays `Draft` |
+
+F-06 changes requested:
+
+1. `F-06-progress-display.md:237` (TEST-06e-3): the Clock is fixed at 5 Nov (the STS header says "unless stated"; the row states nothing else), but the request is `?date=2026-11-10` (a future date) and expects 200 `isRestDay: true`. This contradicts R13, SRS Q47 (400 `VALIDATION_ERROR` for a future date) and TEST-06g-4 in the same contract. Fix: state that the Clock moves to Tue 2026-11-10, or use a past date (e.g. Tue 2026-11-03).
+2. `F-06-progress-display.md:238` (TEST-06f-1): a Sprint 1 test for AC-06f (DoD #4 gives no exception) uses `PUT /api/profile`, a Sprint 2 endpoint (F-04 §4.5, CHANGE-04), so it cannot be implemented in Sprint 1. Fix: insert a `WeightLog` row directly (the schema exists from F-04; Alice has a seed row as fixture).
+
+Status of these two changes: **not applied yet** (open; the F-06 file is unchanged).
 
 ## 3. Request to the reviewer
 
@@ -57,3 +73,4 @@ Rules for recording the replies:
 | --- | --- | --- | --- | --- |
 | **0.1.0** | 8 Nov 2026 | First version: evidence read from PR #13 and PR #19 reviews and the current contract headers; no contract file is changed | Nakagamon | Draft |
 | **0.1.1** | 9 Nov 2026 | Section 1: PR #13 row no longer says the review does not name F-06 (it names F-06 as a nit); section 3: fixed five-line reply format, reviewer must read the contract text first, unformatted replies not recorded (PR #24 review B1) | Nakagamon | Draft |
+| **0.1.2** | 9 Nov 2026 | Section 2.1: reviewer's private-chat reply recorded (F-01–F-04 approved, F-06 two changes needed); F-01–F-04 headers and revision rows updated; F-06 left `Draft` | Nakagamon | Draft |
