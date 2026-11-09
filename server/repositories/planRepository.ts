@@ -40,10 +40,22 @@ export interface CreatePlanFromTemplate {
   repeatDays: number[];
 }
 
+export interface PlanItemWithExercise {
+  planItem: PlanItemRecord;
+  userExercise: UserExerciseRecord;
+}
+
 /** Plan storage (F-03): the participant's exercise snapshots and plan items. */
 export interface PlanRepository {
   /** Creates the snapshot and the plan item in one transaction (R14). */
   createFromTemplate(input: CreatePlanFromTemplate): Promise<{ userExercise: UserExerciseRecord; planItem: PlanItemRecord }>;
+  /** All plan items of the user (every version) with their snapshots, ordered by effectiveFrom then createdAt. */
+  listPlanItems(userId: string): Promise<PlanItemWithExercise[]>;
+  /** The user's own exercise snapshots, sorted by name. */
+  listUserExercises(userId: string): Promise<UserExerciseRecord[]>;
+  findPlanItem(id: string): Promise<PlanItemWithExercise | null>;
+  /** Owner of a plan item, or null if it does not exist (route ownership check). */
+  findPlanItemOwner(id: string): Promise<string | null>;
 }
 
 const toDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -86,6 +98,32 @@ export function toPlanItemRecord(row: Prisma.PlanItemGetPayload<object>): PlanIt
 
 export function createPrismaPlanRepository(prisma: PrismaClient): PlanRepository {
   return {
+    async listPlanItems(userId) {
+      const rows = await prisma.planItem.findMany({
+        where: { userId },
+        include: { userExercise: true },
+        orderBy: [{ effectiveFrom: 'asc' }, { createdAt: 'asc' }],
+      });
+      return rows.map(({ userExercise, ...item }) => ({ planItem: toPlanItemRecord(item), userExercise: toUserExerciseRecord(userExercise) }));
+    },
+
+    async listUserExercises(userId) {
+      const rows = await prisma.userExercise.findMany({ where: { userId }, orderBy: { name: 'asc' } });
+      return rows.map(toUserExerciseRecord);
+    },
+
+    async findPlanItem(id) {
+      const row = await prisma.planItem.findUnique({ where: { id }, include: { userExercise: true } });
+      if (!row) return null;
+      const { userExercise, ...item } = row;
+      return { planItem: toPlanItemRecord(item), userExercise: toUserExerciseRecord(userExercise) };
+    },
+
+    async findPlanItemOwner(id) {
+      const row = await prisma.planItem.findUnique({ where: { id }, select: { userId: true } });
+      return row?.userId ?? null;
+    },
+
     async createFromTemplate(input) {
       const t = input.template;
       return prisma.$transaction(async (tx) => {
