@@ -33,7 +33,7 @@ This plan allocates every baseline requirement to one of three sprints and state
 | **Fri 6 Nov** | Scope checkpoint executed: all 14 Tier B AC moved to Sprint 2 (CHANGE-03 … CHANGE-08); RTM, SDS and plan baselined at 1.1.0 | Sprint 1 scope = 38 atomic AC (Section 4.7) |
 | ~~Sun 8 Nov~~ | ~~Deliverable 1 due~~ — moved by the instructor to Sun 15 Nov (v1.2.0) | Sprint 1 build window extended |
 | Mon 9 – Wed 11 Nov | Sprint 1 build days; **Wed 11 Nov end of day: checkpoint 2** (Section 4.7) | Cut line applied if F-04 is not merged into `staging/sprint-1` |
-| Tue 10, Thu 12 Nov | Lab 6 sessions (cross-team UAT) | A deployed Sprint 1 build will not exist yet; use the R2 fallback (runnable build, arrangement with the instructor) |
+| Tue 10, Thu 12 Nov | Lab 6 sessions (cross-team UAT) | A deployed Sprint 1 build will not exist yet; sessions are not moved; use the R2 fallback (runnable build, arrangement with the instructor) |
 | **Thu 12 Nov** | **Sprint 1 development freeze** (team decision) | No new Sprint 1 feature work after this point: only integration fixes, RTM register, PDF material and Lab 5 (separate evidence, Section 9) |
 | Fri 13 Nov | Release PR `staging/sprint-1` → `main`, tag `sprint1-v1.0.0`, build and test run on the release commit | Lab 5 work starts from the tagged release |
 | **Sun 15 Nov** | **Deliverable 1 due (80 points)** — submit before 20:00 | Same day as Lab 5; evidence kept separate |
@@ -246,7 +246,7 @@ Issue (linked to requirement, feature and contract) → `feature/F-xx-…` or `f
 | # | Risk | Impact | Mitigation |
 | ------ | ------ | ------ | ------ |
 | R1 | At 9 Nov F-02, F-03, F-04, F-06 backend and all UI are not yet built; 4 build days remain (9 – 12 Nov) | Deliverable 1 incomplete | Cut line of 6 Nov executed (CHANGE-03 … CHANGE-08); checkpoint 2 on Wed 11 Nov with the ordered cut line in Section 4.7; freeze Thu 12 Nov; honest RTM status |
-| R2 | Lab 6 sessions (10 and 12 Nov) fall before the Sprint 1 build exists and before Lab 5 (15 Nov) | Late UAT | The 10 Nov deployment is no longer possible; Nakagamon asks the instructor whether Lab 6 sessions move (answer needed before Tue 10 Nov; if they do not move, the 10 Nov session gets no build and findings compress against the 22 Nov due date), otherwise provide a documented runnable build and the temporary access arranged with the instructor |
+| R2 | Lab 6 sessions (10 and 12 Nov) fall before the Sprint 1 build exists and before Lab 5 (15 Nov) | Late UAT | The 10 Nov deployment is no longer possible; Only the Deliverable 1 date moved; the Lab 6 sessions (10 and 12 Nov) and due date (22 Nov) are unchanged. The 10 Nov session therefore gets no deployed build, and findings compress against the 22 Nov due date; provide a documented runnable build and the temporary access arranged with the instructor (Nakagamon arranges this before Tue 10 Nov) |
 | R3 | Labs 5–7 overlap Sprint 2 and the Sprint 1 move cuts Sprint 2 build time from three weeks to about two | Sprint 2 slips past 29 Nov | Sprint 2 contracts by 16 Nov; Sprint 2 cut line decided 16 Nov; release candidate frozen 25 Nov; Lab 7 change kept small |
 | R4 | Date-dependent rules (BR-09, BR-10, BR-11) are hard to test under no-backdating | Weak evidence | Injectable Clock and dated seed rows from day one (SDS Section 2.6) |
 | R5 | Final exams 1 – 11 Dec | Reduced capacity | Everything substantial done by 29 Nov; December work is bounded (F-10, SYS-01, defects) |
