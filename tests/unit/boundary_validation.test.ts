@@ -169,25 +169,41 @@ function targetRejected(mode: TargetMode, input: Record<string, unknown>, range 
   return result.fields.map((f) => f.field);
 }
 
-// TEST-11 (F-04 cases) — F-04 §8 TEST-11-1/11-2: boundary pairs of the entry value field per
-// tracking mode (R4) and the cumulative rule (R5), asserted without HTTP. Totals are day totals
-// of the OTHER entries for the same exercise on the same day; `NONE` = first entry of the day.
+// TEST-11 (F-04 cases) — F-04 §8 TEST-11: boundary pairs of the entry value fields per
+// tracking mode (R4), the per-entry limit (R5), the daily cumulative limits including the
+// exercise's rangeMax (R6) and the WeightLog bounds (R16), asserted without HTTP. `totals`
+// are the day's sums for the same exercise BEFORE the new entry; `NONE` = first entry of
+// the day.
 type EntryValues = Record<string, unknown>;
-type DayTotals = { sets?: number | null; seconds?: number | null; km?: number | null };
+type DayTotals = {
+  sets?: number | null;
+  totalReps?: number | null;
+  durationSec?: number | null;
+  distanceKm?: number | null;
+};
+type EntryFields = {
+  sets: number | null;
+  totalReps: number | null;
+  durationSec: number | null;
+  distanceKm: number | null;
+};
 
 const NONE: DayTotals = {};
-const RANGE = FULL_RANGE.WEIGHT; // R4 uses the same published ranges as R3
-
-function entry(values: EntryValues, mode: string, totals: DayTotals = NONE) {
-  return validateEntry(values, mode, totals);
+const BLANK: EntryFields = { sets: null, totalReps: null, durationSec: null, distanceKm: null };
+function norm(fields: Partial<EntryFields>): EntryFields {
+  return { ...BLANK, ...fields };
 }
-function entryAccepted(values: EntryValues, mode: string, totals: DayTotals = NONE) {
-  const result = entry(values, mode, totals);
+
+function entry(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number) {
+  return validateEntry(values, mode, totals, rangeMax);
+}
+function entryAccepted(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number) {
+  const result = entry(values, mode, totals, rangeMax);
   if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
   return result.value;
 }
-function entryRejected(values: EntryValues, mode: string, totals: DayTotals = NONE): string[] {
-  const result = entry(values, mode, totals);
+function entryRejected(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number): string[] {
+  const result = entry(values, mode, totals, rangeMax);
   if (!('fields' in result)) throw new Error('expected rejected, got accepted');
   for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
   return result.fields.map((f) => f.field);
@@ -204,65 +220,91 @@ function weightRejected(input: unknown): string[] {
   return result.fields.map((f) => f.field);
 }
 
-describe('TEST-11 (F-04 cases): validateEntry (R4/R5)', () => {
-  it('WEIGHT: 20 kg accepted; 21 kg rejected; 0 kg rejected', () => {
-    expect(entryAccepted({ kg: 20 }, 'WEIGHT')).toEqual({ sets: 20 });
-    expect(entryRejected({ kg: 21 }, 'WEIGHT')).toEqual(['sets']);
-    expect(entryRejected({ kg: 0 }, 'WEIGHT')).toEqual(['sets']);
+describe('TEST-11 (F-04 cases): validateEntry (R4/R5/R6)', () => {
+  it('sets pairs (§3.3): 20 accepted; 21, 0, negative rejected; totalReps 0 and negative rejected', () => {
+    expect(entryAccepted({ sets: 20, totalReps: 1 }, 'WEIGHT')).toEqual(norm({ sets: 20, totalReps: 1 }));
+    expect(entryRejected({ sets: 21, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: 0, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: -1, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: 1, totalReps: 0 }, 'WEIGHT')).toEqual(['totalReps']);
+    expect(entryRejected({ sets: 1, totalReps: -5 }, 'WEIGHT')).toEqual(['totalReps']);
   });
 
-  it('BODYWEIGHT_REPS: 400 reps accepted; 401 rejected (R5: 19 + 1 = 20)', () => {
-    expect(entryAccepted({ reps: 400 }, 'BODYWEIGHT_REPS')).toEqual({ sets: 400 });
-    expect(entryRejected({ reps: 401 }, 'BODYWEIGHT_REPS')).toEqual(['sets']);
-    expect(entryAccepted({ reps: 1 }, 'BODYWEIGHT_REPS', { sets: 19 })).toEqual({ sets: 20 });
-    expect(entryRejected({ reps: 2 }, 'BODYWEIGHT_REPS', { sets: 19 })).toEqual(['sets']);
+  it('R5 per entry: sets 2 with totalReps 400 accepted, 401 rejected', () => {
+    expect(entryAccepted({ sets: 2, totalReps: 400 }, 'BODYWEIGHT_REPS')).toEqual(norm({ sets: 2, totalReps: 400 }));
+    expect(entryRejected({ sets: 2, totalReps: 401 }, 'BODYWEIGHT_REPS')).toEqual(['totalReps']);
   });
 
-  it('rangeMax applies: 50 kg accepted at cap, 51 kg rejected', () => {
-    expect(entryAccepted({ kg: 50 }, 'WEIGHT', NONE)).toEqual({ sets: 50 });
-    expect(entryRejected({ kg: 51 }, 'WEIGHT', NONE)).toEqual(['sets']);
+  it('R6 cumulative sets: 19 logged then 1 accepted (20), then 2 rejected', () => {
+    const totals = { sets: 19, totalReps: 19 };
+    expect(entryAccepted({ sets: 1, totalReps: 1 }, 'BODYWEIGHT_REPS', totals)).toEqual(norm({ sets: 1, totalReps: 1 }));
+    expect(entryRejected({ sets: 2, totalReps: 1 }, 'BODYWEIGHT_REPS', totals)).toEqual(['sets']);
   });
 
-  it('BODYWEIGHT_TIME/YOGA/CARDIO_TIME: 10800 s accepted; 10801 rejected; cumulative at cap', () => {
+  it('R6 cumulative totalReps ≤ cumulative sets × 200', () => {
+    const totals = { sets: 19, totalReps: 3800 };
+    expect(entryAccepted({ sets: 1, totalReps: 200 }, 'BODYWEIGHT_REPS', totals)).toEqual(norm({ sets: 1, totalReps: 200 }));
+    expect(entryRejected({ sets: 1, totalReps: 201 }, 'BODYWEIGHT_REPS', totals)).toEqual(['totalReps']);
+  });
+
+  it('R6 rangeMax 50 reps: cumulative totalReps 50 accepted, 51 rejected', () => {
+    const totals = { sets: 1, totalReps: 49 };
+    expect(entryAccepted({ sets: 1, totalReps: 1 }, 'WEIGHT', totals, 50)).toEqual(norm({ sets: 1, totalReps: 1 }));
+    expect(entryRejected({ sets: 1, totalReps: 2 }, 'WEIGHT', totals, 50)).toEqual(['totalReps']);
+  });
+
+  it('seconds modes: 10,800 accepted, 10,801 rejected; cumulative 10,000 + 800 / 801', () => {
     for (const mode of ['BODYWEIGHT_TIME', 'YOGA', 'CARDIO_TIME']) {
-      expect(entryAccepted({ seconds: 10800 }, mode)).toEqual({ seconds: 10800 });
-      expect(entryRejected({ seconds: 10801 }, mode)).toEqual(['seconds']);
-      expect(entryAccepted({ seconds: 800 }, mode, { seconds: 10000 })).toEqual({ seconds: 800 });
-      expect(entryRejected({ seconds: 801 }, mode, { seconds: 10000 })).toEqual(['seconds']);
+      expect(entryAccepted({ durationSec: 10800 }, mode)).toEqual(norm({ durationSec: 10800 }));
+      expect(entryRejected({ durationSec: 10801 }, mode)).toEqual(['durationSec']);
+      expect(entryAccepted({ durationSec: 800 }, mode, { durationSec: 10000 })).toEqual(norm({ durationSec: 800 }));
+      expect(entryRejected({ durationSec: 801 }, mode, { durationSec: 10000 })).toEqual(['durationSec']);
+      expect(entryRejected({ durationSec: -60 }, mode)).toEqual(['durationSec']);
     }
   });
 
-  it('CARDIO_DISTANCE: 100.00 km accepted, 100.01 km and 0 km rejected; cumulative at cap', () => {
-    expect(entryAccepted({ km: 100 }, 'CARDIO_DISTANCE')).toEqual({ km: 100 });
-    expect(entryAccepted({ km: 100.00 }, 'CARDIO_DISTANCE')).toEqual({ km: 100 });
-    expect(entryRejected({ km: 100.01 }, 'CARDIO_DISTANCE')).toEqual(['km']);
-    expect(entryRejected({ km: 0 }, 'CARDIO_DISTANCE')).toEqual(['km']);
-    expect(entryAccepted({ km: 2.555 }, 'CARDIO_DISTANCE')).toEqual({ km: 2.555 }); // R4 precision kept
-    expect(entryAccepted({ km: 1 }, 'CARDIO_DISTANCE', { km: 99 })).toEqual({ km: 1 });
-    expect(entryRejected({ km: 1.01 }, 'CARDIO_DISTANCE', { km: 99 })).toEqual(['km']);
+  it('R6 seconds rangeMax below the hard cap applies (min(10,800, rangeMax))', () => {
+    expect(entryAccepted({ durationSec: 600 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(norm({ durationSec: 600 }));
+    expect(entryRejected({ durationSec: 601 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(['durationSec']);
   });
 
-  it('a value field for another mode is rejected (R6) and missing fields are rejected', () => {
-    expect(entryRejected({ seconds: 60 }, 'WEIGHT')).toEqual(['seconds']);
-    expect(entryRejected({ sets: 5 }, 'YOGA')).toEqual(['sets']);
-    expect(entryRejected({}, 'WEIGHT')).toEqual(['sets']);
-    expect(entryRejected({ seconds: '60' }, 'BODYWEIGHT_TIME')).toEqual(['seconds']);
+  it('CARDIO_DISTANCE: 100 and 2.55 accepted; 100.01, 0 and 2.555 (3 decimals) rejected', () => {
+    expect(entryAccepted({ distanceKm: 100 }, 'CARDIO_DISTANCE')).toEqual(norm({ distanceKm: 100 }));
+    expect(entryAccepted({ distanceKm: 2.55 }, 'CARDIO_DISTANCE')).toEqual(norm({ distanceKm: 2.55 }));
+    expect(entryRejected({ distanceKm: 100.01 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: 0 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: 2.555 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: -1 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+  });
+
+  it('R6 km cumulative: 99 then 1 accepted (100), then 1.01 rejected; rangeMax applies', () => {
+    expect(entryAccepted({ distanceKm: 1 }, 'CARDIO_DISTANCE', { distanceKm: 99 })).toEqual(norm({ distanceKm: 1 }));
+    expect(entryRejected({ distanceKm: 1.01 }, 'CARDIO_DISTANCE', { distanceKm: 99 })).toEqual(['distanceKm']);
+    expect(entryAccepted({ distanceKm: 1 }, 'CARDIO_DISTANCE', { distanceKm: 9 }, 10)).toEqual(norm({ distanceKm: 1 }));
+    expect(entryRejected({ distanceKm: 2 }, 'CARDIO_DISTANCE', { distanceKm: 9 }, 10)).toEqual(['distanceKm']);
+  });
+
+  it('R4: a field of another mode is rejected, missing value fields are rejected', () => {
+    expect(entryRejected({ durationSec: 60 }, 'WEIGHT')).toEqual(['durationSec', 'sets', 'totalReps']);
+    expect(entryRejected({ sets: 5 }, 'YOGA')).toEqual(['sets', 'durationSec']);
+    expect(entryRejected({}, 'WEIGHT')).toEqual(['sets', 'totalReps']);
+    expect(entryRejected({ sets: 20, totalReps: '30' }, 'WEIGHT')).toEqual(['totalReps']);
   });
 });
 
-describe('TEST-11 (F-04 cases): validateWeight (WeightLog bounds)', () => {
-  it('1.0 kg and 800.0 kg accepted; 0.9, 0.99, 800.01 rejected (R4)', () => {
+describe('TEST-11 (F-04 cases): validateWeight (WeightLog bounds, R16)', () => {
+  it('1 and 800 accepted; 0.9, 800.1, 70.55 (2 decimals) and "abc" rejected', () => {
     expect(weightAccepted(1)).toBe(1);
-    expect(weightAccepted(1.0)).toBe(1);
     expect(weightAccepted(800)).toBe(800);
     expect(weightRejected(0.9)).toEqual(['weightKg']);
-    expect(weightRejected(0.99)).toEqual(['weightKg']);
-    expect(weightRejected(800.01)).toEqual(['weightKg']);
+    expect(weightRejected(800.1)).toEqual(['weightKg']);
+    expect(weightRejected(70.55)).toEqual(['weightKg']);
+    expect(weightRejected('abc')).toEqual(['weightKg']);
   });
 
-  it('5 decimal places rejected, 2 accepted (R4 precision)', () => {
-    expect(weightAccepted(70.55)).toBe(70.55);
-    expect(weightRejected(70.555)).toEqual(['weightKg']);
+  it('1 decimal place accepted (R16 precision)', () => {
+    expect(weightAccepted(70.5)).toBe(70.5);
+    expect(weightAccepted(70)).toBe(70);
   });
 });
 
