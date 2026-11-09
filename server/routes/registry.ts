@@ -46,13 +46,16 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/auth/login', featureId: 'F-01', auth: 'public', roles: [], ownership: 'none' },
   { method: 'GET', path: '/api/auth/me', featureId: 'F-01', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
   { method: 'POST', path: '/api/auth/logout', featureId: 'F-01', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
-  // F-02 exercise library — categories write + template read; template write routes are added with their handlers.
+  // F-02 exercise library — all nine routes of §4.1.
   { method: 'GET', path: '/api/categories', featureId: 'F-02', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
   { method: 'GET', path: '/api/templates', featureId: 'F-02', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
   { method: 'GET', path: '/api/templates/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER', 'PARTICIPANT'], ownership: 'none' },
   { method: 'POST', path: '/api/categories', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
   { method: 'PUT', path: '/api/categories/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
   { method: 'DELETE', path: '/api/categories/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
+  { method: 'POST', path: '/api/templates', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
+  { method: 'PUT', path: '/api/templates/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
+  { method: 'DELETE', path: '/api/templates/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
 ];
 
 /**

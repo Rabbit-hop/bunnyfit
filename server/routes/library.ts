@@ -1,5 +1,6 @@
 import { appError } from '../domain/errors.js';
 import { validateCategoryBody } from '../domain/libraryValidation.js';
+import { validateTemplate } from '../domain/templateValidation.js';
 import type { LibraryRepository } from '../repositories/libraryRepository.js';
 import { validationError } from '../middleware/errorHandler.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -24,7 +25,14 @@ function duplicateName(name: string) {
   );
 }
 
-/** Endpoints of the exercise library (F-02 §4.1): reads for Manager and Participant, category writes for Manager. */
+function duplicateTemplateName(name: string) {
+  return validationError(
+    [{ field: 'name', limit: 'must be unique within the category' }],
+    `A template named '${name}' already exists in this category`,
+  );
+}
+
+/** Endpoints of the exercise library (F-02 §4.1): reads for Manager and Participant, writes for Manager. */
 export function registerLibraryRoutes(
   registrar: RouteRegistrar,
   policies: readonly RoutePolicy[],
@@ -101,6 +109,47 @@ export function registerLibraryRoutes(
           ...(trackingMode !== undefined ? { trackingMode: trackingMode as Mode } : {}),
         }),
       );
+    }),
+  );
+
+  registrar.register(
+    policy('POST', '/api/templates'),
+    asyncHandler(async (req, res) => {
+      const parsed = validateTemplate(req.body);
+      if ('fields' in parsed) throw validationError(parsed.fields);
+      if (!req.auth) throw appError('UNAUTHENTICATED', 'Authentication required.');
+      const result = await repo.createTemplate(parsed.value, req.auth.userId);
+      if (result === 'duplicate') throw duplicateTemplateName(parsed.value.name);
+      if (result === 'category_not_found') throw appError('NOT_FOUND', 'Category not found.');
+      res.status(201).json(result);
+    }),
+  );
+
+  registrar.register(
+    policy('PUT', '/api/templates/:id'),
+    asyncHandler(async (req, res) => {
+      const id = String(req.params['id'] ?? '');
+      if (!UUID.test(id)) throw validationError([{ field: 'id', limit: 'must be a UUID' }]);
+      // The stored mode is needed to enforce that trackingMode never changes (R5).
+      const existing = await repo.findTemplate(id);
+      if (!existing) throw appError('NOT_FOUND', 'Template not found.');
+      const parsed = validateTemplate(req.body, { existingMode: existing.trackingMode });
+      if ('fields' in parsed) throw validationError(parsed.fields);
+      const result = await repo.updateTemplate(id, parsed.value);
+      if (result === 'not_found') throw appError('NOT_FOUND', 'Template not found.');
+      if (result === 'duplicate') throw duplicateTemplateName(parsed.value.name);
+      if (result === 'category_not_found') throw appError('NOT_FOUND', 'Category not found.');
+      res.status(200).json(result);
+    }),
+  );
+
+  registrar.register(
+    policy('DELETE', '/api/templates/:id'),
+    asyncHandler(async (req, res) => {
+      const id = String(req.params['id'] ?? '');
+      if (!UUID.test(id)) throw validationError([{ field: 'id', limit: 'must be a UUID' }]);
+      if (!(await repo.deleteTemplate(id))) throw appError('NOT_FOUND', 'Template not found.');
+      res.status(204).end();
     }),
   );
 
