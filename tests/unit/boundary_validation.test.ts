@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildCustomExercise } from '../../server/domain/customExercise.js';
 import { validateTarget } from '../../server/domain/planValidation.js';
 import { validateTemplate } from '../../server/domain/templateValidation.js';
 
@@ -267,6 +268,111 @@ describe('TEST-11 (F-03 cases): validateTarget', () => {
     it('seconds and km are checked against the template range too', () => {
       expect(targetRejected('YOGA', { targetDurationSec: 900 }, { min: 60, max: 600 })).toEqual(['targetDurationSec']);
       expect(targetRejected('CARDIO_DISTANCE', { targetDistanceKm: 6 }, { min: 0.5, max: 5 })).toEqual(['targetDistanceKm']);
+    });
+  });
+});
+
+// TEST-16a-1 / TEST-16b-1 / TEST-03d-3 (unit part): custom exercise defaults and rules, F-03 R4, R5.
+describe('F-03 custom exercise: buildCustomExercise', () => {
+  const custom = (overrides: Record<string, unknown> = {}) => ({
+    name: 'Hill Walk',
+    targetBodyPart: 'Legs',
+    trackingMode: 'WEIGHT',
+    ...overrides,
+  });
+  const built = (overrides: Record<string, unknown> = {}) => {
+    const result = buildCustomExercise(custom(overrides));
+    if (!('value' in result)) throw new Error(`rejected: ${JSON.stringify(result.fields)}`);
+    return result.value;
+  };
+  const rejected = (overrides: Record<string, unknown> = {}): string[] => {
+    const result = buildCustomExercise(custom(overrides));
+    if ('value' in result) throw new Error('expected a rejection');
+    return result.fields.map((f) => f.field).sort();
+  };
+
+  describe('TEST-16a-1: metValue and unit by mode (SRS Appendix A.1)', () => {
+    it.each([
+      ['WEIGHT', 3.5, 'reps'],
+      ['BODYWEIGHT_REPS', 3.8, 'reps'],
+      ['BODYWEIGHT_TIME', 3.8, 'seconds'],
+      ['YOGA', 2.5, 'seconds'],
+      ['CARDIO_TIME', 7.0, 'seconds'],
+    ])('%s -> metValue %s, unit %s', (mode, met, unit) => {
+      const v = built({ trackingMode: mode });
+      expect(v.metValue).toBe(met);
+      expect(v.unit).toBe(unit);
+      expect(v.cardioCategory).toBeNull();
+    });
+    it.each([
+      ['RUNNING', 9.8],
+      ['WALKING', 4.3],
+      ['CYCLING', 8.0],
+      ['SWIMMING', 5.8],
+    ])('CARDIO_DISTANCE + %s -> metValue %s, unit km', (category, met) => {
+      const v = built({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: category });
+      expect(v.metValue).toBe(met);
+      expect(v.unit).toBe('km');
+      expect(v.cardioCategory).toBe(category);
+    });
+  });
+
+  describe('TEST-16b-1: default Valid Range per unit', () => {
+    it.each([
+      ['WEIGHT', 1, 4000],
+      ['YOGA', 1, 10800],
+      ['CARDIO_DISTANCE', 0.01, 100],
+    ])('%s -> %s..%s', (mode, min, max) => {
+      const v = built({ trackingMode: mode, ...(mode === 'CARDIO_DISTANCE' ? { cardioCategory: 'RUNNING' } : {}) });
+      expect([v.rangeMin, v.rangeMax]).toEqual([min, max]);
+    });
+  });
+
+  describe('TEST-16b-2 (unit part): default range lets targets reach the BR-02 limits and no further', () => {
+    it('20 x 200 reps accepted, 21 sets rejected; 10,800 s accepted, 10,801 s rejected; 100 km accepted, 100.01 km rejected', () => {
+      const w = built({ trackingMode: 'WEIGHT' });
+      const wr = { min: w.rangeMin, max: w.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'WEIGHT', range: wr, targetSets: 20, targetRepsPerSet: 200, loadKg: 10 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'WEIGHT', range: wr, targetSets: 21, targetRepsPerSet: 200, loadKg: 10 })).toBe(true);
+      const y = built({ trackingMode: 'YOGA' });
+      const yr = { min: y.rangeMin, max: y.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'YOGA', range: yr, targetDurationSec: 10800 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'YOGA', range: yr, targetDurationSec: 10801 })).toBe(true);
+      const d = built({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'RUNNING' });
+      const dr = { min: d.rangeMin, max: d.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'CARDIO_DISTANCE', range: dr, targetDistanceKm: 100 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'CARDIO_DISTANCE', range: dr, targetDistanceKm: 100.01 })).toBe(true);
+    });
+  });
+
+  describe('R4 field rules', () => {
+    it('name is trimmed and limited to 1-80; body part trimmed 1-50', () => {
+      expect(built({ name: '  Hill Walk  ' }).name).toBe('Hill Walk');
+      expect(built({ name: 'a'.repeat(80) }).name).toHaveLength(80);
+      expect(rejected({ name: 'a'.repeat(81) })).toEqual(['name']);
+      expect(rejected({ name: '   ' })).toEqual(['name']);
+      expect(built({ targetBodyPart: 'b'.repeat(50) }).targetBodyPart).toHaveLength(50);
+      expect(rejected({ targetBodyPart: 'b'.repeat(51) })).toEqual(['targetBodyPart']);
+      expect(rejected({ targetBodyPart: '' })).toEqual(['targetBodyPart']);
+    });
+    it('unknown trackingMode is rejected naming trackingMode', () => {
+      expect(rejected({ trackingMode: 'SWIMMING' })).toEqual(['trackingMode']);
+      expect(rejected({ trackingMode: undefined })).toEqual(['trackingMode']);
+    });
+    it('TEST-03d-3: CARDIO_DISTANCE needs cardioCategory; every other mode forbids it', () => {
+      expect(rejected({ trackingMode: 'CARDIO_DISTANCE' })).toEqual(['cardioCategory']);
+      expect(rejected({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'ROWING' })).toEqual(['cardioCategory']);
+      expect(rejected({ trackingMode: 'WEIGHT', cardioCategory: 'RUNNING' })).toEqual(['cardioCategory']);
+    });
+    it('TEST-16a-2 (unit part): metValue, unit, rangeMin, rangeMax and unknown fields are rejected naming the field', () => {
+      expect(rejected({ metValue: 20 })).toEqual(['metValue']);
+      expect(rejected({ unit: 'reps' })).toEqual(['unit']);
+      expect(rejected({ rangeMin: 1, rangeMax: 10 })).toEqual(['rangeMax', 'rangeMin']);
+      expect(rejected({ colour: 'red' })).toEqual(['colour']);
+    });
+    it('a non-object is rejected', () => {
+      const result = buildCustomExercise('x');
+      expect('fields' in result).toBe(true);
     });
   });
 });
