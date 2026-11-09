@@ -4,7 +4,7 @@
 
 **Reviewer:** Onsinee (GitHub `justfepwx12`). **Author of all five contracts:** Nakagamon (`fahsai-02`).
 
-**Document version:** 0.1.2 · **Date:** 9 November 2026 · **Status:** Draft: F-01–F-04 approval relayed in private chat, F-06 changes needed; waiting for the reviewer's reply on the PR (section 3)
+**Document version:** 0.1.3 · **Date:** 9 November 2026 · **Status:** Draft: F-01–F-04 approved by the reviewer's reply on PR #24; F-06 v0.3.0 changes needed, fixed in F-06 v0.3.1 (`27dd0c5`), waiting for the reviewer to re-read it
 
 ## 1. Evidence on GitHub (read 8 Nov 2026)
 
@@ -19,15 +19,31 @@
 
 | Contract | Version in `staging/sprint-1` | Header Status in the file | Approval recorded | Not recorded |
 | --- | --- | --- | --- | --- |
-| F-01 `F-01-authentication.md` | 0.3.7 | Approved (v0.3.0); v0.3.1–0.3.3 and v0.3.5–0.3.7 review-pending | v0.3.0: PR #13 approval at `177a533` (F-01 points named). v0.3.1–v0.3.7: explicit in the PR #19 approval at `5b66192` | The header still says review-pending for v0.3.1–0.3.3 and v0.3.5–0.3.7 |
-| F-02 `F-02-exercise-library.md` | 0.3.0 | Draft | Only the PR #13 approval at `177a533`, which does not name this file | An explicit statement that F-02 v0.3.0 is approved |
-| F-03 `F-03-goal-setting.md` | 0.3.0 | Draft | PR #13 approval at `177a533` names one F-03 point (AC-25 dependency wording) | An explicit statement that F-03 v0.3.0 is approved |
-| F-04 `F-04-daily-logging.md` | 0.3.0 | Draft | Only the PR #13 approval at `177a533`, which does not name this file | An explicit statement that F-04 v0.3.0 is approved |
-| F-06 `F-06-progress-display.md` | 0.3.0 | Draft | PR #13 approval at `177a533` names F-06 only as a nit (line 213) | An explicit statement that F-06 v0.3.0 is approved |
+| F-01 `F-01-authentication.md` | 0.3.7 | Approved (v0.3.0 and v0.3.1–v0.3.7) | v0.3.0: PR #13 approval at `177a533` (F-01 points named). v0.3.1–v0.3.7: explicit in the PR #19 approval at `5b66192` and in the PR #24 reply `F-01 v0.3.1-v0.3.7: approved` | None |
+| F-02 `F-02-exercise-library.md` | 0.3.0 | Approved (PR #24 reply) | PR #24 reply, 9 Nov 2026: `F-02 v0.3.0: approved` (earlier PR #13 approval did not name this file) | None |
+| F-03 `F-03-goal-setting.md` | 0.3.0 | Approved (PR #24 reply) | PR #24 reply, 9 Nov 2026: `F-03 v0.3.0: approved` | None |
+| F-04 `F-04-daily-logging.md` | 0.3.0 | Approved (PR #24 reply) | PR #24 reply, 9 Nov 2026: `F-04 v0.3.0: approved` | None |
+| F-06 `F-06-progress-display.md` | 0.3.1 (local commit `27dd0c5`, not yet in `staging/sprint-1`) | Draft | None. The PR #24 reply says `changes needed` for v0.3.0 (the two fixes are in v0.3.1) | An explicit approval of v0.3.1 |
 
 F-02, F-03, F-04 and F-06 have not changed since the approved commit `177a533` (`git diff 177a533 HEAD` on the four files is empty). `177a533` itself changed F-03 and F-04 (4 lines each, `git show --stat`); F-02 and F-06 were last changed in `2395581`. Their text at `177a533` is what the reviewer's approval covers, and the approval review says it re-read only the diff `2395581..177a533`.
 
-### 2.1 Reviewer's private chat reply, 9 Nov 2026 (relayed by the author, not on GitHub)
+### 2.1 Reviewer's replies, 9 Nov 2026
+
+#### 2.1.1 Reply on PR #24 (issuecomment-6741224888, 13:27 UTC, GitHub)
+
+The reviewer replied in the section 3 format, after reading all five files in full at `548407c`:
+
+```text
+F-01 v0.3.1-v0.3.7: approved
+F-02 v0.3.0: approved
+F-03 v0.3.0: approved
+F-04 v0.3.0: approved
+F-06 v0.3.0: changes needed - F-06-progress-display.md:237 ... F-06-progress-display.md:238 ...
+```
+
+This is the evidence for F-01–F-04 (the headers and revision rows of those four files now cite it). The F-06 line asks for the same two changes as the chat reply below; they are applied in F-06 v0.3.1 (`27dd0c5`), whose status stays `Draft` until the reviewer re-reads the diff and posts `F-06 v0.3.1: approved` (the reviewer said they will).
+
+#### 2.1.2 Earlier private chat reply (relayed by the author, not on GitHub; superseded by 2.1.1)
 
 The reviewer sent this to the author in a private chat and said they will post it on PR #24 themselves. It is **not** in the five-line format of section 3 and names no contract version except v0.3.0 for F-06, so the headers of F-01–F-04 say "approval relayed" until the PR reply exists.
 
@@ -41,7 +57,7 @@ F-06 changes requested:
 1. `F-06-progress-display.md:237` (TEST-06e-3): the Clock is fixed at 5 Nov (the STS header says "unless stated"; the row states nothing else), but the request is `?date=2026-11-10` (a future date) and expects 200 `isRestDay: true`. This contradicts R13, SRS Q47 (400 `VALIDATION_ERROR` for a future date) and TEST-06g-4 in the same contract. Fix: state that the Clock moves to Tue 2026-11-10, or use a past date (e.g. Tue 2026-11-03).
 2. `F-06-progress-display.md:238` (TEST-06f-1): a Sprint 1 test for AC-06f (DoD #4 gives no exception) uses `PUT /api/profile`, a Sprint 2 endpoint (F-04 §4.5, CHANGE-04), so it cannot be implemented in Sprint 1. Fix: insert a `WeightLog` row directly (the schema exists from F-04; Alice has a seed row as fixture).
 
-Status of these two changes: **not applied yet** (open; the F-06 file is unchanged).
+Status of these two changes: **applied** in F-06 v0.3.1 (`27dd0c5`): `TEST-06e-3` now requests the past date 2026-11-03 with the Clock at 2026-11-05; `TEST-06f-1` inserts a `WeightLog` row directly. Awaiting the reviewer's re-read.
 
 ## 3. Request to the reviewer
 
@@ -65,7 +81,7 @@ Rules for recording the replies:
 
 - The `F-01` line is the confirmation that v0.3.1-v0.3.7 (already approved in PR #19 at `5b66192`) may be recorded as `Approved`.
 - Each line is recorded for exactly the file and version it names. A missing line is recorded as "no reply", not as approved.
-- When the five lines exist, a follow-up commit changes the `Status` line and adds a revision row to each approved contract, quoting the line and its date. Until then the headers stay `Draft`.
+- (Done for F-01–F-04, 9 Nov 2026.) When the five lines exist, a follow-up commit changes the `Status` line and adds a revision row to each approved contract, quoting the line and its date. Until then the headers stay `Draft`.
 
 ## 4. Revision history
 
@@ -74,3 +90,4 @@ Rules for recording the replies:
 | **0.1.0** | 8 Nov 2026 | First version: evidence read from PR #13 and PR #19 reviews and the current contract headers; no contract file is changed | Nakagamon | Draft |
 | **0.1.1** | 9 Nov 2026 | Section 1: PR #13 row no longer says the review does not name F-06 (it names F-06 as a nit); section 3: fixed five-line reply format, reviewer must read the contract text first, unformatted replies not recorded (PR #24 review B1) | Nakagamon | Draft |
 | **0.1.2** | 9 Nov 2026 | Section 2.1: reviewer's private-chat reply recorded (F-01–F-04 approved, F-06 two changes needed); F-01–F-04 headers and revision rows updated; F-06 left `Draft` | Nakagamon | Draft |
+| **0.1.3** | 9 Nov 2026 | Section 2.1.1: the reviewer's five-line reply on PR #24 recorded (F-01–F-04 approved, F-06 v0.3.0 changes needed); section 2 rows updated; F-01–F-04 headers no longer say pending; F-06 two changes applied in v0.3.1 (`27dd0c5`), still `Draft` | Nakagamon | Draft |

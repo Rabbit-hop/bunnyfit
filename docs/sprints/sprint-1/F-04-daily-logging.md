@@ -6,7 +6,7 @@
 **Contract Version:**  0.3.0
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 and F-03 contracts 0.3.0)
 **Date:**  6 November 2026
-**Status:**  Approved: reviewer approval relayed by the author on 9 Nov 2026 (private chat; PR #24 five-line reply still pending)
+**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-04-daily-logging.md`
 
@@ -19,6 +19,7 @@
 | **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citation corrected from the nonexistent "RTM 1.2.0" to RTM 1.0.0 (F-01 0.1.2, F-02 0.2.0, F-03 0.2.0); AC restored to the RTM 1.0.0 numbering (AC-04b = Quick Complete unavailable, AC-04c = Rest Day entry not scored, AC-10a/AC-10b un-swapped, AC-10c and AC-13c restored, AC-14 split into AC-14a/AC-14b, AC-17c/AC-17d restored, AC-23 restored to the RTM's three cases, AC-24a/AC-24b split) and AC-04d remains the single proposal; test IDs realigned to the AC suffix (old TEST-04b→13a, old TEST-04c→04b, old TEST-04d→04c/04d, old TEST-10a↔10b swapped, TEST-14→14a/14b, TEST-17b-3→17c, TEST-17a-3→17d, TEST-24→24a); `LedgerEntry.source` renamed to `kind` to match SDS §3.2; Quick Complete now satisfies the per-entry `totalReps ≤ sets × 200` rule of SRS Q20 and SDS §3.2 by raising `sets` (R9/R12) with an explicit rejection when no entry fits both limits; a well-formed `userExerciseId` that does not exist returns 404 `NOT_FOUND`; the undefined 405 status removed | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 and F-03 contracts 0.3.0); AC-04d is now an RTM 1.1.0 criterion (no longer *proposed*); AC-04c, AC-04d, AC-10c and AC-17a–d are marked **deferred to Sprint 2** (CHANGE-07, CHANGE-08, CHANGE-04) in §1, §6, §7, §8, §9, §10 and §12 — STS rows kept; the Profile screen and TEST-23-4 move with the profile endpoints; §12 pending items given a status column Review-fix pass (PR #13): §7 AC-23 row no longer says Sprint 1 shows the weight notice (TEST-23-4 is deferred to Sprint 2, as §9 already states). Version kept at 0.3.0. | Nakagamon | Draft |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer (Onsinee) approved this contract in a private chat message to the author on 9 Nov 2026 ("F-01/F-02/F-03/F-04 = approved"). The message does not name a version; it was sent after the files were last changed. Not yet repeated on PR #24 in the register's five-line format (register §3) | Nakagamon | Approved |
+| **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer's five-line reply on PR #24 (issuecomment-6741224888, 9 Nov 2026 13:27 UTC) records `F-04 v0.3.0: approved`. This replaces the earlier private-chat relay (previous row) as the evidence | Nakagamon | Approved |
 
 *Rule: committed as a specification-only commit before any F-04 implementation; later changes are new versions with a reason, never silent rewrites.*
 
