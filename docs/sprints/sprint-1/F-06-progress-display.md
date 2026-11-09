@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-06
 **Sprint:**  1 (calories are F-11, Sprint 2; Monthly Progress Summary is F-10, Sprint 3)
-**Contract Version:**  0.3.0
+**Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0)
-**Date:**  6 November 2026
-**Status:**  Draft: specification-only, awaiting reviewer approval before implementation
+**Date:**  9 November 2026
+**Status:**  Approved: v0.3.1 by the reviewer's reply on PR #24 (9 Nov 2026); implementation may start (DoD #1)
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-06-progress-display.md`
 
@@ -18,6 +18,8 @@
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/UI specification, AC (AC-06a–c, AC-15, AC-21a; proposed AC-06d), STS, Definition of Done, list of pending baseline changes (§12). No new tables | Nakagamon | Draft |
 | **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citations corrected (RTM 1.0.0, SDS 1.0.0 — neither "RTM 1.2.0" nor "SDS 0.1.0" exists; F-01 0.1.2, F-02–F-04 0.2.0); AC restored to the RTM 1.0.0 numbering — AC-06a–f are back to their approved meanings (item score, cap, time/distance ratio, Daily Overall %, 0%/null, load and body weight invariance), AC-15 keeps the monthly-average criterion with the RTM example, and the only genuinely new criterion (real-time, private, unaffected scores) is re-suffixed as proposed AC-06g; every test ID realigned to its AC suffix (old TEST-06b→06d/06e, old TEST-06c→15, old TEST-06d→06f/06g, plus new TEST-06b-1, TEST-06c-1); `entry source` renamed to `entry kind` to match SDS §3.2; pending item P6-8 removed because its premise was false (RTM §3 already lists AC-06a–f under Unit Testing) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0); AC-06g is now an RTM 1.1.0 criterion (no longer *proposed*); AC-06g (CHANGE-08), AC-15 (CHANGE-06) and AC-21a (CHANGE-03) are marked **deferred to Sprint 2** in §1, §2, §7, §8, §9, §10 and §12 — STS rows kept; the Sprint 1 scope of F-06 is AC-06a–f; `tests/integration/progress_api.test.ts` is now listed in RTM §2 (P6-6 applied); §12 pending items given a status column | Nakagamon | Draft |
+| **0.3.1** | 9 Nov 2026 | Test-row fixes only, requested by the reviewer on PR #24 (issuecomment-6741224888): `TEST-06e-3` (line 237 in 0.3.0) now requests the past date 2026-11-03 with the Clock fixed at 2026-11-05 (it requested the future date 2026-11-10, which R13, SRS Q47 and TEST-06g-4 answer with 400); `TEST-06f-1` (line 238 in 0.3.0) inserts a `WeightLog` row directly instead of calling `PUT /api/profile` (Sprint 2, CHANGE-04). No AC, API, schema or scope change. Also §9 step 1 now names v0.3.1 | Nakagamon | Draft |
+| **0.3.1** | 9 Nov 2026 | Status only, no content change: the reviewer's reply on PR #24 (issuecomment-6743198059, 9 Nov 2026 14:57 UTC) records `F-06 v0.3.1: approved` after re-reading the diff `548407c..27dd0c5` (both test-row fixes, header, this table and §9 step 1) | Nakagamon | Approved |
 
 *Rule: committed as a specification-only commit before any F-06 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -234,8 +236,8 @@ Files: `tests/unit/progress_calc.test.ts` (AC-06a–f and AC-15 unit tests), `te
 | `TEST-06d-5` | AC-06d | API/DB Integration | Alice's plan has an item that starts tomorrow and one that ended yesterday | `GET /api/progress/daily` | Neither item appears; their weights are not in the denominator |
 | `TEST-06e-1` | AC-06e | Unit | One item weight 4, no entries | Calculate | `overallPercent` 0 (targeted day without log) |
 | `TEST-06e-2` | AC-06e | Unit | No planned item (Rest Day), free-form entries exist | Calculate | `isRestDay` true; `overallPercent` null; not 0 |
-| `TEST-06e-3` | AC-06e | API/DB Integration | Alice with an item that does not occur on Tue 2026-11-10 and nothing else | `GET /api/progress/daily?date=2026-11-10` | `isRestDay` true; `overallPercent` null; `items` empty |
-| `TEST-06f-1` | AC-06f | API/DB Integration | Alice logged 20 of 40 reps | `PUT /api/profile` `{ weightKg: 120 }` and compare `GET /daily` before and after | `overallPercent` unchanged (Decision 11) |
+| `TEST-06e-3` | AC-06e | API/DB Integration | Clock fixed at 2026-11-05; Alice's plan has `effectiveFrom` 2026-11-02 and one item that does not occur on Tuesday, and nothing else | `GET /api/progress/daily?date=2026-11-03` (past Tuesday) | `isRestDay` true; `overallPercent` null; `items` empty |
+| `TEST-06f-1` | AC-06f | API/DB Integration | Alice logged 20 of 40 reps; the seed gives Alice one `WeightLog` row (F-04 §5) | `GET /daily`; insert a new `WeightLog` row for Alice directly in the database (`weightKg` 120; `PUT /api/profile` is Sprint 2, CHANGE-04); `GET /daily` again | `overallPercent` unchanged (Decision 11) |
 | `TEST-06f-2` | AC-06f | API/DB Integration | Same | Create a second plan with a different `loadKg` for the same template; compare ratio of the first | Ratio unchanged by `loadKg` |
 | `TEST-06g-1` | AC-06g *(deferred → Sprint 2)* | API/DB Integration | Alice; Squat 4 × 10 weight 3, nothing logged | `GET /daily` (0%); `POST /api/entries/quick-complete`; `GET /daily` | 0, then 100 (no cache, same request cycle) |
 | `TEST-06g-2` | AC-06g *(deferred → Sprint 2)* | API/DB Integration | Alice has a free-form entry for an exercise not planned today | `GET /daily` | The entry does not appear in `items` and does not change `overallPercent` |
@@ -265,7 +267,7 @@ Files: `tests/unit/progress_calc.test.ts` (AC-06a–f and AC-15 unit tests), `te
 #### 9. TDD Plan and Commit Sequence
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.1 (spec-only) | Commit ID |
 | 2 | `test` (red) | TEST-06a, TEST-06b-1, TEST-06c-1, TEST-06d-1 to 06d-3, TEST-06e-1/06e-2 (unit); TEST-15-1, TEST-15-2, TEST-15-5: Sprint 2 with module absent | Failing run |
 | 3 | `feat` (green) | `calcItem`, `calcDaily` (`calcMonthly`: Sprint 2) with decimal arithmetic | Passing run |
 | 4 | `test` (red) | TEST-06d-4/06d-5, TEST-06e-3, TEST-06f (API); TEST-06g, TEST-15-3, TEST-15-4, TEST-15-6 to 15-9: Sprint 2 | Failing run showing e.g. Rest Day returned as 0% or future days counted |
