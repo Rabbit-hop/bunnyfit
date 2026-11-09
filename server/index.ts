@@ -4,6 +4,7 @@ import { env, requireJwtSecret } from './config/env.js';
 import { createAuthService } from './domain/authService.js';
 import { SystemClock } from './domain/clock.js';
 import { createPrismaAuthRepository } from './repositories/authRepository.js';
+import { createPrismaLibraryRepository } from './repositories/libraryRepository.js';
 
 const secret = requireJwtSecret();
 
@@ -18,6 +19,7 @@ const app = createApp({
     isRevoked: (jti) => repo.isRevoked(jti),
     userExists: (id) => repo.userExists(id),
   },
+  library: createPrismaLibraryRepository(prisma),
   authService: createAuthService({ repo, clock, secret, expiresInSeconds: env.jwtExpiresInSeconds, bcryptCost: env.bcryptCost }),
 });
 
