@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { maskToIsoDays, isoDaysToMask, type TargetFields } from '../domain/planValidation.js';
+import type { CustomExercise } from '../domain/customExercise.js';
 import type { TemplateRecord } from './libraryRepository.js';
 
 /** `UserExercise` as returned by the API (F-03 §4.4): never `userId`. */
@@ -40,6 +41,16 @@ export interface CreatePlanFromTemplate {
   repeatDays: number[];
 }
 
+export interface CreatePlanCustom {
+  userId: string;
+  exercise: CustomExercise;
+  priorityWeight: number;
+  target: TargetFields;
+  effectiveFrom: string;
+  endDate: string | null;
+  repeatDays: number[];
+}
+
 export interface PlanItemWithExercise {
   planItem: PlanItemRecord;
   userExercise: UserExerciseRecord;
@@ -49,6 +60,8 @@ export interface PlanItemWithExercise {
 export interface PlanRepository {
   /** Creates the snapshot and the plan item in one transaction (R14). */
   createFromTemplate(input: CreatePlanFromTemplate): Promise<{ userExercise: UserExerciseRecord; planItem: PlanItemRecord }>;
+  /** Same, for a custom exercise: `isCustom` true and no source template (R4, R5). */
+  createCustom(input: CreatePlanCustom): Promise<{ userExercise: UserExerciseRecord; planItem: PlanItemRecord }>;
   /** All plan items of the user (every version) with their snapshots, ordered by effectiveFrom then createdAt. */
   listPlanItems(userId: string): Promise<PlanItemWithExercise[]>;
   /** The user's own exercise snapshots, sorted by name. */
@@ -96,6 +109,31 @@ export function toPlanItemRecord(row: Prisma.PlanItemGetPayload<object>): PlanIt
   };
 }
 
+type ExerciseData = Omit<Prisma.UserExerciseUncheckedCreateInput, 'userId' | 'id' | 'createdAt'>;
+
+/** Creates the exercise and its plan item in one transaction (R14); a new planKey with version 1 (R15). */
+function insertExerciseAndItem(
+  prisma: PrismaClient,
+  input: { userId: string; priorityWeight: number; target: TargetFields; effectiveFrom: string; endDate: string | null; repeatDays: number[] },
+  exerciseData: ExerciseData,
+): Promise<{ userExercise: UserExerciseRecord; planItem: PlanItemRecord }> {
+  return prisma.$transaction(async (tx) => {
+    const exercise = await tx.userExercise.create({ data: { userId: input.userId, ...exerciseData } });
+    const item = await tx.planItem.create({
+      data: {
+        userId: input.userId,
+        userExerciseId: exercise.id,
+        priorityWeight: input.priorityWeight,
+        ...input.target,
+        effectiveFrom: toDate(input.effectiveFrom),
+        endDate: input.endDate ? toDate(input.endDate) : null,
+        repeatDays: isoDaysToMask(input.repeatDays),
+      },
+    });
+    return { userExercise: toUserExerciseRecord(exercise), planItem: toPlanItemRecord(item) };
+  });
+}
+
 export function createPrismaPlanRepository(prisma: PrismaClient): PlanRepository {
   return {
     async listPlanItems(userId) {
@@ -126,36 +164,34 @@ export function createPrismaPlanRepository(prisma: PrismaClient): PlanRepository
 
     async createFromTemplate(input) {
       const t = input.template;
-      return prisma.$transaction(async (tx) => {
-        // Snapshot (Decision 12): copy the template fields; sourceTemplateId is a plain column, no foreign key (B8).
-        const exercise = await tx.userExercise.create({
-          data: {
-            userId: input.userId,
-            sourceTemplateId: t.id,
-            isCustom: false,
-            name: t.name,
-            targetBodyPart: t.targetBodyPart,
-            unit: t.unit,
-            trackingMode: t.trackingMode,
-            cardioCategory: t.cardioCategory as never,
-            metValue: t.metValue,
-            rangeMin: t.rangeMin,
-            rangeMax: t.rangeMax,
-          },
-        });
-        // A new planKey (database default) with version 1; PlanItem rows are never updated in place (R15).
-        const item = await tx.planItem.create({
-          data: {
-            userId: input.userId,
-            userExerciseId: exercise.id,
-            priorityWeight: input.priorityWeight,
-            ...input.target,
-            effectiveFrom: toDate(input.effectiveFrom),
-            endDate: input.endDate ? toDate(input.endDate) : null,
-            repeatDays: isoDaysToMask(input.repeatDays),
-          },
-        });
-        return { userExercise: toUserExerciseRecord(exercise), planItem: toPlanItemRecord(item) };
+      // Snapshot (Decision 12): copy the template fields; sourceTemplateId is a plain column, no foreign key (B8).
+      return insertExerciseAndItem(prisma, input, {
+        sourceTemplateId: t.id,
+        isCustom: false,
+        name: t.name,
+        targetBodyPart: t.targetBodyPart,
+        unit: t.unit,
+        trackingMode: t.trackingMode,
+        cardioCategory: t.cardioCategory as never,
+        metValue: t.metValue,
+        rangeMin: t.rangeMin,
+        rangeMax: t.rangeMax,
+      });
+    },
+
+    async createCustom(input) {
+      const e = input.exercise;
+      return insertExerciseAndItem(prisma, input, {
+        sourceTemplateId: null,
+        isCustom: true,
+        name: e.name,
+        targetBodyPart: e.targetBodyPart,
+        unit: e.unit,
+        trackingMode: e.trackingMode,
+        cardioCategory: e.cardioCategory,
+        metValue: e.metValue,
+        rangeMin: e.rangeMin,
+        rangeMax: e.rangeMax,
       });
     },
   };

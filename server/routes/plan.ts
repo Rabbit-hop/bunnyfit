@@ -30,6 +30,25 @@ export function registerPlanRoutes(
       const parsed = validatePlanRequest(req.body, deps.clock.today());
       if ('fields' in parsed) throw validationError(parsed.fields);
       const request = parsed.value;
+      const plan = {
+        userId: req.auth.userId,
+        priorityWeight: request.priorityWeight,
+        effectiveFrom: request.effectiveFrom,
+        endDate: request.endDate,
+        repeatDays: request.repeatDays,
+      };
+
+      if (request.source === 'CUSTOM') {
+        const e = request.exercise;
+        const target = validateTarget({
+          trackingMode: e.trackingMode,
+          range: { min: e.rangeMin, max: e.rangeMax },
+          ...request.target,
+        });
+        if ('fields' in target) throw validationError(target.fields);
+        res.status(201).json(await deps.plans.createCustom({ ...plan, exercise: e, target: target.value }));
+        return;
+      }
 
       const template = await deps.library.findTemplate(request.templateId);
       if (!template) {
@@ -41,17 +60,7 @@ export function registerPlanRoutes(
         ...request.target,
       });
       if ('fields' in target) throw validationError(target.fields);
-
-      const created = await deps.plans.createFromTemplate({
-        userId: req.auth.userId,
-        template,
-        priorityWeight: request.priorityWeight,
-        target: target.value,
-        effectiveFrom: request.effectiveFrom,
-        endDate: request.endDate,
-        repeatDays: request.repeatDays,
-      });
-      res.status(201).json(created);
+      res.status(201).json(await deps.plans.createFromTemplate({ ...plan, template, target: target.value }));
     }),
   );
   registrar.register(

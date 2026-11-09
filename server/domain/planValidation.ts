@@ -1,4 +1,5 @@
 import type { TrackingMode } from '@prisma/client';
+import { buildCustomExercise, type CustomExercise } from './customExercise.js';
 import type { FieldError } from './errors.js';
 
 /**
@@ -156,6 +157,7 @@ export function isCalendarDate(value: unknown): value is string {
 const PLAN_KEYS = new Set([
   'source',
   'templateId',
+  'exercise',
   'priorityWeight',
   'targetSets',
   'targetRepsPerSet',
@@ -168,8 +170,7 @@ const PLAN_KEYS = new Set([
 ]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export interface PlanRequest {
-  templateId: string;
+interface PlanRequestCommon {
   priorityWeight: number;
   /** Raw target fields, checked later against the template's mode and range by `validateTarget`. */
   target: Pick<TargetInput, 'targetSets' | 'targetRepsPerSet' | 'loadKg' | 'targetDurationSec' | 'targetDistanceKm'>;
@@ -178,10 +179,15 @@ export interface PlanRequest {
   repeatDays: number[];
 }
 
+/** `source: TEMPLATE` selects a library template; `source: CUSTOM` carries a validated custom exercise (R4, R5). */
+export type PlanRequest =
+  | (PlanRequestCommon & { source: 'TEMPLATE'; templateId: string })
+  | (PlanRequestCommon & { source: 'CUSTOM'; exercise: CustomExercise });
+
 /**
  * Checks everything in a create request that needs neither the template nor the
  * database: shape, source, priority (R8), dates against `today` (R9, R10) and
- * repeat days (R11). Only `source: TEMPLATE` is accepted so far.
+ * repeat days (R11), and the source-specific part: a template id, or a custom exercise (R4).
  */
 export function validatePlanRequest(body: unknown, today: string): { value: PlanRequest } | { fields: FieldError[] } {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -194,8 +200,18 @@ export function validatePlanRequest(body: unknown, today: string): { value: Plan
   for (const key of Object.keys(input)) {
     if (!PLAN_KEYS.has(key)) fail(key, 'is not an allowed field');
   }
-  if (input['source'] !== 'TEMPLATE') fail('source', 'must be TEMPLATE');
-  if (typeof input['templateId'] !== 'string' || !UUID.test(input['templateId'])) fail('templateId', 'must be a UUID');
+  const source = input['source'];
+  if (source !== 'TEMPLATE' && source !== 'CUSTOM') fail('source', 'must be TEMPLATE or CUSTOM');
+  let exercise: CustomExercise | null = null;
+  if (source === 'TEMPLATE') {
+    if (input['exercise'] !== undefined) fail('exercise', 'not allowed with source TEMPLATE');
+    if (typeof input['templateId'] !== 'string' || !UUID.test(input['templateId'])) fail('templateId', 'must be a UUID');
+  } else if (source === 'CUSTOM') {
+    if (input['templateId'] !== undefined) fail('templateId', 'not allowed with source CUSTOM');
+    const built = buildCustomExercise(input['exercise']);
+    if ('fields' in built) fields.push(...built.fields);
+    else exercise = built.value;
+  }
 
   const weight = input['priorityWeight'];
   if (!Number.isInteger(weight) || (weight as number) < 1 || (weight as number) > 5) fail('priorityWeight', 'required integer 1-5');
@@ -227,20 +243,19 @@ export function validatePlanRequest(body: unknown, today: string): { value: Plan
   }
 
   if (fields.length > 0) return { fields };
-  return {
-    value: {
-      templateId: input['templateId'] as string,
-      priorityWeight: weight as number,
-      target: {
-        targetSets: input['targetSets'],
-        targetRepsPerSet: input['targetRepsPerSet'],
-        loadKg: input['loadKg'],
-        targetDurationSec: input['targetDurationSec'],
-        targetDistanceKm: input['targetDistanceKm'],
-      },
-      effectiveFrom,
-      endDate,
-      repeatDays,
+  const common: PlanRequestCommon = {
+    priorityWeight: weight as number,
+    target: {
+      targetSets: input['targetSets'],
+      targetRepsPerSet: input['targetRepsPerSet'],
+      loadKg: input['loadKg'],
+      targetDurationSec: input['targetDurationSec'],
+      targetDistanceKm: input['targetDistanceKm'],
     },
+    effectiveFrom,
+    endDate,
+    repeatDays,
   };
+  if (source === 'CUSTOM') return { value: { ...common, source: 'CUSTOM', exercise: exercise as CustomExercise } };
+  return { value: { ...common, source: 'TEMPLATE', templateId: input['templateId'] as string } };
 }
