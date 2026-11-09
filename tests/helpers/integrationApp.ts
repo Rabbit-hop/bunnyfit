@@ -6,6 +6,7 @@ import { createAuthService } from '../../server/domain/authService.js';
 import type { Clock } from '../../server/domain/clock.js';
 import { FixedClock } from '../../server/domain/clock.js';
 import { createPrismaAuthRepository } from '../../server/repositories/authRepository.js';
+import { createPrismaLibraryRepository } from '../../server/repositories/libraryRepository.js';
 
 export const TEST_SECRET = 'integration-test-secret-0123456789abcdef';
 export const databaseUrl = process.env.DATABASE_URL_TEST;
@@ -44,6 +45,7 @@ export function buildIntegrationApp(prisma: PrismaClient, clock: Clock): Express
       userExists: (id) => repo.userExists(id),
     },
     authService: createAuthService({ repo, clock, secret: TEST_SECRET, expiresInSeconds: 3600, bcryptCost: env.bcryptCost }),
+    library: createPrismaLibraryRepository(prisma),
     probeOwnerLookup: async (id) => (await repo.findUserById(id))?.id ?? null,
   });
 }

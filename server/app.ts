@@ -6,8 +6,10 @@ import type { AuthService } from './domain/authService.js';
 import { createAuthenticate, type AuthenticateDeps } from './middleware/auth.js';
 import type { OwnerLookup } from './middleware/authorize.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import type { LibraryRepository } from './repositories/libraryRepository.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { healthHandler } from './routes/health.js';
+import { registerLibraryRoutes } from './routes/library.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { createRouteRegistrar } from './routes/register.js';
 import { activePolicies, findRoutePolicy } from './routes/registry.js';
@@ -19,6 +21,8 @@ export interface AppOptions {
   auth?: AuthenticateDeps;
   /** Login/me/logout use cases; the routes are mounted only when provided. */
   authService?: AuthService;
+  /** Exercise library storage (F-02); its routes are mounted only when provided. */
+  library?: LibraryRepository;
   /** Owner lookup for the `/__test/owned/:id` probes (test env only). */
   probeOwnerLookup?: OwnerLookup;
 }
@@ -67,6 +71,7 @@ export function createApp(options: AppOptions = {}): Express {
   registrar.register(health, healthHandler);
 
   if (options.authService) registerAuthRoutes(registrar, policies, options.authService);
+  if (options.library) registerLibraryRoutes(registrar, policies, options.library);
 
   if (nodeEnv === 'test' && options.auth && options.probeOwnerLookup) {
     registerProbeRoutes(registrar, options.probeOwnerLookup);
