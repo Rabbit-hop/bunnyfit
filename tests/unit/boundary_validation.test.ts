@@ -241,10 +241,12 @@ describe('TEST-11 (F-04 cases): validateEntry (R4/R5/R6)', () => {
     expect(entryRejected({ sets: 2, totalReps: 1 }, 'BODYWEIGHT_REPS', totals)).toEqual(['sets']);
   });
 
-  it('R6 cumulative totalReps ≤ cumulative sets × 200', () => {
-    const totals = { sets: 19, totalReps: 3800 };
-    expect(entryAccepted({ sets: 1, totalReps: 200 }, 'BODYWEIGHT_REPS', totals)).toEqual(norm({ sets: 1, totalReps: 200 }));
-    expect(entryRejected({ sets: 1, totalReps: 201 }, 'BODYWEIGHT_REPS', totals)).toEqual(['totalReps']);
+  it('R6 cumulative totalReps ≤ cumulative sets × 200 (catches totals already over the ratio)', () => {
+    // Existing rows over the per-entry ratio (only reachable by a writer that
+    // bypassed R5): the cumulative rule still rejects the day.
+    const over = { sets: 1, totalReps: 301 };
+    expect(entryAccepted({ sets: 1, totalReps: 99 }, 'BODYWEIGHT_REPS', over)).toEqual(norm({ sets: 1, totalReps: 99 }));
+    expect(entryRejected({ sets: 1, totalReps: 100 }, 'BODYWEIGHT_REPS', over)).toEqual(['totalReps']);
   });
 
   it('R6 rangeMax 50 reps: cumulative totalReps 50 accepted, 51 rejected', () => {
@@ -264,8 +266,8 @@ describe('TEST-11 (F-04 cases): validateEntry (R4/R5/R6)', () => {
   });
 
   it('R6 seconds rangeMax below the hard cap applies (min(10,800, rangeMax))', () => {
-    expect(entryAccepted({ durationSec: 600 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(norm({ durationSec: 600 }));
-    expect(entryRejected({ durationSec: 601 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(['durationSec']);
+    expect(entryAccepted({ durationSec: 500 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(norm({ durationSec: 500 }));
+    expect(entryRejected({ durationSec: 501 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(['durationSec']);
   });
 
   it('CARDIO_DISTANCE: 100 and 2.55 accepted; 100.01, 0 and 2.555 (3 decimals) rejected', () => {
