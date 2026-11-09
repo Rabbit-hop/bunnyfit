@@ -127,3 +127,120 @@ export function validateTarget(input: TargetInput): TargetValidation {
 
   return fields.length > 0 ? { fields } : { value: out };
 }
+
+// ---------------------------------------------------------------------------
+// Plan item request (F-03 §4.2-4.3, R8-R11)
+// ---------------------------------------------------------------------------
+
+/** ISO weekday array (1 = Monday ... 7 = Sunday) → stored Monday-Sunday bitmask (SDS §3.2). */
+export function isoDaysToMask(days: readonly number[]): number {
+  return days.reduce((mask, day) => mask | (1 << (day - 1)), 0);
+}
+
+/** Stored bitmask → ascending ISO weekday array. */
+export function maskToIsoDays(mask: number): number[] {
+  const days: number[] = [];
+  for (let day = 1; day <= 7; day++) if (mask & (1 << (day - 1))) days.push(day);
+  return days;
+}
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for a real calendar date written `YYYY-MM-DD`. */
+export function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+const PLAN_KEYS = new Set([
+  'source',
+  'templateId',
+  'priorityWeight',
+  'targetSets',
+  'targetRepsPerSet',
+  'loadKg',
+  'targetDurationSec',
+  'targetDistanceKm',
+  'effectiveFrom',
+  'endDate',
+  'repeatDays',
+]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface PlanRequest {
+  templateId: string;
+  priorityWeight: number;
+  /** Raw target fields, checked later against the template's mode and range by `validateTarget`. */
+  target: Pick<TargetInput, 'targetSets' | 'targetRepsPerSet' | 'loadKg' | 'targetDurationSec' | 'targetDistanceKm'>;
+  effectiveFrom: string;
+  endDate: string | null;
+  repeatDays: number[];
+}
+
+/**
+ * Checks everything in a create request that needs neither the template nor the
+ * database: shape, source, priority (R8), dates against `today` (R9, R10) and
+ * repeat days (R11). Only `source: TEMPLATE` is accepted so far.
+ */
+export function validatePlanRequest(body: unknown, today: string): { value: PlanRequest } | { fields: FieldError[] } {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return { fields: [{ field: 'body', limit: 'must be a JSON object' }] };
+  }
+  const input = body as Record<string, unknown>;
+  const fields: FieldError[] = [];
+  const fail = (field: string, limit: string) => fields.push({ field, limit });
+
+  for (const key of Object.keys(input)) {
+    if (!PLAN_KEYS.has(key)) fail(key, 'is not an allowed field');
+  }
+  if (input['source'] !== 'TEMPLATE') fail('source', 'must be TEMPLATE');
+  if (typeof input['templateId'] !== 'string' || !UUID.test(input['templateId'])) fail('templateId', 'must be a UUID');
+
+  const weight = input['priorityWeight'];
+  if (!Number.isInteger(weight) || (weight as number) < 1 || (weight as number) > 5) fail('priorityWeight', 'required integer 1-5');
+
+  let effectiveFrom = today;
+  if (input['effectiveFrom'] !== undefined) {
+    if (!isCalendarDate(input['effectiveFrom'])) fail('effectiveFrom', 'must be a date YYYY-MM-DD');
+    else if (input['effectiveFrom'] < today) fail('effectiveFrom', `must be today (${today}) or later`);
+    else effectiveFrom = input['effectiveFrom'];
+  }
+
+  let endDate: string | null = null;
+  if (input['endDate'] !== undefined && input['endDate'] !== null) {
+    if (!isCalendarDate(input['endDate'])) fail('endDate', 'must be a date YYYY-MM-DD');
+    else if (input['endDate'] < effectiveFrom) fail('endDate', 'must not be before effectiveFrom');
+    else endDate = input['endDate'];
+  }
+
+  let repeatDays = [1, 2, 3, 4, 5, 6, 7];
+  if (input['repeatDays'] !== undefined) {
+    const days = input['repeatDays'];
+    const valid =
+      Array.isArray(days) &&
+      days.length > 0 &&
+      days.every((d) => Number.isInteger(d) && d >= 1 && d <= 7) &&
+      new Set(days).size === days.length;
+    if (!valid) fail('repeatDays', 'non-empty array of unique ISO weekdays 1 (Mon) - 7 (Sun)');
+    else repeatDays = [...(days as number[])].sort((a, b) => a - b);
+  }
+
+  if (fields.length > 0) return { fields };
+  return {
+    value: {
+      templateId: input['templateId'] as string,
+      priorityWeight: weight as number,
+      target: {
+        targetSets: input['targetSets'],
+        targetRepsPerSet: input['targetRepsPerSet'],
+        loadKg: input['loadKg'],
+        targetDurationSec: input['targetDurationSec'],
+        targetDistanceKm: input['targetDistanceKm'],
+      },
+      effectiveFrom,
+      endDate,
+      repeatDays,
+    },
+  };
+}

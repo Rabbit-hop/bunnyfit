@@ -56,6 +56,8 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/templates', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
   { method: 'PUT', path: '/api/templates/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
   { method: 'DELETE', path: '/api/templates/:id', featureId: 'F-02', auth: 'required', roles: ['MANAGER'], ownership: 'none' },
+  // F-03 plan - Participant only.
+  { method: 'POST', path: '/api/plan-items', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
 ];
 
 /**
