@@ -349,4 +349,269 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       expect(await planSnapshot()).toEqual(before);
     });
   });
+
+  // Issue #18, stage 2: the F-02, F-04 and F-06 routes, and the aggregate over every real
+  // (non-probe) route of the registry. A route added later without a case here fails the
+  // "every route has a case" assertions below.
+  describe('Stage 2 (issue #18): F-02 / F-04 / F-06 routes and the aggregate over the real registry', () => {
+    const realPolicies = () => activePolicies('test').filter((p) => !p.path.startsWith('/__test'));
+    const bearerOf = async (email: string) => bearer(await login(email, PARTICIPANT_PW));
+    const today = () => clock.today();
+    const day = (value: string) => new Date(`${value}T00:00:00.000Z`);
+
+    let aliceExerciseId: string;
+    let bobExerciseId: string;
+    let bobEntryId: string;
+    let bobItemId: string;
+    let aliceItemId: string;
+    let templateId: string;
+    let categoryId: string;
+
+    const call = (method: string, url: string, token?: string) => {
+      const r = request(app)[method.toLowerCase() as 'get'](url);
+      return token ? r.set('Authorization', token) : r;
+    };
+    const snapshot = async () => ({
+      entries: await prisma.ledgerEntry.findMany({ orderBy: { id: 'asc' } }),
+      exercises: await prisma.userExercise.findMany({ orderBy: { id: 'asc' } }),
+      items: await prisma.planItem.findMany({ orderBy: { id: 'asc' } }),
+      categories: await prisma.category.findMany({ orderBy: { id: 'asc' } }),
+      templates: await prisma.exerciseTemplate.findMany({ orderBy: { id: 'asc' } }),
+    });
+    const FORBIDDEN = { code: 'FORBIDDEN', message: expect.any(String), fields: [] };
+
+    beforeAll(async () => {
+      const bobItem = await createHistoricalPlanItem(prisma, { userId: bobId, effectiveFrom: '2026-11-01' });
+      const aliceItem = await createHistoricalPlanItem(prisma, { userId: aliceId, effectiveFrom: '2026-11-01' });
+      bobItemId = bobItem.id;
+      aliceItemId = aliceItem.id;
+      bobExerciseId = bobItem.userExerciseId;
+      aliceExerciseId = aliceItem.userExerciseId;
+      const entry = await prisma.ledgerEntry.create({
+        data: { userId: bobId, userExerciseId: bobExerciseId, logDate: day(today()), sets: 1, totalReps: 10, kind: 'MANUAL' },
+      });
+      bobEntryId = entry.id;
+      templateId = (await prisma.exerciseTemplate.findFirstOrThrow()).id;
+      categoryId = (await prisma.category.findFirstOrThrow()).id;
+    });
+
+    afterAll(async () => {
+      await prisma.ledgerEntry.deleteMany({ where: { userExerciseId: { in: [aliceExerciseId, bobExerciseId] } } });
+      await prisma.planItem.deleteMany({ where: { id: { in: [aliceItemId, bobItemId] } } });
+      await prisma.userExercise.deleteMany({ where: { id: { in: [aliceExerciseId, bobExerciseId] } } });
+    });
+
+    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-06 only (a new feature must get a stage 2 case)', () => {
+      const features = new Set(realPolicies().map((p) => p.featureId));
+      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-06', 'SYS-01']);
+    });
+
+    it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
+      const routes = realPolicies().filter((p) => p.roles.length === 1 && p.roles[0] === 'PARTICIPANT');
+      expect(routes.map((p) => p.featureId).sort()).toEqual([
+        ...Array(4).fill('F-04'),
+        ...Array(5).fill('F-03'),
+        'F-06',
+      ].sort());
+      const token = await manager();
+      const before = await snapshot();
+      for (const p of routes) {
+        const url = p.path.replace(/:[A-Za-z]+/g, bobEntryId) + (p.method === 'GET' ? '?date=garbage&userId=not-a-uuid' : '');
+        const r = call(p.method, url, bearer(token));
+        const res = await (p.method === 'GET' ? r : r.send({ garbage: true, userId: bobId }));
+        expect(res.status, `${p.method} ${p.path}`).toBe(403);
+        expect(res.body, `${p.method} ${p.path}`).toEqual(FORBIDDEN);
+      }
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
+      const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-06']);
+      const aliceToken = await bearerOf('alice@exercise.test');
+      const before = await snapshot();
+      for (const p of routes) {
+        const url = `${p.path}?userId=${bobId}`;
+        const r = call(p.method, url, aliceToken);
+        const res = await (p.method === 'GET' ? r : r.send({ userExerciseId: bobExerciseId }));
+        expect(res.status, `${p.method} ${p.path} ?userId=<Bob>`).toBe(403);
+        expect(res.body).toEqual(FORBIDDEN);
+        const own = await call(p.method, `${p.path}?userId=${aliceId}`, aliceToken).send(p.method === 'GET' ? undefined : { garbage: true });
+        expect(own.status, `${p.method} ${p.path} ?userId=<Alice> is authorized`).not.toBe(403);
+        expect(own.status, `${p.method} ${p.path} ?userId=<Alice> is authorized`).not.toBe(401);
+      }
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('TEST-12c (aggregate): every real resource-owner route has a case; Alice on Bob\'s record → 403, Bob → 200, unknown id → 404', async () => {
+      const ids: Record<string, string> = { '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId };
+      const routes = realPolicies().filter((p) => p.ownership === 'resource-owner');
+      expect(routes.map((p) => p.path).sort()).toEqual(Object.keys(ids).sort());
+      const aliceToken = await bearerOf('alice@exercise.test');
+      const bobToken = await bearerOf('bob@exercise.test');
+      const before = await snapshot();
+      for (const p of routes) {
+        const id = ids[p.path];
+        expect(id, `${p.method} ${p.path} has a stage 2 case`).toBeDefined();
+        const url = (value: string) => p.path.replace(':id', value);
+        const foreign = await call(p.method, url(id!), aliceToken);
+        expect(foreign.status, `${p.method} ${p.path} as Alice`).toBe(403);
+        expect(foreign.body).toEqual(FORBIDDEN);
+        expect(JSON.stringify(foreign.body)).not.toContain(id!);
+        expect((await call(p.method, url(id!), bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(200);
+        const missing = await call(p.method, url(randomUUID()), aliceToken);
+        expect(missing.status, `${p.method} ${p.path} unknown id`).toBe(404);
+        expect(missing.body.code).toBe('NOT_FOUND');
+      }
+      expect(await snapshot()).toEqual(before);
+    });
+
+    describe('F-02 routes (shared catalog; no owner-scoped route)', () => {
+      const WRITES: Array<[string, string]> = [
+        ['POST', '/api/categories'],
+        ['PUT', '/api/categories/:id'],
+        ['DELETE', '/api/categories/:id'],
+        ['POST', '/api/templates'],
+        ['PUT', '/api/templates/:id'],
+        ['DELETE', '/api/templates/:id'],
+      ];
+
+      it('TEST-22c / TEST-12c (F-02 routes): the registry holds 9 routes, all ownership none; 3 reads for both roles, 6 writes MANAGER only', () => {
+        const f02 = activePolicies('test').filter((p) => p.featureId === 'F-02');
+        expect(f02).toHaveLength(9);
+        expect(f02.every((p) => p.ownership === 'none' && p.auth === 'required')).toBe(true);
+        for (const p of f02) {
+          const isWrite = WRITES.some(([m, path]) => m === p.method && path === p.path);
+          expect(p.roles, `${p.method} ${p.path}`).toEqual(isWrite ? ['MANAGER'] : ['MANAGER', 'PARTICIPANT']);
+        }
+      });
+
+      it('TEST-22c (F-02 routes): no token → 401 on each route, then a Participant token on each write route → 403 envelope only, even with an invalid body; catalog unchanged', async () => {
+        const before = await snapshot();
+        const aliceToken = await bearerOf('alice@exercise.test');
+        for (const [method, path] of WRITES) {
+          const url = path.replace(':id', path.includes('categories') ? categoryId : templateId);
+          const send = (r: request.Test) => (method === 'POST' || method === 'PUT' ? r.send({ garbage: true }) : r);
+          const anon = await send(call(method, url));
+          expect(anon.status, `${method} ${path} no token`).toBe(401);
+          const res = await send(call(method, url, aliceToken));
+          expect(res.status, `${method} ${path} as Participant`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+        }
+        expect(await snapshot()).toEqual(before);
+      });
+
+      it('TEST-22c (F-02 routes): the read routes answer 200 for a Participant and a Manager', async () => {
+        for (const token of [await bearerOf('alice@exercise.test'), bearer(await manager())]) {
+          for (const url of ['/api/categories', '/api/templates', `/api/templates/${templateId}`]) {
+            expect((await call('GET', url, token)).status, url).toBe(200);
+          }
+        }
+      });
+    });
+
+    describe('F-04 routes', () => {
+      const F04: Array<[string, string]> = [
+        ['POST', '/api/entries'],
+        ['POST', '/api/entries/quick-complete'],
+        ['GET', '/api/entries'],
+        ['GET', '/api/entries/:id'],
+      ];
+
+      it('TEST-22c (F-04 routes): the registry holds the 4 Sprint 1 routes as F-04 / PARTICIPANT, resource-owner only on :id', () => {
+        const policies = activePolicies('test');
+        for (const [method, path] of F04) {
+          const p = policies.find((x) => x.method === method && x.path === path);
+          expect(p, `${method} ${path} in the registry`).toBeDefined();
+          expect(p?.featureId).toBe('F-04');
+          expect(p?.auth).toBe('required');
+          expect(p?.roles).toEqual(['PARTICIPANT']);
+          expect(p?.ownership).toBe(path === '/api/entries/:id' ? 'resource-owner' : 'self-scoped');
+        }
+        expect(policies.filter((x) => x.featureId === 'F-04')).toHaveLength(4);
+      });
+
+      it('TEST-22c / 12a (F-04 routes): no token → 401; Manager → 403 envelope only on every route, even with an invalid body; nothing stored', async () => {
+        const managerToken = bearer(await manager());
+        const before = await snapshot();
+        for (const [method, path] of F04) {
+          const url = path.replace(':id', bobEntryId);
+          const send = (r: request.Test) => (method === 'POST' ? r.send({ garbage: true }) : r);
+          expect((await send(call(method, url))).status, `${method} ${path} no token`).toBe(401);
+          const res = await send(call(method, url, managerToken));
+          expect(res.status, `${method} ${path} as Manager`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+          expect(JSON.stringify(res.body)).not.toContain(bobEntryId);
+        }
+        expect(await snapshot()).toEqual(before);
+      });
+
+      it("TEST-12c (F-04 routes): Alice's GET /api/entries?userId=<Bob> → 403; own and Bob's own → 200; Alice's list never contains Bob's entry", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const foreign = await call('GET', `/api/entries?userId=${bobId}`, aliceToken);
+        expect(foreign.status).toBe(403);
+        expect(JSON.stringify(foreign.body)).not.toContain(bobEntryId);
+        const own = await call('GET', `/api/entries?userId=${aliceId}`, aliceToken);
+        expect(own.status).toBe(200);
+        expect(JSON.stringify(own.body)).not.toContain(bobEntryId);
+        const bobOwn = await call('GET', `/api/entries?userId=${bobId}`, await bearerOf('bob@exercise.test'));
+        expect(bobOwn.status).toBe(200);
+        expect(JSON.stringify(bobOwn.body)).toContain(bobEntryId);
+      });
+
+      it("TEST-12b (F-04 routes): Alice's POST with Bob's userExerciseId → 403 (manual and Quick Complete); unknown well-formed id → 404; userId in the body → 400; nothing stored", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await snapshot();
+        const cases: Array<[string, Record<string, unknown>]> = [
+          ['/api/entries', { sets: 1, totalReps: 10 }],
+          ['/api/entries/quick-complete', {}],
+        ];
+        for (const [url, values] of cases) {
+          const foreign = await call('POST', url, aliceToken).send({ userExerciseId: bobExerciseId, ...values });
+          expect(foreign.status, `${url} foreign userExerciseId`).toBe(403);
+          expect(foreign.body).toEqual(FORBIDDEN);
+          const unknown = await call('POST', url, aliceToken).send({ userExerciseId: randomUUID(), ...values });
+          expect(unknown.status, `${url} unknown userExerciseId`).toBe(404);
+          expect(unknown.body.code).toBe('NOT_FOUND');
+          const withUserId = await call('POST', url, aliceToken).send({ userExerciseId: aliceExerciseId, userId: bobId, ...values });
+          expect(withUserId.status, `${url} userId in the body`).toBe(400);
+          expect(withUserId.body.fields.map((f: { field: string }) => f.field)).toContain('userId');
+        }
+        expect(await snapshot()).toEqual(before);
+      });
+    });
+
+    describe('F-06 routes', () => {
+      it('TEST-22c (F-06 routes): the registry holds GET /api/progress/daily as F-06 / PARTICIPANT / self-scoped, and only that one in Sprint 1', () => {
+        const f06 = activePolicies('test').filter((x) => x.featureId === 'F-06');
+        expect(f06).toHaveLength(1);
+        expect(f06[0]).toMatchObject({ method: 'GET', path: '/api/progress/daily', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' });
+      });
+
+      it('TEST-22c / 12a (F-06 routes): no token → 401; Manager → 403 envelope only, with a valid and with an invalid date', async () => {
+        expect((await call('GET', '/api/progress/daily')).status).toBe(401);
+        const token = bearer(await manager());
+        for (const query of ['', `?date=${today()}`, '?date=garbage', '?date=2999-01-01']) {
+          const res = await call('GET', `/api/progress/daily${query}`, token);
+          expect(res.status, query).toBe(403);
+          expect(res.body, query).toEqual(FORBIDDEN);
+        }
+      });
+
+      it("TEST-12b (F-06 routes): Alice's ?userId=<Bob> → 403 with no data; Bob's own request → 200 with his exercise; Alice's own never shows Bob's exercise", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const foreign = await call('GET', `/api/progress/daily?userId=${bobId}`, aliceToken);
+        expect(foreign.status).toBe(403);
+        expect(foreign.body).toEqual(FORBIDDEN);
+        expect(JSON.stringify(foreign.body)).not.toContain(bobExerciseId);
+        const bobOwn = await call('GET', `/api/progress/daily?userId=${bobId}`, await bearerOf('bob@exercise.test'));
+        expect(bobOwn.status).toBe(200);
+        expect(JSON.stringify(bobOwn.body)).toContain(bobExerciseId);
+        const aliceOwn = await call('GET', '/api/progress/daily', aliceToken);
+        expect(aliceOwn.status).toBe(200);
+        expect(JSON.stringify(aliceOwn.body)).not.toContain(bobExerciseId);
+        expect(JSON.stringify(aliceOwn.body)).toContain(aliceExerciseId);
+      });
+    });
+  });
 });
