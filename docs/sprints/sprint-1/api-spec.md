@@ -2,15 +2,15 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.6.2
+**Document Version:** 0.6.3
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
-**Date:** 8 November 2026
-**Status:** Draft: v0.6.1 needs re-review by Onsinee (v0.6.0 was Approved)
+**Date:** 10 November 2026
+**Status:** Draft: v0.6.1 and v0.6.3 need re-review by Onsinee (v0.6.0 was Approved)
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
 
-> **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence. This document is a consolidated view; the exact request/response shapes and rules in the F-xx contracts are authoritative. The v0.2.0 draft is shown only as reconciliation history and is not authoritative.
+> **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and the Sprint 1 feature contracts at the versions listed in the Source baselines table below take precedence. This document is a consolidated view; the exact request/response shapes and rules in the F-xx contracts are authoritative. The v0.2.0 draft is shown only as reconciliation history and is not authoritative.
 
 **Source baselines**
 
@@ -20,11 +20,13 @@
 | System-Level SDS | 1.1.0 | Stack, data model, API conventions, roles and ownership |
 | Feature Inventory | 1.1.0 | Feature scope and dependencies |
 | RTM | 1.1.0 | AC and target test paths |
-| F-01 contract | 0.3.0 | Authentication, route policy registry |
+| F-01 contract | 0.3.7 | Authentication, route policy registry |
 | F-02 contract | 0.3.0 | Categories and exercise templates |
-| F-03 contract | 0.3.0 | Plan items, snapshots, plan resolution |
+| F-03 contract | 0.3.1 (on the PR #27 branch; 0.3.0 in `staging/sprint-1` until it merges) | Plan items, snapshots, plan resolution |
 | F-04 contract | 0.3.0 | Ledger entries, Quick Complete, profile |
-| F-06 contract | 0.3.0 | Daily and monthly progress |
+| F-06 contract | 0.3.1 | Daily and monthly progress |
+
+A version cell records which revision the citation points at; it does not by itself claim that this document was re-reconciled against that revision (v0.6.1 is the only row that follows a contract content change, F-01 0.3.2).
 | User draft | 0.2.0 | Source draft reconciled into this document; not authoritative where it conflicts |
 
 **Document Revision History**
@@ -37,6 +39,7 @@
 | **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved; no specification, baseline or contract content changed. | Onsinee | Approved |
 | **0.6.1** | 7 Nov 2026 | Login `password` limit stated as 1-72 UTF-8 bytes (was "characters"), following F-01 contract 0.3.2; ASCII behaviour unchanged. No other content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 | **0.6.2** | 8 Nov 2026 | Header Status/Date corrected to Draft / 8 Nov to match the v0.6.1 revision row (PR #19 re-review minor). No specification, baseline or contract content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
+| **0.6.3** | 10 Nov 2026 | Source-baseline table corrected to the contract versions that now exist: F-01 0.3.7 and F-06 0.3.1 (both already in `staging/sprint-1`, cells still read 0.3.0 here), F-03 0.3.1 (PR #27 review fixes B1/B2; the cell says which branch it is on); the source-of-truth rule now points at that table instead of repeating "0.3.0". No request/response shape, rule or traceability row changed; this document's own specification content is untouched. Needs re-review by Onsinee. | Nakagamon | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
