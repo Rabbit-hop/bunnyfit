@@ -2,10 +2,10 @@
 
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.1.8
+**Document Version:**  1.1.8.1
 **SRS Baseline Version:**  1.1.0
-**Date:**  10 November 2026
-**Status:**  Approved Baseline 1.1.0; revisions 1.1.1 and 1.1.2 approved (PR #19, PR #26); revisions 1.1.3 – 1.1.8 review-pending
+**Date:**  11 November 2026
+**Status:**  Approved Baseline 1.1.0; revisions 1.1.1 and 1.1.2 approved (PR #19, PR #26); revisions 1.1.3 – 1.1.8.1 review-pending
 
 --------------------------------------------------------------------------------
 
