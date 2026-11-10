@@ -8,12 +8,14 @@ import { env } from '../../server/config/env.js';
 import { createAuthorize } from '../../server/middleware/authorize.js';
 import { activePolicies, type RoutePolicy } from '../../server/routes/registry.js';
 import { routesMissingPolicy } from '../helpers/expressRoutes.js';
+import { createHistoricalPlanItem } from '../helpers/historicalPlan.js';
 import { buildIntegrationApp, databaseUrl, MutableClock, newPrisma, TEST_SECRET } from '../helpers/integrationApp.js';
 
 // F-01 STS §8, stage 1: TEST-22a–c and TEST-12a–c against the real test database,
 // using the F-01 routes and the test-only probe routes. Stage-2 cases (every
 // Sprint 1 route in the registry: TEST-12a-2, TEST-12b-4, and the stage-2 scope of
-// 22c-1 / 12c-1) need F-02–F-06 routes and are NOT covered here.
+// 22c-1 / 12c-1) need F-02–F-06 routes and are NOT covered here. The last describe block covers the
+// five F-03 routes only (F-03 STS TEST-22c / 12a / 12b / 12c, issue #4); the aggregate result is issue #18.
 if (!databaseUrl && process.env.CI === 'true') {
   throw new Error('DATABASE_URL_TEST is required in CI (AC-12 / AC-22).');
 }
@@ -215,6 +217,136 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       const ownerPolicy = activePolicies('test').find((p) => p.ownership === 'resource-owner');
       expect(ownerPolicy).toBeDefined();
       expect(() => createAuthorize(ownerPolicy as RoutePolicy)).toThrow(/owner lookup/);
+    });
+  });
+  describe('F-03 routes: AC-22c / AC-12a / AC-12b / AC-12c (issue #4; aggregate stage 2 is issue #18)', () => {
+    const F03_ROUTES: Array<[string, string]> = [
+      ['POST', '/api/plan-items'],
+      ['GET', '/api/plan-items'],
+      ['GET', '/api/plan-items/:id'],
+      ['GET', '/api/user-exercises'],
+      ['GET', '/api/plan'],
+    ];
+    let bobItemId: string;
+    let aliceItemId: string;
+    const createdItems: string[] = [];
+    const tokenOf = (email: string) => login(email, PARTICIPANT_PW);
+    const planSnapshot = async () => ({
+      exercises: await prisma.userExercise.findMany({ orderBy: { id: 'asc' } }),
+      items: await prisma.planItem.findMany({ orderBy: { id: 'asc' } }),
+    });
+    const validBody = {
+      source: 'TEMPLATE',
+      templateId: '00000000-0000-4000-8000-000000000000',
+      priorityWeight: 3,
+      targetSets: 3,
+      targetRepsPerSet: 10,
+      loadKg: 20,
+    };
+
+    beforeAll(async () => {
+      const bob = await createHistoricalPlanItem(prisma, { userId: bobId, effectiveFrom: '2026-11-01' });
+      const al = await createHistoricalPlanItem(prisma, { userId: aliceId, effectiveFrom: '2026-11-01' });
+      bobItemId = bob.id;
+      aliceItemId = al.id;
+      createdItems.push(bob.id, al.id);
+    });
+
+    afterAll(async () => {
+      await prisma.planItem.deleteMany({ where: { id: { in: createdItems } } });
+      await prisma.userExercise.deleteMany({ where: { userId: { in: [aliceId, bobId] }, sourceTemplateId: { not: null } } });
+    });
+
+    it('TEST-22c (F-03 routes): the registry holds the five routes as F-03 / PARTICIPANT, resource-owner only on :id', () => {
+      const policies = activePolicies('test');
+      for (const [method, path] of F03_ROUTES) {
+        const p = policies.find((x) => x.method === method && x.path === path);
+        expect(p, `${method} ${path} in the registry`).toBeDefined();
+        expect(p?.featureId).toBe('F-03');
+        expect(p?.auth).toBe('required');
+        expect(p?.roles).toEqual(['PARTICIPANT']);
+        expect(p?.ownership, `${method} ${path}`).toBe(path === '/api/plan-items/:id' ? 'resource-owner' : 'self-scoped');
+      }
+      expect(policies.filter((x) => x.featureId === 'F-03')).toHaveLength(5);
+    });
+
+    it('TEST-22c (F-03 routes): no token → 401 on each route', async () => {
+      const before = await planSnapshot();
+      for (const [method, path] of F03_ROUTES) {
+        const url = path.replace(':id', bobItemId);
+        const res = await request(app)[method.toLowerCase() as 'get' | 'post'](url).send(method === 'POST' ? validBody : undefined);
+        expect(res.status, `${method} ${path}`).toBe(401);
+        expect(res.body.code).toBe('UNAUTHENTICATED');
+      }
+      expect(await planSnapshot()).toEqual(before);
+    });
+
+    it('TEST-12a (F-03 routes): Manager → 403 on each route, envelope only, even with an invalid body; nothing stored', async () => {
+      const token = bearer(await manager());
+      const before = await planSnapshot();
+      for (const [method, path] of F03_ROUTES) {
+        const url = path.replace(':id', bobItemId);
+        const req = request(app)[method.toLowerCase() as 'get' | 'post'](url).set('Authorization', token);
+        const res = await (method === 'POST' ? req.send({ garbage: true }) : req);
+        expect(res.status, `${method} ${path}`).toBe(403);
+        expect(res.body).toEqual({ code: 'FORBIDDEN', message: expect.any(String), fields: [] });
+        expect(JSON.stringify(res.body)).not.toContain(bobItemId);
+      }
+      expect(await planSnapshot()).toEqual(before);
+    });
+
+    it("TEST-12b (F-03 routes): Alice on Bob's plan item → 403; Bob's own request → 200; unknown id → 404; malformed id → 400", async () => {
+      const aliceToken = bearer(await alice());
+      const forbidden = await request(app).get(`/api/plan-items/${bobItemId}`).set('Authorization', aliceToken);
+      expect(forbidden.status).toBe(403);
+      expect(forbidden.body).toEqual({ code: 'FORBIDDEN', message: expect.any(String), fields: [] });
+
+      const own = await request(app).get(`/api/plan-items/${bobItemId}`).set('Authorization', bearer(await tokenOf('bob@exercise.test')));
+      expect(own.status).toBe(200);
+      expect(own.body.planItem.id).toBe(bobItemId);
+
+      const missing = await request(app).get(`/api/plan-items/${randomUUID()}`).set('Authorization', aliceToken);
+      expect(missing.status).toBe(404);
+      expect(missing.body.code).toBe('NOT_FOUND');
+
+      const malformed = await request(app).get('/api/plan-items/not-a-uuid').set('Authorization', aliceToken);
+      expect(malformed.status).toBe(400);
+      expect(malformed.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it("TEST-12c (F-03 routes): Alice's ?userId=<Bob> → 403 on the three list routes; ?userId=<Alice> and Bob's own → 200; Bob's data unchanged", async () => {
+      const aliceToken = bearer(await alice());
+      const bobToken = bearer(await tokenOf('bob@exercise.test'));
+      const before = await planSnapshot();
+      for (const path of ['/api/plan-items', '/api/user-exercises', '/api/plan']) {
+        const foreign = await request(app).get(`${path}?userId=${bobId}`).set('Authorization', aliceToken);
+        expect(foreign.status, `${path} ?userId=<Bob> as Alice`).toBe(403);
+        expect(JSON.stringify(foreign.body)).not.toContain(bobItemId);
+        expect((await request(app).get(`${path}?userId=${aliceId}`).set('Authorization', aliceToken)).status, `${path} ?userId=<Alice>`).toBe(200);
+        expect((await request(app).get(`${path}?userId=${bobId}`).set('Authorization', bobToken)).status, `${path} Bob own`).toBe(200);
+      }
+      expect(await planSnapshot()).toEqual(before);
+    });
+
+    it('TEST-12c (F-03 routes): Alice lists only her own rows, never Bob\'s', async () => {
+      const res = await request(app).get('/api/plan-items').set('Authorization', bearer(await alice()));
+      expect(res.status).toBe(200);
+      const ids = res.body.map((i: { planItem: { id: string } }) => i.planItem.id);
+      expect(ids).toContain(aliceItemId);
+      expect(ids).not.toContain(bobItemId);
+    });
+
+    it('TEST-12c (F-03 routes): POST with userId in the body → 400 naming userId; nothing stored', async () => {
+      const template = await prisma.exerciseTemplate.findFirstOrThrow({ where: { name: 'Barbell Squat' } });
+      const before = await planSnapshot();
+      const res = await request(app)
+        .post('/api/plan-items')
+        .set('Authorization', bearer(await alice()))
+        .send({ ...validBody, templateId: template.id, userId: bobId });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.fields.map((f: { field: string }) => f.field)).toContain('userId');
+      expect(await planSnapshot()).toEqual(before);
     });
   });
 });

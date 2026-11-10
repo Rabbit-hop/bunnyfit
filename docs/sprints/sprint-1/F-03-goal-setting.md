@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-03
 **Sprint:**  1 (plan creation only; goal reconfiguration is F-07, Sprint 2)
-**Contract Version:**  0.3.0
+**Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 contract 0.3.0)
-**Date:**  6 November 2026
-**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
+**Date:**  10 November 2026
+**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026); v0.3.1 (10 Nov 2026) is documentation-only (PR #27 review fixes B1/B2) and needs re-review by Onsinee
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-03-goal-setting.md`
 
@@ -20,6 +20,7 @@
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 contract 0.3.0); AC-03d is now an RTM 1.1.0 criterion (no longer *proposed*); AC-03d (CHANGE-08) and AC-16a–b (CHANGE-05) are marked **deferred to Sprint 2** in §1, §7, §8, §10 and §12 — their STS rows are kept; the AC-27 test file is `tests/integration/template_snapshot.test.ts` (the RTM path; P3-8 withdrawn); §12 pending items given a status column Review-fix pass (PR #13): corrected the reason for implementing the custom-exercise endpoint in Sprint 1 (not an AC-25 dependency). Version kept at 0.3.0. | Nakagamon | Draft |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer (Onsinee) approved this contract in a private chat message to the author on 9 Nov 2026 ("F-01/F-02/F-03/F-04 = approved"). The message does not name a version; it was sent after the files were last changed. Not yet repeated on PR #24 in the register's five-line format (register §3) | Nakagamon | Approved |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer's five-line reply on PR #24 (issuecomment-6741224888, 9 Nov 2026 13:27 UTC) records `F-03 v0.3.0: approved`. This replaces the earlier private-chat relay (previous row) as the evidence | Nakagamon | Approved |
+| **0.3.1** | 10 Nov 2026 | Review-fix pass on PR #27 (B1, B2): §4.7 rewritten to the interface that is actually exported — `resolvePlan(plans: PlanRepository, userId, date)` with the repository as the first argument (the earlier text `resolvePlan(userId, date)` never existed in code, and F-04 / F-06 would have been written against a missing signature); §5.2 and the §5.1 constraint note now record that `UserExercise` and `PlanItem` (with all CHECK constraints) ship in `prisma/migrations/0001_init`, the single foundation migration (issue #2 / PR #16), so **F-03 adds no migration of its own**; §9 step 3 and DoD #3 reworded to the same fact. Behavior, AC, STS and schema unchanged. Needs re-review by Onsinee. | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-03 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -200,7 +201,13 @@ On a Rest Day: `{ "date": "...", "isRestDay": true, "items": [] }`.
 All routes: `featureId: 'F-03'`, `auth: 'required'`, `roles: ['PARTICIPANT']`. Ownership: `POST /api/plan-items` and `GET` lists/`/api/plan` → `self-scoped`; `GET /api/plan-items/:id` → `resource-owner` (owner lookup = `PlanItem.userId`).
 
 ##### 4.7 Internal interface provided to other features
-`resolvePlan(userId, date): { isRestDay, items: ResolvedItem[] }` (R12) is a pure-data service function used by F-04 (Quick Complete availability) and F-06 (scoring, monthly average). It reads only the caller's rows and takes the date as a parameter (never calls the Clock itself).
+`resolvePlan(plans: PlanRepository, userId: string, date: string): Promise<{ isRestDay, items: ResolvedItem[] }>` (R12), exported from `server/domain/planResolution.ts`, is the service function used by F-04 (Quick Complete availability) and F-06 (scoring, monthly average).
+
+- The repository (`PlanRepository`, from `server/repositories/planRepository.ts`) is the **first argument**: the caller passes its own instance and the only data access inside is `plans.listPlanItems(userId)`.
+- `date` is a plain `YYYY-MM-DD` parameter; the function never calls the Clock itself (the caller resolves "today" through the Clock in Asia/Bangkok).
+- It reads only the caller's rows. The pure selection rule is also exported as `resolveItems(items, date)` for callers that already hold the rows.
+
+*0.3.1 note: revisions before 0.3.1 wrote this signature as `resolvePlan(userId, date)`, which was never the implemented interface — issue #4 repeats the same text. Call it as `resolvePlan(plans, userId, date)`.*
 
 --------------------------------------------------------------------------------
 
@@ -249,9 +256,9 @@ model PlanItem {
   @@index([userExerciseId, effectiveFrom])
 }
 ```
-`TrackingMode` and `CardioCategory` come from the F-02 migration; `User` from F-01.
+The enums `TrackingMode` / `CardioCategory` (F-02 scope) and `User` (F-01 scope) are created in the same `prisma/migrations/0001_init`; the repository has no per-feature migrations.
 
-Constraints added by raw SQL in the migration (table-local only):
+Constraints created by `prisma/migrations/0001_init` (table-local only):
 - `CHECK (priorityWeight BETWEEN 1 AND 5)`;
 - `CHECK (repeatDays BETWEEN 1 AND 127)` (a non-empty Monday–Sunday bitmask);
 - `CHECK (endDate IS NULL OR endDate >= effectiveFrom)`;
@@ -263,7 +270,7 @@ Sprint 1 always inserts a fresh `planKey` with `version = 1`; the pair is unique
 The mode-to-target-field consistency (R6), the Valid Range check (R7) and "today or later" (R9) need data from another table or the Clock, so they are enforced in the service layer (BR-02 validation module shared with F-02 and F-04). Dates are stored as `DATE`; "today" and the weekday come from the injectable Clock in Asia/Bangkok.
 
 ##### 5.2 Migration and Seed
-- Migration `<timestamp>_plan_snapshot` (after the F-02 migration) creates both tables.
+- **No F-03 migration.** `UserExercise` and `PlanItem` — with every CHECK constraint listed in §5.1 — are created by `prisma/migrations/0001_init`, the single migration in this repository, which establishes the whole Sprint 1 schema (it was introduced by the foundation work of issue #2, before any F-03 code existed). `prisma migrate deploy` on a clean database is the command that applies them. *0.3.1 note: before 0.3.1 this section specified a migration `<timestamp>_plan_snapshot` (after the F-02 migration) that was never created and is not needed.*
 - Seed adds **no plan data** to the demo accounts (the Participant journey starts from an empty plan).
 - Test helper `createHistoricalPlanItem(userId, exerciseSpec, effectiveFrom, ...)` inserts rows with a past `effectiveFrom` directly through Prisma, bypassing R9 (SRS Assumption 4). It is used by F-04, F-06 and later sprints and is excluded from production code paths.
 
@@ -351,9 +358,9 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/templ
 #### 9. TDD Plan and Commit Sequence
 | Step | Commit type | Content | Evidence kept |
 | ------ | ------ | ------ | ------ |
-| 1 | `docs` | This contract v0.3.0 (spec-only) | Commit ID |
+| 1 | `docs` | This contract v0.3.0 (spec-only); later v0.3.1 (10 Nov, PR #27 review fixes B1/B2) | Commit ID |
 | 2 | `test` (red) | TEST-11 (F-03 cases): default and boundary unit tests (TEST-16a-1, TEST-16b-1/2: Sprint 2, CHANGE-05) | Failing run (module absent) |
-| 3 | `feat` (green) | Migration, `buildCustomExercise`, `validateTarget` | Passing run |
+| 3 | `feat` (green) | `buildCustomExercise`, `validateTarget` (no migration: the tables are in `0001_init`) | Passing run |
 | 4 | `test` (red) | TEST-03a, TEST-03b (validation) integration tests (TEST-03d custom exercises: Sprint 2, CHANGE-08) | Failing run showing e.g. past `effectiveFrom` or out-of-range target accepted |
 | 5 | `feat` (green) | `POST /api/plan-items` with snapshot copy, transaction, route policies | Passing run |
 | 6 | `test` (red) → `feat` (green) | TEST-03c (plan resolution) and list/read endpoints | Failing then passing runs |
@@ -368,7 +375,7 @@ Files: `tests/integration/goal_config.test.ts` (AC-03), `tests/integration/templ
 | ------ | ------ | ------ |
 | 1 | Contract reviewed and approved by Onsinee before implementation | Review comment; commit order |
 | 2 | All endpoints, validation rules, plan resolution and policies implemented as specified | Code on `staging/sprint-1`; matches §4 |
-| 3 | Migration runs on a clean database; `resolvePlan` available to F-04 and F-06 | Command output from a fresh clone; function exported |
+| 3 | Schema applies on a clean database (`prisma migrate deploy` runs `0001_init`, which creates `UserExercise` / `PlanItem`); `resolvePlan` exported and available to F-04 and F-06 | Command output from a fresh clone; function exported from `server/domain/planResolution.ts` |
 | 4 | All Sprint 1 tests in §8 implemented and enabled (none skipped); each Sprint 1 AC mapped (TEST-03d-* and TEST-16*-* are Sprint 2 and are not required for Sprint 1) | Test names match STS IDs |
 | 5 | Tests executed on the merge commit with counts | Passed / failed / skipped counts |
 | 6 | TDD red/green evidence for AC-03b and AC-27 (AC-16b: Sprint 2) | Failing and passing runs with commit IDs |

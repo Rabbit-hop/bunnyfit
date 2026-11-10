@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { buildCustomExercise } from '../../server/domain/customExercise.js';
+import { validateTarget } from '../../server/domain/planValidation.js';
 import { validateTemplate } from '../../server/domain/templateValidation.js';
 
 // TEST-11 (F-02 cases) — F-02 STS §8: `validateTemplate` boundary pairs and unit/mode
-// derivation, asserted without HTTP. The F-03 / F-04 cases of AC-11 join this file later.
+// derivation, asserted without HTTP. F-03 cases (`validateTarget`, F-03 STS TEST-11) follow below;
+// the F-04 cases of AC-11 join this file later.
 
 const CATEGORY_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -142,6 +145,234 @@ describe('TEST-11 (F-02 cases): validateTemplate', () => {
 
     it('changing trackingMode is rejected, naming trackingMode (R5)', () => {
       expect(rejectedFields({ trackingMode: 'YOGA' }, 'WEIGHT')).toEqual(['trackingMode']);
+    });
+  });
+});
+
+// TEST-11 (F-03 cases) — F-03 STS §8: boundary pairs of TEST-03b-1 / 03b-2, asserted without HTTP.
+type TargetMode = 'WEIGHT' | 'BODYWEIGHT_REPS' | 'BODYWEIGHT_TIME' | 'YOGA' | 'CARDIO_TIME' | 'CARDIO_DISTANCE';
+const FULL_RANGE = { WEIGHT: { min: 1, max: 4000 }, SECONDS: { min: 1, max: 10800 }, KM: { min: 0.01, max: 100 } };
+
+function target(mode: TargetMode, input: Record<string, unknown>, range = FULL_RANGE.WEIGHT) {
+  return validateTarget({ trackingMode: mode, range, ...input } as never);
+}
+function targetAccepted(mode: TargetMode, input: Record<string, unknown>, range = FULL_RANGE.WEIGHT) {
+  const result = target(mode, input, range);
+  if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
+  return result.value;
+}
+function targetRejected(mode: TargetMode, input: Record<string, unknown>, range = FULL_RANGE.WEIGHT): string[] {
+  const result = target(mode, input, range);
+  if (!('fields' in result)) throw new Error('expected rejected, got accepted');
+  for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
+  return result.fields.map((f) => f.field);
+}
+
+describe('TEST-11 (F-03 cases): validateTarget', () => {
+  const weight = { targetSets: 4, targetRepsPerSet: 10, loadKg: 40 };
+
+  describe('WEIGHT (sets, reps per set, load)', () => {
+    it('accepts the base body; other mode fields come back null', () => {
+      expect(targetAccepted('WEIGHT', weight)).toEqual({
+        targetSets: 4,
+        targetRepsPerSet: 10,
+        loadKg: 40,
+        targetDurationSec: null,
+        targetDistanceKm: null,
+      });
+    });
+
+    it('targetSets 20 accepted; 0 and 21 rejected', () => {
+      expect(targetAccepted('WEIGHT', { ...weight, targetSets: 20, targetRepsPerSet: 10 }).targetSets).toBe(20);
+      for (const bad of [0, 21]) expect(targetRejected('WEIGHT', { ...weight, targetSets: bad })).toEqual(['targetSets']);
+    });
+
+    it('targetRepsPerSet 200 accepted; 0 and 201 rejected', () => {
+      expect(targetAccepted('WEIGHT', { ...weight, targetSets: 1, targetRepsPerSet: 200 }).targetRepsPerSet).toBe(200);
+      for (const bad of [0, 201]) {
+        expect(targetRejected('WEIGHT', { ...weight, targetSets: 1, targetRepsPerSet: bad })).toEqual(['targetRepsPerSet']);
+      }
+    });
+
+    it('20 x 200 = 4,000 total reps is the central limit and is accepted', () => {
+      expect(targetAccepted('WEIGHT', { targetSets: 20, targetRepsPerSet: 200, loadKg: 40 }).targetSets).toBe(20);
+    });
+
+    it('loadKg 500 and 0.01 accepted; missing, 0, 500.01 and 12.345 rejected', () => {
+      expect(targetAccepted('WEIGHT', { ...weight, loadKg: 500 }).loadKg).toBe(500);
+      expect(targetAccepted('WEIGHT', { ...weight, loadKg: 0.01 }).loadKg).toBe(0.01);
+      for (const bad of [0, 500.01, 12.345]) expect(targetRejected('WEIGHT', { ...weight, loadKg: bad })).toEqual(['loadKg']);
+      expect(targetRejected('WEIGHT', { targetSets: 4, targetRepsPerSet: 10 })).toEqual(['loadKg']);
+    });
+
+    it('non-integer or non-number sets / reps are rejected', () => {
+      expect(targetRejected('WEIGHT', { ...weight, targetSets: 2.5 })).toEqual(['targetSets']);
+      expect(targetRejected('WEIGHT', { ...weight, targetRepsPerSet: '10' })).toEqual(['targetRepsPerSet']);
+    });
+
+    it('a target field of another mode (targetDurationSec) is rejected, naming it', () => {
+      expect(targetRejected('WEIGHT', { ...weight, targetDurationSec: 60 })).toEqual(['targetDurationSec']);
+    });
+
+    it('missing sets and reps are both reported', () => {
+      expect(targetRejected('WEIGHT', { loadKg: 40 }).sort()).toEqual(['targetRepsPerSet', 'targetSets']);
+    });
+  });
+
+  describe('BODYWEIGHT_REPS (sets, reps per set; no load)', () => {
+    it('accepted without loadKg; loadKg is rejected', () => {
+      expect(targetAccepted('BODYWEIGHT_REPS', { targetSets: 3, targetRepsPerSet: 15 }).loadKg).toBeNull();
+      expect(targetRejected('BODYWEIGHT_REPS', { targetSets: 3, targetRepsPerSet: 15, loadKg: 5 })).toEqual(['loadKg']);
+    });
+  });
+
+  describe.each(['BODYWEIGHT_TIME', 'YOGA', 'CARDIO_TIME'] as const)('%s (duration in seconds)', (mode) => {
+    const range = FULL_RANGE.SECONDS;
+    it('10,800 and 1 accepted; 0, 10,801 and 59.5 rejected', () => {
+      expect(targetAccepted(mode, { targetDurationSec: 10800 }, range).targetDurationSec).toBe(10800);
+      expect(targetAccepted(mode, { targetDurationSec: 1 }, range).targetDurationSec).toBe(1);
+      for (const bad of [0, 10801, 59.5]) expect(targetRejected(mode, { targetDurationSec: bad }, range)).toEqual(['targetDurationSec']);
+    });
+    it('missing duration and a sets field are rejected', () => {
+      expect(targetRejected(mode, {}, range)).toEqual(['targetDurationSec']);
+      expect(targetRejected(mode, { targetDurationSec: 60, targetSets: 2 }, range)).toEqual(['targetSets']);
+    });
+  });
+
+  describe('CARDIO_DISTANCE (km)', () => {
+    const range = FULL_RANGE.KM;
+    it('100 and 0.01 accepted; 0, 100.01 and 5.123 rejected', () => {
+      expect(targetAccepted('CARDIO_DISTANCE', { targetDistanceKm: 100 }, range).targetDistanceKm).toBe(100);
+      expect(targetAccepted('CARDIO_DISTANCE', { targetDistanceKm: 0.01 }, range).targetDistanceKm).toBe(0.01);
+      for (const bad of [0, 100.01, 5.123]) {
+        expect(targetRejected('CARDIO_DISTANCE', { targetDistanceKm: bad }, range)).toEqual(['targetDistanceKm']);
+      }
+    });
+    it('3.5 km accepted; missing distance rejected', () => {
+      expect(targetAccepted('CARDIO_DISTANCE', { targetDistanceKm: 3.5 }, range).targetDistanceKm).toBe(3.5);
+      expect(targetRejected('CARDIO_DISTANCE', {}, range)).toEqual(['targetDistanceKm']);
+    });
+  });
+
+  describe('template Valid Range (R7, stricter than the central limit)', () => {
+    it('range max 100 reps: 10 x 11 = 110 rejected naming targetRepsPerSet; 10 x 10 = 100 accepted', () => {
+      const range = { min: 1, max: 100 };
+      expect(targetRejected('WEIGHT', { targetSets: 10, targetRepsPerSet: 11, loadKg: 20 }, range)).toEqual(['targetRepsPerSet']);
+      expect(targetAccepted('WEIGHT', { targetSets: 10, targetRepsPerSet: 10, loadKg: 20 }, range).targetSets).toBe(10);
+    });
+    it('range min 50 reps: 4 x 10 = 40 rejected; 5 x 10 = 50 accepted', () => {
+      const range = { min: 50, max: 4000 };
+      expect(targetRejected('BODYWEIGHT_REPS', { targetSets: 4, targetRepsPerSet: 10 }, range)).toEqual(['targetRepsPerSet']);
+      expect(targetAccepted('BODYWEIGHT_REPS', { targetSets: 5, targetRepsPerSet: 10 }, range).targetSets).toBe(5);
+    });
+    it('seconds and km are checked against the template range too', () => {
+      expect(targetRejected('YOGA', { targetDurationSec: 900 }, { min: 60, max: 600 })).toEqual(['targetDurationSec']);
+      expect(targetRejected('CARDIO_DISTANCE', { targetDistanceKm: 6 }, { min: 0.5, max: 5 })).toEqual(['targetDistanceKm']);
+    });
+  });
+});
+
+// TEST-16a-1 / TEST-16b-1 / TEST-03d-3 (unit part): custom exercise defaults and rules, F-03 R4, R5.
+describe('F-03 custom exercise: buildCustomExercise', () => {
+  const custom = (overrides: Record<string, unknown> = {}) => ({
+    name: 'Hill Walk',
+    targetBodyPart: 'Legs',
+    trackingMode: 'WEIGHT',
+    ...overrides,
+  });
+  const built = (overrides: Record<string, unknown> = {}) => {
+    const result = buildCustomExercise(custom(overrides));
+    if (!('value' in result)) throw new Error(`rejected: ${JSON.stringify(result.fields)}`);
+    return result.value;
+  };
+  const rejected = (overrides: Record<string, unknown> = {}): string[] => {
+    const result = buildCustomExercise(custom(overrides));
+    if ('value' in result) throw new Error('expected a rejection');
+    return result.fields.map((f) => f.field).sort();
+  };
+
+  describe('TEST-16a-1: metValue and unit by mode (SRS Appendix A.1)', () => {
+    it.each([
+      ['WEIGHT', 3.5, 'reps'],
+      ['BODYWEIGHT_REPS', 3.8, 'reps'],
+      ['BODYWEIGHT_TIME', 3.8, 'seconds'],
+      ['YOGA', 2.5, 'seconds'],
+      ['CARDIO_TIME', 7.0, 'seconds'],
+    ])('%s -> metValue %s, unit %s', (mode, met, unit) => {
+      const v = built({ trackingMode: mode });
+      expect(v.metValue).toBe(met);
+      expect(v.unit).toBe(unit);
+      expect(v.cardioCategory).toBeNull();
+    });
+    it.each([
+      ['RUNNING', 9.8],
+      ['WALKING', 4.3],
+      ['CYCLING', 8.0],
+      ['SWIMMING', 5.8],
+    ])('CARDIO_DISTANCE + %s -> metValue %s, unit km', (category, met) => {
+      const v = built({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: category });
+      expect(v.metValue).toBe(met);
+      expect(v.unit).toBe('km');
+      expect(v.cardioCategory).toBe(category);
+    });
+  });
+
+  describe('TEST-16b-1: default Valid Range per unit', () => {
+    it.each([
+      ['WEIGHT', 1, 4000],
+      ['YOGA', 1, 10800],
+      ['CARDIO_DISTANCE', 0.01, 100],
+    ])('%s -> %s..%s', (mode, min, max) => {
+      const v = built({ trackingMode: mode, ...(mode === 'CARDIO_DISTANCE' ? { cardioCategory: 'RUNNING' } : {}) });
+      expect([v.rangeMin, v.rangeMax]).toEqual([min, max]);
+    });
+  });
+
+  describe('TEST-16b-2 (unit part): default range lets targets reach the BR-02 limits and no further', () => {
+    it('20 x 200 reps accepted, 21 sets rejected; 10,800 s accepted, 10,801 s rejected; 100 km accepted, 100.01 km rejected', () => {
+      const w = built({ trackingMode: 'WEIGHT' });
+      const wr = { min: w.rangeMin, max: w.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'WEIGHT', range: wr, targetSets: 20, targetRepsPerSet: 200, loadKg: 10 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'WEIGHT', range: wr, targetSets: 21, targetRepsPerSet: 200, loadKg: 10 })).toBe(true);
+      const y = built({ trackingMode: 'YOGA' });
+      const yr = { min: y.rangeMin, max: y.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'YOGA', range: yr, targetDurationSec: 10800 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'YOGA', range: yr, targetDurationSec: 10801 })).toBe(true);
+      const d = built({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'RUNNING' });
+      const dr = { min: d.rangeMin, max: d.rangeMax };
+      expect('value' in validateTarget({ trackingMode: 'CARDIO_DISTANCE', range: dr, targetDistanceKm: 100 })).toBe(true);
+      expect('fields' in validateTarget({ trackingMode: 'CARDIO_DISTANCE', range: dr, targetDistanceKm: 100.01 })).toBe(true);
+    });
+  });
+
+  describe('R4 field rules', () => {
+    it('name is trimmed and limited to 1-80; body part trimmed 1-50', () => {
+      expect(built({ name: '  Hill Walk  ' }).name).toBe('Hill Walk');
+      expect(built({ name: 'a'.repeat(80) }).name).toHaveLength(80);
+      expect(rejected({ name: 'a'.repeat(81) })).toEqual(['name']);
+      expect(rejected({ name: '   ' })).toEqual(['name']);
+      expect(built({ targetBodyPart: 'b'.repeat(50) }).targetBodyPart).toHaveLength(50);
+      expect(rejected({ targetBodyPart: 'b'.repeat(51) })).toEqual(['targetBodyPart']);
+      expect(rejected({ targetBodyPart: '' })).toEqual(['targetBodyPart']);
+    });
+    it('unknown trackingMode is rejected naming trackingMode', () => {
+      expect(rejected({ trackingMode: 'SWIMMING' })).toEqual(['trackingMode']);
+      expect(rejected({ trackingMode: undefined })).toEqual(['trackingMode']);
+    });
+    it('TEST-03d-3: CARDIO_DISTANCE needs cardioCategory; every other mode forbids it', () => {
+      expect(rejected({ trackingMode: 'CARDIO_DISTANCE' })).toEqual(['cardioCategory']);
+      expect(rejected({ trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'ROWING' })).toEqual(['cardioCategory']);
+      expect(rejected({ trackingMode: 'WEIGHT', cardioCategory: 'RUNNING' })).toEqual(['cardioCategory']);
+    });
+    it('TEST-16a-2 (unit part): metValue, unit, rangeMin, rangeMax and unknown fields are rejected naming the field', () => {
+      expect(rejected({ metValue: 20 })).toEqual(['metValue']);
+      expect(rejected({ unit: 'reps' })).toEqual(['unit']);
+      expect(rejected({ rangeMin: 1, rangeMax: 10 })).toEqual(['rangeMax', 'rangeMin']);
+      expect(rejected({ colour: 'red' })).toEqual(['colour']);
+    });
+    it('a non-object is rejected', () => {
+      const result = buildCustomExercise('x');
+      expect('fields' in result).toBe(true);
     });
   });
 });
