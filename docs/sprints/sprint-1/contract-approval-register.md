@@ -4,7 +4,7 @@
 
 **Reviewer:** Onsinee (GitHub `justfepwx12`). **Author of all five contracts:** Nakagamon (`fahsai-02`).
 
-**Document version:** 0.1.6 · **Date:** 10 November 2026 · **Status:** Draft: F-01–F-04 (PR #24 reply) and F-06 v0.3.1 (PR #24 reply, 14:57 UTC) approved; F-03 v0.3.1 (PR #27 review fixes B1/B2) has no approval yet; waiting for the reviewer's all-approved five-line reply
+**Document version:** 0.1.7 · **Date:** 11 November 2026 · **Status:** Draft: F-01–F-04 (PR #24 reply) and F-06 v0.3.1 (PR #24 reply, 14:57 UTC) approved; F-03 v0.3.1 (PR #27 review fixes B1/B2) has no approval yet; F-04 v0.3.1 approved by the PR #28 review at `0ff22bd` (11 Nov 2026, 01:11 +07); waiting for the reviewer's all-approved five-line reply
 
 ## 1. Evidence on GitHub (read 8 Nov 2026)
 
@@ -22,7 +22,7 @@
 | F-01 `F-01-authentication.md` | 0.3.7 | Approved (v0.3.0 and v0.3.1–v0.3.7) | v0.3.0: PR #13 approval at `177a533` (F-01 points named). v0.3.1–v0.3.7: explicit in the PR #19 approval at `5b66192` and in the PR #24 reply `F-01 v0.3.1-v0.3.7: approved` | None |
 | F-02 `F-02-exercise-library.md` | 0.3.0 | Approved (PR #24 reply) | PR #24 reply, 9 Nov 2026: `F-02 v0.3.0: approved` (earlier PR #13 approval did not name this file) | None |
 | F-03 `F-03-goal-setting.md` | 0.3.1 (commit `1e16eb7` on the PR #27 branch, not yet in `staging/sprint-1`; 0.3.0 is in staging) | Approved (v0.3.0, PR #24 reply); v0.3.1 not reviewed | PR #24 reply, 9 Nov 2026: `F-03 v0.3.0: approved` (that approval covers the text at `de59dcf`, i.e. v0.3.0) | **v0.3.1** — the §4.7 `resolvePlan` signature and the §5.2 migration statement changed in `1e16eb7` (PR #27 B1/B2); no review line exists for it. Needs re-review by Onsinee |
-| F-04 `F-04-daily-logging.md` | 0.3.1 (PR #28 branch, not yet in `staging/sprint-1`; 0.3.0 is in staging) | Approved (v0.3.0, PR #24 reply); v0.3.1 not yet approved | PR #24 reply, 9 Nov 2026: `F-04 v0.3.0: approved` | **v0.3.1** — documentation-only (PR #28 review fixes: `resolvePlan` before the row lock, §5.2 stale against the seed). Needs re-review by Onsinee |
+| F-04 `F-04-daily-logging.md` | 0.3.1 (PR #28 branch, not yet in `staging/sprint-1`; 0.3.0 is in staging) | Approved (v0.3.0, PR #24 reply; v0.3.1, PR #28 review at `0ff22bd`) | PR #24 reply, 9 Nov 2026: `F-04 v0.3.0: approved`; PR #28 review, 10 Nov 2026 18:11 UTC: `F-04 v0.3.1: approved` | **v0.3.1** — documentation-only (PR #28 review fixes: `resolvePlan` before the row lock, §5.2 stale against the seed). Reviewer read the 0.3.0 → 0.3.1 diff |
 | F-06 `F-06-progress-display.md` | 0.3.1 (in `staging/sprint-1` since the PR #24 merge `139625f`; the cell earlier read "not yet in staging") | Approved (v0.3.1) | PR #24 reply, 9 Nov 2026 13:27 UTC: `F-06 v0.3.0: changes needed` (two test rows); PR #24 reply, 14:57 UTC: `F-06 v0.3.1: approved` after re-reading the diff at `27dd0c5` | None. v0.3.0 itself is not approved |
 
 The specification content (AC, STS, API, feature SDS) of F-02 and F-04 has not changed since the approved commit `177a533`: `git diff 177a533 de59dcf` on those two files shows only the `Status` line and revision rows added for the approvals above (3 lines added, 1 removed per file). Last commit that changed their content: F-02 `2395581`, F-04 `177a533`. **F-03 did change after its approval:** v0.3.1 (`1e16eb7`, PR #27) rewrites §4.7 (the `resolvePlan(plans, userId, date)` signature) and §5.2 plus the §5.1/§9/§10 lines about the migration, so that the contract describes the implemented code — documentation-only (no AC, STS or schema line changed), and **no approval is recorded for 0.3.1** (row above). F-06 changed after `177a533`: its two test rows, header and revision row in v0.3.1 (`27dd0c5`, approved above); before that it was last changed in `2395581`. The PR #13 approval at `177a533` re-reviewed only the diff `2395581..177a533`, so what it covers is the text at `177a533`.
@@ -79,7 +79,7 @@ A reply counts only if it is in the format below. A general "LGTM", "looks good"
 F-01 v0.3.1-v0.3.7: approved
 F-02 v0.3.0: approved
 F-03 v0.3.1: approved
-F-04 v0.3.0: approved
+F-04 v0.3.1: approved
 F-06 v0.3.1: approved
 ```
 
@@ -102,3 +102,4 @@ Rules for recording the replies:
 | **0.1.4** | 9 Nov 2026 | Section 2.1.1a: reviewer's `F-06 v0.3.1: approved` recorded and F-06 header/revision row updated; section 2 F-06 row and the "have not changed since `177a533`" paragraph corrected (scoped to specification content, last-change commits named; PR #24 reviewer follow-up) | Nakagamon | Draft |
 | **0.1.5** | 10 Nov 2026 | F-03 row: version `0.3.1` (commit `1e16eb7`, PR #27 branch), approval column now says only v0.3.0 is approved and v0.3.1 needs re-review. The "has not changed since `177a533`" paragraph no longer includes F-03 — §4.7 and the §5.2/§5.1/§9/§10 migration lines did change in `1e16eb7` (documentation-only) — and it says which approval covers F-03 (`de59dcf` / v0.3.0). F-06 version cell corrected: 0.3.1 has been in `staging/sprint-1` since the PR #24 merge `139625f`. Section 3 request format: the pending F-03 line is now `F-03 v0.3.1: approved` and it says where to read 0.3.1 (the PR #27 branch, until it merges); the pending F-06 line is `F-06 v0.3.1: approved` (0.3.0 was never approved, so the old example contradicted section 2.1.1a); the `changes needed` template takes the version from section 2 instead of a fixed `v0.3.0`. No contract file and no approval claim changed. | Nakagamon | Draft |
 | **0.1.6** | 11 Nov 2026 | F-04 row: version `0.3.1`, approval column says only v0.3.0 is approved and v0.3.1 needs re-review (same treatment as F-03 v0.3.1). No approval line was added | Nakagamon | Draft |
+| **0.1.7** | 11 Nov 2026 | Review nits from PR #28 re-review 2: header date and Status sentence now include F-04 v0.3.1; F-04 row records the approval of v0.3.1 (PR #28 review at `0ff22bd`, 10 Nov 2026 18:11 UTC); the §3 template line is `F-04 v0.3.1: approved`. The first five-line block (the 9 Nov PR #24 reply) is left as it was | Nakagamon | Draft |
