@@ -79,8 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(me)
         }
       })
-      .catch(() => {
-        if (active) {
+      .catch((error) => {
+        // Only a real 401 means the token is invalid - apiFetch already
+        // destroys the session and dispatches SESSION_EXPIRED_EVENT for that
+        // case. Any other failure (a transient 500, a dropped connection) must
+        // not sign the user out of a still-valid session.
+        if (active && error instanceof ApiError && error.status === 401) {
           destroySession()
         }
       })
