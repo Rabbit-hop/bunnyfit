@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildCustomExercise } from '../../server/domain/customExercise.js';
+import { validateEntry, validateWeight } from '../../server/domain/entryValidation.js';
 import { validateTarget } from '../../server/domain/planValidation.js';
 import { validateTemplate } from '../../server/domain/templateValidation.js';
 
 // TEST-11 (F-02 cases) — F-02 STS §8: `validateTemplate` boundary pairs and unit/mode
 // derivation, asserted without HTTP. F-03 cases (`validateTarget`, F-03 STS TEST-11) follow below;
-// the F-04 cases of AC-11 join this file later.
+// the F-04 cases of AC-11 (`validateEntry`, `validateWeight`) are the last two blocks.
 
 const CATEGORY_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -167,6 +168,147 @@ function targetRejected(mode: TargetMode, input: Record<string, unknown>, range 
   for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
   return result.fields.map((f) => f.field);
 }
+
+// TEST-11 (F-04 cases) — F-04 §8 TEST-11: boundary pairs of the entry value fields per
+// tracking mode (R4), the per-entry limit (R5), the daily cumulative limits including the
+// exercise's rangeMax (R6) and the WeightLog bounds (R16), asserted without HTTP. `totals`
+// are the day's sums for the same exercise BEFORE the new entry; `NONE` = first entry of
+// the day.
+type EntryValues = Record<string, unknown>;
+type DayTotals = {
+  sets?: number | null;
+  totalReps?: number | null;
+  durationSec?: number | null;
+  distanceKm?: number | null;
+};
+type EntryFields = {
+  sets: number | null;
+  totalReps: number | null;
+  durationSec: number | null;
+  distanceKm: number | null;
+};
+
+const NONE: DayTotals = {};
+const BLANK: EntryFields = { sets: null, totalReps: null, durationSec: null, distanceKm: null };
+function norm(fields: Partial<EntryFields>): EntryFields {
+  return { ...BLANK, ...fields };
+}
+
+function entry(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number) {
+  return validateEntry(values, mode, totals, rangeMax);
+}
+function entryAccepted(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number) {
+  const result = entry(values, mode, totals, rangeMax);
+  if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
+  return result.value;
+}
+function entryRejected(values: EntryValues, mode: string, totals: DayTotals = NONE, rangeMax?: number): string[] {
+  const result = entry(values, mode, totals, rangeMax);
+  if (!('fields' in result)) throw new Error('expected rejected, got accepted');
+  for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
+  return result.fields.map((f) => f.field);
+}
+function weightAccepted(input: unknown) {
+  const result = validateWeight(input);
+  if ('fields' in result) throw new Error(`expected accepted, got ${JSON.stringify(result.fields)}`);
+  return result.value;
+}
+function weightRejected(input: unknown): string[] {
+  const result = validateWeight(input);
+  if (!('fields' in result)) throw new Error('expected rejected, got accepted');
+  for (const f of result.fields) expect(f.limit.length).toBeGreaterThan(0); // names the limit
+  return result.fields.map((f) => f.field);
+}
+
+describe('TEST-11 (F-04 cases): validateEntry (R4/R5/R6)', () => {
+  it('sets pairs (§3.3): 20 accepted; 21, 0, negative rejected; totalReps 0 and negative rejected', () => {
+    expect(entryAccepted({ sets: 20, totalReps: 1 }, 'WEIGHT')).toEqual(norm({ sets: 20, totalReps: 1 }));
+    expect(entryRejected({ sets: 21, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: 0, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: -1, totalReps: 1 }, 'WEIGHT')).toEqual(['sets']);
+    expect(entryRejected({ sets: 1, totalReps: 0 }, 'WEIGHT')).toEqual(['totalReps']);
+    expect(entryRejected({ sets: 1, totalReps: -5 }, 'WEIGHT')).toEqual(['totalReps']);
+  });
+
+  it('R5 per entry: sets 2 with totalReps 400 accepted, 401 rejected', () => {
+    expect(entryAccepted({ sets: 2, totalReps: 400 }, 'BODYWEIGHT_REPS')).toEqual(norm({ sets: 2, totalReps: 400 }));
+    expect(entryRejected({ sets: 2, totalReps: 401 }, 'BODYWEIGHT_REPS')).toEqual(['totalReps']);
+  });
+
+  it('R6 cumulative sets: 19 logged then 1 accepted (20), then 2 rejected', () => {
+    const totals = { sets: 19, totalReps: 19 };
+    expect(entryAccepted({ sets: 1, totalReps: 1 }, 'BODYWEIGHT_REPS', totals)).toEqual(norm({ sets: 1, totalReps: 1 }));
+    expect(entryRejected({ sets: 2, totalReps: 1 }, 'BODYWEIGHT_REPS', totals)).toEqual(['sets']);
+  });
+
+  it('R6 cumulative totalReps ≤ cumulative sets × 200 (catches totals already over the ratio)', () => {
+    // Existing rows over the per-entry ratio (only reachable by a writer that
+    // bypassed R5): the cumulative rule still rejects the day.
+    const over = { sets: 1, totalReps: 301 };
+    expect(entryAccepted({ sets: 1, totalReps: 99 }, 'BODYWEIGHT_REPS', over)).toEqual(norm({ sets: 1, totalReps: 99 }));
+    expect(entryRejected({ sets: 1, totalReps: 100 }, 'BODYWEIGHT_REPS', over)).toEqual(['totalReps']);
+  });
+
+  it('R6 rangeMax 50 reps: cumulative totalReps 50 accepted, 51 rejected', () => {
+    const totals = { sets: 1, totalReps: 49 };
+    expect(entryAccepted({ sets: 1, totalReps: 1 }, 'WEIGHT', totals, 50)).toEqual(norm({ sets: 1, totalReps: 1 }));
+    expect(entryRejected({ sets: 1, totalReps: 2 }, 'WEIGHT', totals, 50)).toEqual(['totalReps']);
+  });
+
+  it('seconds modes: 10,800 accepted, 10,801 rejected; cumulative 10,000 + 800 / 801', () => {
+    for (const mode of ['BODYWEIGHT_TIME', 'YOGA', 'CARDIO_TIME']) {
+      expect(entryAccepted({ durationSec: 10800 }, mode)).toEqual(norm({ durationSec: 10800 }));
+      expect(entryRejected({ durationSec: 10801 }, mode)).toEqual(['durationSec']);
+      expect(entryAccepted({ durationSec: 800 }, mode, { durationSec: 10000 })).toEqual(norm({ durationSec: 800 }));
+      expect(entryRejected({ durationSec: 801 }, mode, { durationSec: 10000 })).toEqual(['durationSec']);
+      expect(entryRejected({ durationSec: -60 }, mode)).toEqual(['durationSec']);
+    }
+  });
+
+  it('R6 seconds rangeMax below the hard cap applies (min(10,800, rangeMax))', () => {
+    expect(entryAccepted({ durationSec: 500 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(norm({ durationSec: 500 }));
+    expect(entryRejected({ durationSec: 501 }, 'YOGA', { durationSec: 5500 }, 6000)).toEqual(['durationSec']);
+  });
+
+  it('CARDIO_DISTANCE: 100 and 2.55 accepted; 100.01, 0 and 2.555 (3 decimals) rejected', () => {
+    expect(entryAccepted({ distanceKm: 100 }, 'CARDIO_DISTANCE')).toEqual(norm({ distanceKm: 100 }));
+    expect(entryAccepted({ distanceKm: 2.55 }, 'CARDIO_DISTANCE')).toEqual(norm({ distanceKm: 2.55 }));
+    expect(entryRejected({ distanceKm: 100.01 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: 0 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: 2.555 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+    expect(entryRejected({ distanceKm: -1 }, 'CARDIO_DISTANCE')).toEqual(['distanceKm']);
+  });
+
+  it('R6 km cumulative: 99 then 1 accepted (100), then 1.01 rejected; rangeMax applies', () => {
+    expect(entryAccepted({ distanceKm: 1 }, 'CARDIO_DISTANCE', { distanceKm: 99 })).toEqual(norm({ distanceKm: 1 }));
+    expect(entryRejected({ distanceKm: 1.01 }, 'CARDIO_DISTANCE', { distanceKm: 99 })).toEqual(['distanceKm']);
+    expect(entryAccepted({ distanceKm: 1 }, 'CARDIO_DISTANCE', { distanceKm: 9 }, 10)).toEqual(norm({ distanceKm: 1 }));
+    expect(entryRejected({ distanceKm: 2 }, 'CARDIO_DISTANCE', { distanceKm: 9 }, 10)).toEqual(['distanceKm']);
+  });
+
+  it('R4: a field of another mode is rejected, missing value fields are rejected', () => {
+    expect(entryRejected({ durationSec: 60 }, 'WEIGHT')).toEqual(['durationSec', 'sets', 'totalReps']);
+    expect(entryRejected({ sets: 5 }, 'YOGA')).toEqual(['sets', 'durationSec']);
+    expect(entryRejected({}, 'WEIGHT')).toEqual(['sets', 'totalReps']);
+    expect(entryRejected({ sets: 20, totalReps: '30' }, 'WEIGHT')).toEqual(['totalReps']);
+  });
+});
+
+describe('TEST-11 (F-04 cases): validateWeight (WeightLog bounds, R16)', () => {
+  it('1 and 800 accepted; 0.9, 800.1, 70.55 (2 decimals) and "abc" rejected', () => {
+    expect(weightAccepted(1)).toBe(1);
+    expect(weightAccepted(800)).toBe(800);
+    expect(weightRejected(0.9)).toEqual(['weightKg']);
+    expect(weightRejected(800.1)).toEqual(['weightKg']);
+    expect(weightRejected(70.55)).toEqual(['weightKg']);
+    expect(weightRejected('abc')).toEqual(['weightKg']);
+  });
+
+  it('1 decimal place accepted (R16 precision)', () => {
+    expect(weightAccepted(70.5)).toBe(70.5);
+    expect(weightAccepted(70)).toBe(70);
+  });
+});
 
 describe('TEST-11 (F-03 cases): validateTarget', () => {
   const weight = { targetSets: 4, targetRepsPerSet: 10, loadKg: 40 };

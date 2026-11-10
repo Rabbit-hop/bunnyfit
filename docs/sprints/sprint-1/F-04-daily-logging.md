@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-04
 **Sprint:**  1 (same-day edit/delete is F-05, Sprint 2; calorie calculation is F-11, Sprint 2)
-**Contract Version:**  0.3.0
+**Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 and F-03 contracts 0.3.0)
-**Date:**  6 November 2026
-**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
+**Date:**  10 November 2026
+**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026); v0.3.1 (10 Nov 2026) is documentation-only (PR #28 review fixes B1/Q-a/Q10) and was approved by Onsinee in the PR #28 review at `0ff22bd` (10 Nov 2026)
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-04-daily-logging.md`
 
@@ -20,6 +20,7 @@
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 and F-03 contracts 0.3.0); AC-04d is now an RTM 1.1.0 criterion (no longer *proposed*); AC-04c, AC-04d, AC-10c and AC-17a–d are marked **deferred to Sprint 2** (CHANGE-07, CHANGE-08, CHANGE-04) in §1, §6, §7, §8, §9, §10 and §12 — STS rows kept; the Profile screen and TEST-23-4 move with the profile endpoints; §12 pending items given a status column Review-fix pass (PR #13): §7 AC-23 row no longer says Sprint 1 shows the weight notice (TEST-23-4 is deferred to Sprint 2, as §9 already states). Version kept at 0.3.0. | Nakagamon | Draft |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer (Onsinee) approved this contract in a private chat message to the author on 9 Nov 2026 ("F-01/F-02/F-03/F-04 = approved"). The message does not name a version; it was sent after the files were last changed. Not yet repeated on PR #24 in the register's five-line format (register §3) | Nakagamon | Approved |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer's five-line reply on PR #24 (issuecomment-6741224888, 9 Nov 2026 13:27 UTC) records `F-04 v0.3.0: approved`. This replaces the earlier private-chat relay (previous row) as the evidence | Nakagamon | Approved |
+| **0.3.1** | 10 Nov 2026 | Deviations recorded after the PR #28 review (no AC, STS or API change). (a) R14 now covers manual entries in code too: `POST /api/entries` takes the `UserExercise` row lock like Quick Complete (review B1). (b) The Quick Complete availability check (`resolvePlan`, R8) runs **before** the row lock, not after `BEGIN; … FOR UPDATE` as the §3.1 sequence diagram draws it; a plan change for today by the same user between the two steps is theoretically possible, is not handled specially and no test targets it. (c) §5.2 (Alice has one 70.0 kg `WeightLog` row) is stale against the actual seed (Alice four rows, 71.2 to 70.5 kg, 1–4 Nov; Bob none); TEST-24a-1 follows the seed (decision Q10) and §5.2 is not rewritten here. | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-04 implementation; later changes are new versions with a reason, never silent rewrites.*
 
