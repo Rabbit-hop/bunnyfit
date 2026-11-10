@@ -39,11 +39,29 @@ function RootRedirect() {
 }
 
 export default function App() {
-  const { status, user } = useAuth()
+  const { status, user, retry } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
     return <LoadingScreen />
+  }
+
+  // The stored token could not be checked (server or network problem, not a 401):
+  // keep the session and let the user retry instead of bouncing them to Welcome.
+  if (status === 'error') {
+    return (
+      <div className="app-shell">
+        <main className="app-main">
+          <section className="page" role="alert" data-testid="session-error">
+            <h2>We can't reach the server</h2>
+            <p>Your session is still saved. Check your connection and try again.</p>
+            <button type="button" className="btn btn-primary" data-testid="session-retry" onClick={retry}>
+              Try again
+            </button>
+          </section>
+        </main>
+      </div>
+    )
   }
 
   // The full-screen Welcome page lives outside the app shell

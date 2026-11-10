@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -28,11 +29,12 @@ export type LoginResult =
     }
 
 type AuthContextValue = {
-  status: 'loading' | 'ready'
+  status: 'loading' | 'ready' | 'error'
   user: AuthUser | null
   expired: boolean
   login: (email: string, password: string) => Promise<LoginResult>
   logout: () => Promise<void>
+  retry: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -43,7 +45,7 @@ export function landingPath(role: Role): string {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
-  const [status, setStatus] = useState<'loading' | 'ready'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [user, setUser] = useState<AuthUser | null>(null)
   const [expired, setExpired] = useState(false)
 
@@ -66,37 +68,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [navigate])
 
-  useEffect(() => {
+  // Restores the session from a stored token. Only a real 401 means the token
+  // is invalid - apiFetch already destroys the session and dispatches
+  // SESSION_EXPIRED_EVENT for that case. Any other failure (a transient 500, a
+  // dropped connection) must not sign the user out of a still-valid session: the
+  // token is kept and the 'error' status shows a retryable screen instead.
+  const attempt = useRef(0)
+  const restore = useCallback(() => {
     const token = loadSession()
     if (!token) {
       setStatus('ready')
       return
     }
-    let active = true
+    const id = ++attempt.current
+    setStatus('loading')
     apiFetch<AuthUser>('/api/auth/me')
       .then((me) => {
-        if (active && me) {
+        if (id === attempt.current && me) {
           setUser(me)
-        }
-      })
-      .catch((error) => {
-        // Only a real 401 means the token is invalid - apiFetch already
-        // destroys the session and dispatches SESSION_EXPIRED_EVENT for that
-        // case. Any other failure (a transient 500, a dropped connection) must
-        // not sign the user out of a still-valid session.
-        if (active && error instanceof ApiError && error.status === 401) {
-          destroySession()
-        }
-      })
-      .finally(() => {
-        if (active) {
           setStatus('ready')
         }
       })
-    return () => {
-      active = false
-    }
+      .catch((error) => {
+        if (id !== attempt.current) {
+          return
+        }
+        if (error instanceof ApiError && error.status === 401) {
+          destroySession()
+          setStatus('ready')
+        } else {
+          setStatus('error')
+        }
+      })
   }, [])
+
+  useEffect(() => {
+    restore()
+    return () => {
+      attempt.current += 1
+    }
+  }, [restore])
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     try {
@@ -170,8 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [navigate])
 
   const value = useMemo(
-    () => ({ status, user, expired, login, logout }),
-    [status, user, expired, login, logout],
+    () => ({ status, user, expired, login, logout, retry: restore }),
+    [status, user, expired, login, logout, restore],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -76,8 +76,16 @@ test('regression: a transient /api/auth/me failure does not sign the user out', 
   // not be treated as an invalid token (that is a real 401, handled elsewhere).
   await page.route('**/api/auth/me', (route) => route.fulfill({ status: 500, body: '{}' }))
   await page.reload()
-  await page.waitForURL(/\/welcome$/)
 
+  // The user stays on a retryable error screen with the token intact...
+  await expect(page.getByTestId('session-error')).toBeVisible()
+  await expect(page).not.toHaveURL(/\/welcome$/)
   const tokenAfter = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
   expect(tokenAfter).toBe(tokenBefore)
+
+  // ...and once the backend recovers, Try again restores the session.
+  await page.unroute('**/api/auth/me')
+  await page.getByTestId('session-retry').click()
+  await expect(page).toHaveURL(/\/today$/)
+  await expect(page.getByTestId('session-error')).toHaveCount(0)
 })
