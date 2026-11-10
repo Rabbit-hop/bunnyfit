@@ -46,8 +46,11 @@ export default function App() {
     return <LoadingScreen />
   }
 
-  // หน้า Welcome เต็มจอ อยู่นอก app-shell
+  // The full-screen Welcome page lives outside the app shell
   if (location.pathname === '/welcome') {
+    if (user) {
+      return <Navigate to={landingPath(user.role)} replace />
+    }
     return (
       <Routes>
         <Route path="/welcome" element={<WelcomePage />} />

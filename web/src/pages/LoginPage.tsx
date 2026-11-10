@@ -60,7 +60,6 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordVisible, setPasswordVisible] = useState(false)
-  const [remember, setRemember] = useState(false)
   const [pending, setPending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -169,14 +168,14 @@ export function LoginPage() {
         {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
         <form className="login-form" onSubmit={onSubmit} noValidate>
           <div className="field">
-            <label htmlFor="login-email">Username or Email</label>
+            <label htmlFor="login-email">Email</label>
             <input
               id="login-email"
               name="email"
               type="text"
               inputMode="email"
               autoComplete="username"
-              placeholder="Enter your username"
+              placeholder="Enter your email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               data-testid="login-email"
@@ -219,15 +218,12 @@ export function LoginPage() {
           </div>
 
           <div className="login-options">
-            <label className="login-remember">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(event) => setRemember(event.target.checked)}
-              />
+            {/* TODO: wire up to persistent (localStorage) sessions once that's designed; disabled for now rather than a checkbox with no effect */}
+            <label className="login-remember login-remember-disabled">
+              <input type="checkbox" disabled />
               Remember me
             </label>
-            {/* TODO: ผูกกับหน้า forgot password เมื่อมี route */}
+            {/* TODO: wire up to the forgot-password page once that route exists */}
             <a href="#" onClick={(event) => event.preventDefault()}>
               Forgot password?
             </a>
@@ -240,7 +236,7 @@ export function LoginPage() {
         </form>
         <p className="login-footer">
           Don’t have an account?{' '}
-          {/* TODO: เปลี่ยนเป็น <Link to="/register"> เมื่อมีหน้าสมัคร */}
+          {/* TODO: switch to <Link to="/register"> once the signup page exists */}
           <a href="#" onClick={(event) => event.preventDefault()}>
             Create account
           </a>

@@ -278,6 +278,11 @@ body {
   cursor: pointer;
 }
 
+.login-remember-disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
 .login-remember input {
   width: 1rem;
   height: 1rem;
