@@ -53,6 +53,8 @@ test('S-04/S-05 (UI): add a custom distance exercise; it appears in My Plan with
 
 test('S-04 (UI): add from the library, target fields follow the mode', async ({ page }) => {
   await loginAsParticipant(page)
+  // Count only after the list has loaded, otherwise `before` is read while the skeleton shows.
+  await expect(page.getByTestId('plan-loading')).toHaveCount(0)
   const before = await page.locator('[data-testid^="plan-item-"]').count()
 
   await page.getByTestId('plan-add').click()
