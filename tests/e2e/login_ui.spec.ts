@@ -8,8 +8,8 @@ import { expect, test } from '@playwright/test'
 // the UI consequences described in its checklist (401 → clear + redirect, 403 →
 // Access Denied screen, 400 field errors) actually happen end to end against the
 // real backend + seeded users, ahead of the main-journey test landing.
-const PARTICIPANT = { email: 'alice@exercise.test', password: 'change-me' }
-const MANAGER = { email: 'manager@exercise.test', password: 'change-me' }
+const PARTICIPANT = { email: 'alice@exercise.test', password: process.env.SEED_PARTICIPANT_PASSWORD ?? 'change-me' }
+const MANAGER = { email: 'manager@exercise.test', password: process.env.SEED_MANAGER_PASSWORD ?? 'change-me' }
 
 async function login(page: import('@playwright/test').Page, email: string, password: string) {
   await page.goto('/login')
@@ -64,4 +64,20 @@ test('AC-22b (UI) manager side: a manager visiting a participant-only route also
 
   await expect(page).toHaveURL(/\/403$/)
   await expect(page.getByRole('heading', { name: "You don't have access to this page" })).toBeVisible()
+})
+
+test('regression: a transient /api/auth/me failure does not sign the user out', async ({ page }) => {
+  await login(page, PARTICIPANT.email, PARTICIPANT.password)
+  await expect(page).toHaveURL(/\/today$/)
+  const tokenBefore = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
+  expect(tokenBefore).not.toBeNull()
+
+  // Simulate a backend blip on the mount effect's GET /api/auth/me - this must
+  // not be treated as an invalid token (that is a real 401, handled elsewhere).
+  await page.route('**/api/auth/me', (route) => route.fulfill({ status: 500, body: '{}' }))
+  await page.reload()
+  await page.waitForURL(/\/welcome$/)
+
+  const tokenAfter = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
+  expect(tokenAfter).toBe(tokenBefore)
 })
