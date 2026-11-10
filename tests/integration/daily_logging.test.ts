@@ -306,11 +306,12 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
     });
 
     it('TEST-10b-3: 23:59:59 Bangkok accepts logDate today, 00:00:00 rejects it (midnight boundary)', async () => {
-      const auth = await aliceAuth();
       const squat = exerciseId('Barbell Squat');
       try {
-        // 2026-11-05 23:59:59 Asia/Bangkok
+        // 2026-11-05 23:59:59 Asia/Bangkok. Log in after moving the clock: the token
+        // lives 3600 s, so one issued at NOW would already be expired here.
         clock.set(new Date('2026-11-05T16:59:59.000Z'));
+        const auth = await aliceAuth();
         const late = await postEntry({ userExerciseId: squat, sets: 1, totalReps: 5, logDate: TODAY }, auth);
         expect(late.status, JSON.stringify(late.body)).toBe(201);
         expect(late.body.entry.logDate).toBe(TODAY);

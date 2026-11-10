@@ -69,6 +69,19 @@ export interface PlanRepository {
   findPlanItem(id: string): Promise<PlanItemWithExercise | null>;
   /** Owner of a plan item, or null if it does not exist (route ownership check). */
   findPlanItemOwner(id: string): Promise<string | null>;
+  /**
+   * Owner and validation context of one exercise snapshot, or null if it does not
+   * exist. F-04 reads it for the entry ownership check (R2: 403/404) and for the
+   * mode / Valid Range of the value limits (R4, R6); `userId` never leaves the server.
+   */
+  findUserExerciseContext(id: string): Promise<UserExerciseContext | null>;
+}
+
+/** What the entry routes need to know about an exercise snapshot (F-04 R2/R4/R6). */
+export interface UserExerciseContext {
+  userId: string;
+  trackingMode: string;
+  rangeMax: number;
 }
 
 const toDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -160,6 +173,15 @@ export function createPrismaPlanRepository(prisma: PrismaClient): PlanRepository
     async findPlanItemOwner(id) {
       const row = await prisma.planItem.findUnique({ where: { id }, select: { userId: true } });
       return row?.userId ?? null;
+    },
+
+    async findUserExerciseContext(id) {
+      const row = await prisma.userExercise.findUnique({
+        where: { id },
+        select: { userId: true, trackingMode: true, rangeMax: true },
+      });
+      if (!row) return null;
+      return { userId: row.userId, trackingMode: row.trackingMode, rangeMax: row.rangeMax.toNumber() };
     },
 
     async createFromTemplate(input) {

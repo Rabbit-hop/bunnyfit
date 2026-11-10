@@ -62,6 +62,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'GET', path: '/api/plan-items/:id', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
   { method: 'GET', path: '/api/user-exercises', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/plan', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  // F-04 daily logging - Participant only.
+  { method: 'POST', path: '/api/entries', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  { method: 'GET', path: '/api/entries', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  { method: 'GET', path: '/api/entries/:id', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
 ];
 
 /**
