@@ -343,4 +343,62 @@ describeWithDatabase('AC-24a data persistence after application restart', () => 
       for (const client of opened) await client.$disconnect()
     }
   })
+  // F-04 STS §8 TEST-24a-2 (AC-24a): "Quick Complete before restart, Quick Complete after
+  // restart -> second is a No-op (state persisted)". Uses Alice's own Plank (120 s) so it
+  // shares nothing with TEST-24a-1's Squat plan items.
+  it('TEST-24a-2: a Quick Complete row survives a restart (kind QUICK_COMPLETE), so the second Quick Complete after the restart is a No-op', async () => {
+    const opened: PrismaClient[] = []
+    const open = (): PrismaClient => {
+      const client = newPrisma()
+      opened.push(client)
+      return client
+    }
+    try {
+      const prismaBefore = open()
+      const clock = new MutableClock(new Date('2026-11-05T03:00:00.000Z')) // 10:00 Asia/Bangkok
+      const appBefore = buildIntegrationApp(prismaBefore, clock)
+      const login = async (app: ReturnType<typeof buildIntegrationApp>): Promise<Record<string, string>> => ({
+        Authorization: `Bearer ${
+          (await request(app).post('/api/auth/login').send({ email: 'alice@exercise.test', password: env.seedParticipantPassword }))
+            .body.token as string
+        }`,
+      })
+      const plank = await prismaBefore.exerciseTemplate.findFirstOrThrow({ where: { name: 'Plank' } })
+
+      const auth = await login(appBefore)
+      const plan = await request(appBefore)
+        .post('/api/plan-items')
+        .set(auth)
+        .send({ source: 'TEMPLATE', templateId: plank.id, priorityWeight: 2, targetDurationSec: 120 })
+      expect(plan.status, JSON.stringify(plan.body)).toBe(201)
+      createdPlanItemIds.push(plan.body.planItem.id as string)
+      createdExerciseIds.push(plan.body.userExercise.id as string)
+      const exerciseId = plan.body.userExercise.id as string
+
+      const first = await request(appBefore).post('/api/entries/quick-complete').set(auth).send({ userExerciseId: exerciseId })
+      expect(first.status, JSON.stringify(first.body)).toBe(201)
+      expect(first.body.entry).toMatchObject({ kind: 'QUICK_COMPLETE', durationSec: 120 })
+      createdEntryIds.push(first.body.entry.id as string)
+
+      // Restart: a brand-new application instance (new PrismaClient) on the same database.
+      await prismaBefore.$disconnect()
+      const prismaAfter = open()
+      const appAfter = buildIntegrationApp(prismaAfter, clock)
+      const authAfter = await login(appAfter)
+
+      const stored = await prismaAfter.ledgerEntry.findUniqueOrThrow({ where: { id: first.body.entry.id as string } })
+      expect(stored.kind).toBe('QUICK_COMPLETE')
+
+      const second = await request(appAfter)
+        .post('/api/entries/quick-complete')
+        .set(authAfter)
+        .send({ userExerciseId: exerciseId })
+      expect(second.status, JSON.stringify(second.body)).toBe(200)
+      expect(second.body.entry).toBeNull()
+      expect(second.body.cumulative).toMatchObject({ userExerciseId: exerciseId, durationSec: 120 })
+      expect(await prismaAfter.ledgerEntry.count({ where: { userExerciseId: exerciseId } })).toBe(1)
+    } finally {
+      for (const client of opened) await client.$disconnect()
+    }
+  })
 })

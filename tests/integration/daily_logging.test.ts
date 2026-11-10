@@ -9,8 +9,10 @@ import { buildIntegrationApp, databaseUrl, MutableClock, newPrisma } from '../he
 // 2026 10:00 Asia/Bangkok, the date the STS fixtures use.
 // IDs written in slice 2: TEST-04a-1..4, TEST-10a-1, TEST-10b-1/3/4, TEST-11-API,
 // TEST-11-neg, TEST-14a-4, one extra GET /api/entries/:id case (§3.3 ownership row)
-// and TEST-24a-1 (in persistence.test.ts). Quick Complete (TEST-04b, TEST-10a-2,
-// TEST-10b-2, TEST-13*) and the deferred ACs are slice 3 / Sprint 2.
+// and TEST-24a-1 (in persistence.test.ts). Slice 3 adds the Quick Complete cases that
+// live in this file: TEST-04b-1..3, TEST-10a-2, TEST-10b-2 (TEST-13* are in
+// quick_complete.test.ts, TEST-24a-2 in persistence.test.ts). The deferred ACs
+// (04c/04d/10c) are Sprint 2.
 if (!databaseUrl && process.env.CI === 'true') {
   throw new Error('DATABASE_URL_TEST is required in CI (AC-04 / AC-10 / TEST-04 / TEST-10).');
 }
@@ -27,6 +29,8 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
   let aliceId: string;
   let bobId: string;
   let bobExerciseId = '';
+  let bobWalkId = '';
+  let unplannedId = '';
   const templateIds: Record<string, string> = {};
   const exerciseIds = new Map<string, string>();
   const createdPlanItems: string[] = [];
@@ -147,6 +151,43 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
     });
     bobExerciseId = bobExercise.id;
     createdExercises.push(bobExercise.id);
+
+    // TEST-04b-2 Rest-Day fixture: Bob's whole plan is one custom item on Mon/Wed/Fri,
+    // so Tue 2026-11-10 is a Rest Day for him. Created through the F-03 API at NOW.
+    const bobAuth = bearer(await login('bob@exercise.test'));
+    const bobPlan = await request(app)
+      .post('/api/plan-items')
+      .set(bobAuth)
+      .send({
+        source: 'CUSTOM',
+        exercise: { name: 'Bob Walk', targetBodyPart: 'Legs', trackingMode: 'CARDIO_TIME' },
+        priorityWeight: 1,
+        targetDurationSec: 1800,
+        repeatDays: [1, 3, 5],
+      });
+    if (bobPlan.status !== 201) {
+      throw new Error(`fixture Bob plan item failed: ${bobPlan.status} ${JSON.stringify(bobPlan.body)}`);
+    }
+    createdPlanItems.push(bobPlan.body.planItem.id as string);
+    createdExercises.push(bobPlan.body.userExercise.id as string);
+    bobWalkId = bobPlan.body.userExercise.id as string;
+
+    // TEST-04b-3 fixture: an exercise Alice owns that has no plan item at all (direct insert).
+    const unplanned = await prisma.userExercise.create({
+      data: {
+        userId: aliceId,
+        isCustom: true,
+        name: 'Unplanned Stretch',
+        targetBodyPart: 'Legs',
+        unit: 'seconds',
+        trackingMode: 'CARDIO_TIME',
+        metValue: 3.5,
+        rangeMin: 1,
+        rangeMax: 10800,
+      },
+    });
+    unplannedId = unplanned.id;
+    createdExercises.push(unplanned.id);
   });
 
   afterAll(async () => {
@@ -423,6 +464,103 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
       expect(body).not.toContain(bobRow.id);
       expect(body).not.toContain(bobExerciseId);
       expect(body).not.toContain('userId');
+    });
+  });
+
+  describe('AC-04b Quick Complete availability (TEST-04b)', () => {
+    // 2026-11-10 10:00 Asia/Bangkok = a Tuesday (ISO weekday 2): "Walk" and "Bob Walk" are Mon/Wed/Fri only.
+    const TUESDAY = new Date('2026-11-10T03:00:00.000Z');
+    const quickComplete = (body: Record<string, unknown>, auth: Record<string, string>) =>
+      request(app).post('/api/entries/quick-complete').set(auth).send(body);
+
+    it('TEST-04b-1: Tue 2026-11-10, Walk planned Mon/Wed/Fri while Alice\'s other items run daily → 400 QUICK_COMPLETE_NOT_AVAILABLE; DB unchanged', async () => {
+      await resetEntries();
+      try {
+        clock.set(TUESDAY);
+        const auth = await aliceAuth(); // log in after moving the clock: tokens live 3600 s
+        const plan = await request(app).get('/api/plan?date=2026-11-10').set(auth);
+        expect(plan.body.isRestDay, 'fixture: Tuesday must not be a Rest Day for Alice').toBe(false);
+        const before = await dbSnapshot();
+
+        const res = await quickComplete({ userExerciseId: exerciseId('Walk') }, auth);
+        expect(res.status, JSON.stringify(res.body)).toBe(400);
+        expect(res.body).toEqual({ code: 'QUICK_COMPLETE_NOT_AVAILABLE', message: expect.any(String), fields: [] });
+        expect(await dbSnapshot()).toEqual(before);
+      } finally {
+        clock.set(NOW);
+      }
+    });
+
+    it('TEST-04b-2: Rest Day (Tue 2026-11-10, Bob\'s plan is Mon/Wed/Fri only) → 400 QUICK_COMPLETE_NOT_AVAILABLE; DB unchanged', async () => {
+      await resetEntries();
+      try {
+        clock.set(TUESDAY);
+        const bobAuth = bearer(await login('bob@exercise.test'));
+        const plan = await request(app).get('/api/plan?date=2026-11-10').set(bobAuth);
+        expect(plan.body.isRestDay, 'fixture: Tuesday must be a Rest Day for Bob').toBe(true);
+        const before = await dbSnapshot();
+
+        const res = await quickComplete({ userExerciseId: bobWalkId }, bobAuth);
+        expect(res.status, JSON.stringify(res.body)).toBe(400);
+        expect(res.body).toEqual({ code: 'QUICK_COMPLETE_NOT_AVAILABLE', message: expect.any(String), fields: [] });
+        expect(await dbSnapshot()).toEqual(before);
+      } finally {
+        clock.set(NOW);
+      }
+    });
+
+    it('TEST-04b-3: Alice owns an exercise with no plan item → 400 QUICK_COMPLETE_NOT_AVAILABLE; DB unchanged', async () => {
+      await resetEntries();
+      clock.set(NOW);
+      const auth = await aliceAuth();
+      const before = await dbSnapshot();
+
+      const res = await quickComplete({ userExerciseId: unplannedId }, auth);
+      expect(res.status, JSON.stringify(res.body)).toBe(400);
+      expect(res.body).toEqual({ code: 'QUICK_COMPLETE_NOT_AVAILABLE', message: expect.any(String), fields: [] });
+      expect(await dbSnapshot()).toEqual(before);
+    });
+  });
+
+  describe('AC-10 logDate on Quick Complete (TEST-10a-2, TEST-10b-2)', () => {
+    it('TEST-10a-2: Quick Complete without logDate → 201; the stored logDate is today', async () => {
+      await resetEntries();
+      clock.set(NOW);
+      const auth = await aliceAuth();
+      const res = await request(app)
+        .post('/api/entries/quick-complete')
+        .set(auth)
+        .send({ userExerciseId: exerciseId('Barbell Squat') });
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expect(res.body.entry).toMatchObject({ logDate: TODAY, kind: 'QUICK_COMPLETE' });
+      const row = await prisma.ledgerEntry.findUniqueOrThrow({ where: { id: res.body.entry.id as string } });
+      expect(row.logDate.toISOString().slice(0, 10)).toBe(TODAY);
+    });
+
+    it('TEST-10b-2: Quick Complete with logDate yesterday → 400 LOG_DATE_MISMATCH, checked before availability (also for Walk, which is not planned on Thu); DB unchanged', async () => {
+      await resetEntries();
+      clock.set(NOW);
+      const auth = await aliceAuth();
+      const before = await dbSnapshot();
+
+      // Squat is available today, so the mismatch alone must reject it.
+      const available = await request(app)
+        .post('/api/entries/quick-complete')
+        .set(auth)
+        .send({ userExerciseId: exerciseId('Barbell Squat'), logDate: '2026-11-04' });
+      expect(available.status, JSON.stringify(available.body)).toBe(400);
+      expect(available.body.code).toBe('LOG_DATE_MISMATCH');
+
+      // Walk is Mon/Wed/Fri and 2026-11-05 is a Thursday: it is NOT available, yet the
+      // date check comes first, so the code stays LOG_DATE_MISMATCH (not QUICK_COMPLETE_NOT_AVAILABLE).
+      const unavailable = await request(app)
+        .post('/api/entries/quick-complete')
+        .set(auth)
+        .send({ userExerciseId: exerciseId('Walk'), logDate: '2026-11-04' });
+      expect(unavailable.status, JSON.stringify(unavailable.body)).toBe(400);
+      expect(unavailable.body.code).toBe('LOG_DATE_MISMATCH');
+
+      expect(await dbSnapshot()).toEqual(before);
     });
   });
 
