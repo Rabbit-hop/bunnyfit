@@ -4,8 +4,10 @@ import { landingPath, useAuth } from './auth/AuthContext'
 import { LoadingScreen } from './components/LoadingScreen'
 import { SessionHeader } from './components/SessionHeader'
 import { ErrorPage } from './pages/ErrorPage'
+import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { TemplateFormPage } from './pages/TemplateFormPage'
 import { WelcomePage } from './pages/WelcomePage'
 
 type GuardProps = {
@@ -102,7 +104,7 @@ export default function App() {
             path="/manager/library"
             element={
               <Guard role="MANAGER">
-                <PlaceholderPage title="Exercise Library" description="Manager template management is implemented in issue #8." />
+                <LibraryPage />
               </Guard>
             }
           />
@@ -110,7 +112,7 @@ export default function App() {
             path="/manager/library/templates/new"
             element={
               <Guard role="MANAGER">
-                <PlaceholderPage title="New Template" description="Manager template creation is implemented in issue #8." />
+                <TemplateFormPage />
               </Guard>
             }
           />
@@ -118,7 +120,7 @@ export default function App() {
             path="/manager/library/templates/:id"
             element={
               <Guard role="MANAGER">
-                <PlaceholderPage title="Edit Template" description="Manager template editing is implemented in issue #8." />
+                <TemplateFormPage />
               </Guard>
             }
           />
