@@ -301,6 +301,26 @@ describeWithDatabase('F-04 Quick Complete (real PostgreSQL)', () => {
       expect(await rowsOf('Barbell Squat')).toHaveLength(1);
     });
 
+    it('extra (not an STS row): eight simultaneous Quick Completes → exactly one 201 and seven 200 entry null; one row (R14 row lock)', async () => {
+      // TEST-13b-3 sends two requests, which the event loop can serialize by accident
+      // (checked: with the FOR UPDATE removed it passed 3 of 3 runs). Eight make an unlocked
+      // read-then-insert race observable (checked: with the lock removed this case failed in
+      // 2 of 3 runs, so it is a probabilistic detector, not a proof; with the lock 3 of 3 passed).
+      await resetEntries();
+      const auth = await aliceAuth();
+      const squat = exerciseId('Barbell Squat');
+
+      const responses = await Promise.all(
+        Array.from({ length: 8 }, () => quickComplete({ userExerciseId: squat }, auth)),
+      );
+      const statuses = responses.map((r) => r.status).sort();
+      expect(statuses, JSON.stringify(responses.map((r) => r.body))).toEqual([200, 200, 200, 200, 200, 200, 200, 201]);
+      expect(await rowsOf('Barbell Squat')).toHaveLength(1);
+      for (const r of responses) {
+        expect(r.body.cumulative).toMatchObject({ userExerciseId: squat, sets: 4, totalReps: 40 });
+      }
+    });
+
     it('TEST-13b-4: Quick Complete twice in sequence → 201 then 200 entry null', async () => {
       await resetEntries();
       const auth = await aliceAuth();

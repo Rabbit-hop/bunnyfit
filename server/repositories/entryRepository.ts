@@ -41,6 +41,19 @@ export interface EntryRepository {
   findEntryOwner(id: string): Promise<string | null>;
   /** Inserts one row; the caller supplies `createdAt` from the Clock. */
   insert(input: InsertEntry): Promise<EntryRecord>;
+  /**
+   * F-04 R14: runs `fn` in one transaction that first locks the `UserExercise` row
+   * (`SELECT ... FOR UPDATE`), so concurrent requests for the same exercise are
+   * serialized — a second Quick Complete reads the sums only after the first commits.
+   * An error thrown by `fn` rolls the transaction back (nothing is stored).
+   */
+  withExerciseLock<T>(userExerciseId: string, fn: (scope: EntryScope) => Promise<T>): Promise<T>;
+}
+
+/** The reads/writes available while an exercise row is locked. */
+export interface EntryScope {
+  listDayEntries(userId: string, date: string): Promise<EntryRecord[]>;
+  insert(input: InsertEntry): Promise<EntryRecord>;
 }
 
 const toDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -60,28 +73,20 @@ export function toEntryRecord(row: Prisma.LedgerEntryGetPayload<object>): EntryR
   };
 }
 
-export function createPrismaEntryRepository(prisma: PrismaClient): EntryRepository {
+type EntryClient = Pick<PrismaClient, 'ledgerEntry'> | Prisma.TransactionClient;
+
+function createScope(client: EntryClient): EntryScope {
   return {
     async listDayEntries(userId, date) {
-      const rows = await prisma.ledgerEntry.findMany({
+      const rows = await client.ledgerEntry.findMany({
         where: { userId, logDate: toDate(date) },
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toEntryRecord);
     },
 
-    async findEntry(id) {
-      const row = await prisma.ledgerEntry.findUnique({ where: { id } });
-      return row ? toEntryRecord(row) : null;
-    },
-
-    async findEntryOwner(id) {
-      const row = await prisma.ledgerEntry.findUnique({ where: { id }, select: { userId: true } });
-      return row?.userId ?? null;
-    },
-
     async insert(input) {
-      const row = await prisma.ledgerEntry.create({
+      const row = await client.ledgerEntry.create({
         data: {
           userId: input.userId,
           userExerciseId: input.userExerciseId,
@@ -95,6 +100,30 @@ export function createPrismaEntryRepository(prisma: PrismaClient): EntryReposito
         },
       });
       return toEntryRecord(row);
+    },
+  };
+}
+
+export function createPrismaEntryRepository(prisma: PrismaClient): EntryRepository {
+  const scope = createScope(prisma);
+  return {
+    ...scope,
+
+    async findEntry(id) {
+      const row = await prisma.ledgerEntry.findUnique({ where: { id } });
+      return row ? toEntryRecord(row) : null;
+    },
+
+    async findEntryOwner(id) {
+      const row = await prisma.ledgerEntry.findUnique({ where: { id }, select: { userId: true } });
+      return row?.userId ?? null;
+    },
+
+    async withExerciseLock(userExerciseId, fn) {
+      return prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "UserExercise" WHERE "id" = ${userExerciseId}::uuid FOR UPDATE`;
+        return fn(createScope(tx));
+      });
     },
   };
 }
