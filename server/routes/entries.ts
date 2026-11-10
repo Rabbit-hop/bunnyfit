@@ -69,7 +69,7 @@ function exerciseOrder(entries: readonly EntryRecord[]): string[] {
  *
  * Rules composed here: R2 (ownership of `userExerciseId`, unknown body fields),
  * R3 (`logDate`), R4–R6 via `validateEntry`, R7 via `cumulativeFor` (derived on
- * read — nothing aggregate is ever stored); Quick Complete adds R8 (availability via
+ * read — nothing aggregate is ever stored), R14 (row lock, manual entry too); Quick Complete adds R8 (availability via
  * `resolvePlan`), R9–R12 (`quickCompleteDifference` then `validateEntry`) and R14 (row lock).
  */
 export function registerEntryRoutes(
@@ -114,22 +114,25 @@ export function registerEntryRoutes(
         if (key in body) values[key] = body[key];
       }
 
-      const dayEntries = await deps.entries.listDayEntries(userId, today);
-      const totals = cumulativeFor(dayEntries, userExerciseId, today);
-      const validated = validateEntry(values, exercise.trackingMode, totals, exercise.rangeMax);
-      if ('fields' in validated) throw validationError(validated.fields);
+      // R14: entries and Quick Complete share one row lock, so the sums are read after it is held.
+      const outcome = await deps.entries.withExerciseLock(userExerciseId, async (scope) => {
+        const dayEntries = await scope.listDayEntries(userId, today);
+        const totals = cumulativeFor(dayEntries, userExerciseId, today);
+        const validated = validateEntry(values, exercise.trackingMode, totals, exercise.rangeMax);
+        if ('fields' in validated) throw validationError(validated.fields);
 
-      const entry = await deps.entries.insert({
-        userId,
-        userExerciseId,
-        logDate: today,
-        ...validated.value,
-        kind: 'MANUAL',
-        createdAt: deps.clock.now(),
+        const entry = await scope.insert({
+          userId,
+          userExerciseId,
+          logDate: today,
+          ...validated.value,
+          kind: 'MANUAL',
+          createdAt: deps.clock.now(),
+        });
+        return { entry, cumulative: cumulativeFor([...dayEntries, entry], userExerciseId, today) };
       });
 
-      const after = await deps.entries.listDayEntries(userId, today);
-      res.status(201).json({ entry, cumulative: cumulativeFor(after, userExerciseId, today) });
+      res.status(201).json(outcome);
     }),
   );
 
