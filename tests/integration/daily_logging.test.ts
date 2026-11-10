@@ -607,4 +607,38 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
     expect(malformed.status, JSON.stringify(malformed.body)).toBe(400);
     expect(malformed.body.code).toBe('VALIDATION_ERROR');
   });
+
+  it('extra (not an STS row): R14 - 30 concurrent manual entries after 19 sets → exactly one 201; cumulative sets 20, never above the R6 limit', async () => {
+    await resetEntries();
+    clock.set(NOW);
+    const auth = await aliceAuth();
+    const squat = exerciseId('Barbell Squat');
+    const seeded = await postEntry({ userExerciseId: squat, sets: 19, totalReps: 19 }, auth);
+    expect(seeded.status, JSON.stringify(seeded.body)).toBe(201);
+
+    const responses = await Promise.all(
+      Array.from({ length: 30 }, () =>
+        request(app).post('/api/entries').set(auth).send({ userExerciseId: squat, sets: 1, totalReps: 1 }),
+      ),
+    );
+    expect(responses.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(responses.filter((r) => r.status === 400)).toHaveLength(29);
+    const rows = await prisma.ledgerEntry.findMany({ where: { userExerciseId: squat } });
+    expect(rows.reduce((sum, r) => sum + (r.sets ?? 0), 0)).toBe(20);
+  });
+
+  it("extra (§3.3 / TEST-12b F-04 row): POST /api/entries with another Participant's userExerciseId → 403 FORBIDDEN; DB unchanged", async () => {
+    await resetEntries();
+    clock.set(NOW);
+    const auth = await aliceAuth();
+    const before = await dbSnapshot();
+
+    const res = await request(app)
+      .post('/api/entries')
+      .set(auth)
+      .send({ userExerciseId: bobExerciseId, sets: 1, totalReps: 5 });
+    expect(res.status, JSON.stringify(res.body)).toBe(403);
+    expect(res.body).toEqual({ code: 'FORBIDDEN', message: expect.any(String), fields: [] });
+    expect(await dbSnapshot()).toEqual(before);
+  });
 });
