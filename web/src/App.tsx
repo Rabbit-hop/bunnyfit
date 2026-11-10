@@ -7,6 +7,7 @@ import { ErrorPage } from './pages/ErrorPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { PlanPage } from './pages/PlanPage'
 import { TemplateFormPage } from './pages/TemplateFormPage'
 import { WelcomePage } from './pages/WelcomePage'
 
@@ -98,7 +99,7 @@ export default function App() {
             path="/plan"
             element={
               <Guard role="PARTICIPANT">
-                <PlaceholderPage title="Plan" description="Participant plan configuration is implemented in issue #9." />
+                <PlanPage />
               </Guard>
             }
           />
