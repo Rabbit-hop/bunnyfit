@@ -498,3 +498,55 @@ body {
   border-radius: 50%;
   animation: loading-spin 0.9s linear infinite;
 }
+/* Dialog shell (S-03 Log Entry; same look as the F-02 confirm dialog) */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(63, 63, 87, 0.45);
+}
+
+.dialog {
+  width: min(380px, 100%);
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border-radius: 20px;
+}
+
+.dialog h3 {
+  margin: 0 0 0.75rem;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.log-dialog .field {
+  margin-bottom: 0.75rem;
+}
+
+.duration-inputs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.log-preview {
+  min-height: 1.25rem;
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.log-helper {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
