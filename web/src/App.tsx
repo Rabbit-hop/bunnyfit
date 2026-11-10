@@ -1,68 +1,146 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { landingPath, useAuth } from './auth/AuthContext'
+import { LoadingScreen } from './components/LoadingScreen'
+import { SessionHeader } from './components/SessionHeader'
+import { ErrorPage } from './pages/ErrorPage'
+import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { WelcomePage } from './pages/WelcomePage'
+
+type GuardProps = {
+  role?: 'PARTICIPANT' | 'MANAGER'
+  children: ReactNode
+}
+
+function Guard({ role, children }: GuardProps) {
+  const { status, user, expired } = useAuth()
+  if (status === 'loading') {
+    return null
+  }
+  if (!user) {
+    return <Navigate to={expired ? '/login?reason=expired' : '/welcome'} replace />
+  }
+  if (role && user.role !== role) {
+    return <Navigate to="/403" replace />
+  }
+  return children
+}
+
+function RootRedirect() {
+  const { status, user, expired } = useAuth()
+  if (status === 'loading') {
+    return null
+  }
+  if (user) {
+    return <Navigate to={landingPath(user.role)} replace />
+  }
+  return <Navigate to={expired ? '/login?reason=expired' : '/welcome'} replace />
+}
 
 export default function App() {
+  const { status, user, retry } = useAuth()
+  const location = useLocation()
+
+  if (status === 'loading') {
+    return <LoadingScreen />
+  }
+
+  // The stored token could not be checked (server or network problem, not a 401):
+  // keep the session and let the user retry instead of bouncing them to Welcome.
+  if (status === 'error') {
+    return (
+      <div className="app-shell">
+        <main className="app-main">
+          <section className="page" role="alert" data-testid="session-error">
+            <h2>We can't reach the server</h2>
+            <p>Your session is still saved. Check your connection and try again.</p>
+            <button type="button" className="btn btn-primary" data-testid="session-retry" onClick={retry}>
+              Try again
+            </button>
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  // The full-screen Welcome page lives outside the app shell
+  if (location.pathname === '/welcome') {
+    if (user) {
+      return <Navigate to={landingPath(user.role)} replace />
+    }
+    return (
+      <Routes>
+        <Route path="/welcome" element={<WelcomePage />} />
+      </Routes>
+    )
+  }
+
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <h1>BunnyFit</h1>
-        <p>Habit and activity tracking</p>
-      </header>
+    <div className={user ? 'app-shell has-tabbar' : 'app-shell'}>
+      {user && <SessionHeader />}
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/403" element={<ErrorPage kind="forbidden" />} />
           <Route
-            path="/login"
-            element={<PlaceholderPage title="Sign in" description="Authentication UI is implemented in issue #7." />}
+            path="/today"
+            element={
+              <Guard role="PARTICIPANT">
+                <PlaceholderPage title="Today" description="Participant daily logging is implemented in issue #10." />
+              </Guard>
+            }
+          />
+          <Route
+            path="/plan"
+            element={
+              <Guard role="PARTICIPANT">
+                <PlaceholderPage title="Plan" description="Participant plan configuration is implemented in issue #9." />
+              </Guard>
+            }
+          />
+          <Route
+            path="/progress"
+            element={
+              <Guard role="PARTICIPANT">
+                <PlaceholderPage title="Progress" description="Monthly progress is planned for Sprint 2." />
+              </Guard>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <Guard role="PARTICIPANT">
+                <PlaceholderPage title="Profile" description="Profile and body-weight management is implemented in issue #10." />
+              </Guard>
+            }
           />
           <Route
             path="/manager/library"
             element={
-              <PlaceholderPage
-                title="Exercise Library"
-                description="Manager template management is implemented in issue #8."
-              />
+              <Guard role="MANAGER">
+                <PlaceholderPage title="Exercise Library" description="Manager template management is implemented in issue #8." />
+              </Guard>
             }
           />
           <Route
             path="/manager/library/templates/new"
             element={
-              <PlaceholderPage
-                title="New Template"
-                description="Manager template creation is implemented in issue #8."
-              />
+              <Guard role="MANAGER">
+                <PlaceholderPage title="New Template" description="Manager template creation is implemented in issue #8." />
+              </Guard>
             }
           />
           <Route
             path="/manager/library/templates/:id"
             element={
-              <PlaceholderPage
-                title="Edit Template"
-                description="Manager template editing is implemented in issue #8."
-              />
+              <Guard role="MANAGER">
+                <PlaceholderPage title="Edit Template" description="Manager template editing is implemented in issue #8." />
+              </Guard>
             }
           />
-          <Route
-            path="/today"
-            element={<PlaceholderPage title="Today" description="Participant daily logging is implemented in issue #10." />}
-          />
-          <Route
-            path="/plan"
-            element={<PlaceholderPage title="Plan" description="Participant plan configuration is implemented in issue #9." />}
-          />
-          <Route
-            path="/progress"
-            element={<PlaceholderPage title="Progress" description="Monthly progress is planned for Sprint 2." />}
-          />
-          <Route
-            path="/profile"
-            element={<PlaceholderPage title="Profile" description="Profile and body-weight management is implemented in issue #10." />}
-          />
-          <Route
-            path="/403"
-            element={<PlaceholderPage title="Access denied" description="You don't have access to this page." />}
-          />
-          <Route path="*" element={<PlaceholderPage title="Not found" description="This route does not exist." />} />
+          <Route path="*" element={<ErrorPage kind="notFound" />} />
         </Routes>
       </main>
     </div>
