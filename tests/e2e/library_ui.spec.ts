@@ -11,7 +11,8 @@ async function loginAsManager(page: Page) {
   await page.getByTestId('login-email').fill(MANAGER.email)
   await page.getByTestId('login-password').fill(MANAGER.password)
   await page.getByTestId('login-submit').click()
-  await expect(page).toHaveURL(/\/manager\/library$/)
+  // Login can still be pending ("Signing in…") after 5 s on a cold API/Vite start; allow more time here.
+  await expect(page).toHaveURL(/\/manager\/library$/, { timeout: 20_000 })
 }
 
 test('AC-02a/b (UI): manager creates a category and a template, edits it, then deletes both', async ({ page }) => {
