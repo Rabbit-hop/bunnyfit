@@ -6,7 +6,7 @@
 **Contract Version:**  0.3.0
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0)
 **Date:**  6 November 2026
-**Status:**  Draft: specification-only, awaiting reviewer approval before implementation
+**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-02-exercise-library.md`
 
@@ -18,6 +18,8 @@
 | **0.1.0** | 4 Nov 2026 | Initial contract: behavior, API/data/UI specification, AC (AC-02a–c; proposed AC-02d), STS, Definition of Done, list of pending baseline changes (§12) | Nakagamon | Draft |
 | **0.2.0** | 6 Nov 2026 | Baseline reconciliation with SRS / RTM / SDS / plan 1.0.0: baseline citation corrected (F-01 contract 0.1.2); error codes reduced to the approved SRS Appendix A.5 set — `CATEGORY_NOT_EMPTY` replaced by the approved `CATEGORY_HAS_TEMPLATES` (409), the invented `DUPLICATE_NAME` (409) replaced by `VALIDATION_ERROR` (400) because A.5 defines no duplicate-name code; a well-formed `categoryId` that does not exist now returns 404 `NOT_FOUND` (SRS A.5 / SDS §5.1) instead of 400 while a malformed value stays 400; §8 test expectations and §12 pending items updated accordingly (P8 rewritten, P3 dropped because A.5 already covers the rule) | Nakagamon | Draft |
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0); AC-02d is now an RTM 1.1.0 criterion (no longer *proposed*) and is marked **deferred to Sprint 2** (CHANGE-08, Tier B) in §7, §8, §10 and §12 — its STS rows are kept; §12 pending items given a status column; all applied to baseline 1.1.0 (SRS Q30–Q49) or resolved | Nakagamon | Draft |
+| **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer (Onsinee) approved this contract in a private chat message to the author on 9 Nov 2026 ("F-01/F-02/F-03/F-04 = approved"). The message does not name a version; it was sent after the files were last changed. Not yet repeated on PR #24 in the register's five-line format (register §3) | Nakagamon | Approved |
+| **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer's five-line reply on PR #24 (issuecomment-6741224888, 9 Nov 2026 13:27 UTC) records `F-02 v0.3.0: approved`. This replaces the earlier private-chat relay (previous row) as the evidence | Nakagamon | Approved |
 
 *Rule: committed as a specification-only commit before any F-02 implementation; later changes are new versions with a reason.*
 
