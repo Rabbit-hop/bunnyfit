@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ErrorNotice } from '../components/ErrorNotice'
 import {
   MODE_LABEL,
@@ -20,6 +20,7 @@ type LoadState = 'loading' | 'ready' | 'error'
 
 export function LibraryPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const initialToast = (location.state as { toast?: string } | null)?.toast ?? ''
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -36,18 +37,23 @@ export function LibraryPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const noticeRef = useRef<HTMLDivElement>(null)
+  const loadSeq = useRef(0)
 
   const load = useCallback(async () => {
+    // Only the latest request may update the page; an older, slower response is ignored.
+    const seq = ++loadSeq.current
     setState('loading')
     try {
       const [cats, tpls] = await Promise.all([
         listCategories(),
         listTemplates({ categoryId: categoryFilter, trackingMode: modeFilter }),
       ])
+      if (seq !== loadSeq.current) return
       setCategories(cats)
       setTemplates(tpls)
       setState('ready')
     } catch {
+      if (seq !== loadSeq.current) return
       setState('error')
     }
   }, [categoryFilter, modeFilter])
@@ -55,6 +61,19 @@ export function LibraryPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // The "saved" toast arrives via router state: clear that state so a refresh does not show it again.
+  useEffect(() => {
+    if (initialToast) navigate(location.pathname, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Toasts dismiss themselves.
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   useEffect(() => {
     if (notice) noticeRef.current?.focus()
@@ -182,7 +201,13 @@ export function LibraryPage() {
           </ErrorNotice>
         )}
 
-        {state === 'ready' && templates.length === 0 && (
+        {state === 'ready' && templates.length === 0 && (categoryFilter || modeFilter) && (
+          <p className="empty-state" data-testid="templates-no-match">
+            No templates match these filters
+          </p>
+        )}
+
+        {state === 'ready' && templates.length === 0 && !categoryFilter && !modeFilter && (
           <p className="empty-state" data-testid="templates-empty">
             No exercises yet. Add the first one
           </p>
