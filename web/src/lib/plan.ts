@@ -43,6 +43,32 @@ export const listPlanItems = () => apiFetch<PlanEntry[]>('/api/plan-items').then
 export const getPlan = (date?: string) =>
   apiFetch<PlanForDate>(`/api/plan${date ? `?date=${encodeURIComponent(date)}` : ''}`)
 
+export type NewExercise = {
+  name: string
+  targetBodyPart: string
+  trackingMode: TrackingMode
+  cardioCategory?: CardioCategory
+}
+
+// Body of POST /api/plan-items (API spec §5.1): TEMPLATE needs templateId, CUSTOM needs exercise.
+export type CreatePlanItemInput = {
+  source: 'TEMPLATE' | 'CUSTOM'
+  templateId?: string
+  exercise?: NewExercise
+  priorityWeight: number
+  effectiveFrom?: string
+  endDate?: string
+  repeatDays: number[]
+  targetSets?: number
+  targetRepsPerSet?: number
+  loadKg?: number
+  targetDurationSec?: number
+  targetDistanceKm?: number
+}
+
+export const createPlanItem = (input: CreatePlanItemInput) =>
+  apiFetch<PlanEntry>('/api/plan-items', { method: 'POST', body: JSON.stringify(input) })
+
 export const WEEKDAYS = [
   { day: 1, short: 'Mon' },
   { day: 2, short: 'Tue' },
@@ -78,7 +104,12 @@ export function formatDuration(totalSec: number): string {
 }
 
 /** Readable target, e.g. "4 × 10 reps @ 40 kg", "30:00", "3.5 km" (UI spec S-05). */
-export function formatTarget(item: PlanItem): string {
+export type TargetFields = Pick<
+  PlanItem,
+  'targetSets' | 'targetRepsPerSet' | 'loadKg' | 'targetDurationSec' | 'targetDistanceKm'
+>
+
+export function formatTarget(item: TargetFields): string {
   if (item.targetSets !== null && item.targetRepsPerSet !== null) {
     const base = `${item.targetSets} × ${item.targetRepsPerSet} reps`
     return item.loadKg !== null ? `${base} @ ${item.loadKg} kg` : base

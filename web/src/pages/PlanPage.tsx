@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AddExerciseDialog } from '../components/AddExerciseDialog'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { MODE_LABEL } from '../lib/library'
 import {
@@ -14,7 +15,8 @@ type LoadState = 'loading' | 'ready' | 'error'
 export function PlanPage() {
   const [entries, setEntries] = useState<PlanEntry[]>([])
   const [state, setState] = useState<LoadState>('loading')
-  const [, setAddOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [toast, setToast] = useState('')
   const loadSeq = useRef(0)
 
   const load = useCallback(async () => {
@@ -36,6 +38,21 @@ export function PlanPage() {
     void load()
   }, [load])
 
+  // Toasts dismiss themselves.
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  const closeAdd = useCallback(() => setAddOpen(false), [])
+
+  function onSaved(name: string) {
+    setAddOpen(false)
+    setToast(`"${name}" added to your plan.`)
+    void load()
+  }
+
   return (
     <section className="page plan-page" data-testid="plan-page">
       <div className="library-section-head">
@@ -44,6 +61,12 @@ export function PlanPage() {
           Add exercise
         </button>
       </div>
+
+      {toast && (
+        <p className="toast" role="status" data-testid="plan-toast">
+          {toast}
+        </p>
+      )}
 
       {state === 'loading' && (
         <div className="skeleton-rows" data-testid="plan-loading" aria-busy="true">
@@ -103,6 +126,7 @@ export function PlanPage() {
           ))}
         </ul>
       )}
+      {addOpen && <AddExerciseDialog onClose={closeAdd} onSaved={onSaved} />}
     </section>
   )
 }
