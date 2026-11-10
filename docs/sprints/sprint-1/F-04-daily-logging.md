@@ -5,8 +5,8 @@
 **Sprint:**  1 (same-day edit/delete is F-05, Sprint 2; calorie calculation is F-11, Sprint 2)
 **Contract Version:**  0.3.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 and F-03 contracts 0.3.0)
-**Date:**  6 November 2026
-**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
+**Date:**  10 November 2026
+**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026); v0.3.1 (10 Nov 2026) is documentation-only (PR #28 review fixes B1/Q-a/Q10) and needs re-review by Onsinee
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-04-daily-logging.md`
 
