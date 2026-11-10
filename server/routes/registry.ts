@@ -67,6 +67,8 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/entries/quick-complete', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/entries', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/entries/:id', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
+  // F-06 progress display - Participant only (`/monthly` is Sprint 2, CHANGE-06).
+  { method: 'GET', path: '/api/progress/daily', featureId: 'F-06', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
 ];
 
 /**

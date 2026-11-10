@@ -15,6 +15,7 @@ import { registerLibraryRoutes } from './routes/library.js';
 import { registerEntryRoutes } from './routes/entries.js';
 import type { EntryRepository } from './repositories/entryRepository.js';
 import { registerPlanRoutes } from './routes/plan.js';
+import { registerProgressRoutes } from './routes/progress.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { createRouteRegistrar } from './routes/register.js';
 import { activePolicies, findRoutePolicy } from './routes/registry.js';
@@ -89,6 +90,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   if (options.entries && options.plans && options.clock) {
     registerEntryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
+    registerProgressRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
   }
 
   if (nodeEnv === 'test' && options.auth && options.probeOwnerLookup) {
