@@ -74,3 +74,23 @@ test('AC-11 (UI): out-of-range values show an inline error naming the field', as
   await expect(page.getByTestId('field-error-metValue')).toBeVisible()
   await expect(page).toHaveURL(/\/templates\/new$/)
 })
+
+test('S-08 (UI): a filter with no matches says so, the empty-library text is not shown', async ({ page }) => {
+  const category = `E2E Empty ${Date.now().toString(36)}`
+  await loginAsManager(page)
+
+  await page.getByTestId('category-add-name').fill(category)
+  await page.getByTestId('category-add').click()
+  const catRow = page.locator('[data-testid^="category-row-"]', { hasText: category })
+  await expect(catRow).toBeVisible()
+
+  await page.getByTestId('filter-category').selectOption({ label: category })
+  await expect(page.getByTestId('templates-no-match')).toHaveText('No templates match these filters')
+  await expect(page.getByTestId('templates-empty')).toHaveCount(0)
+
+  await page.getByTestId('filter-category').selectOption('')
+  await expect(page.getByTestId('templates-no-match')).toHaveCount(0)
+
+  await catRow.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('[data-testid^="category-row-"]', { hasText: category })).toHaveCount(0)
+})
