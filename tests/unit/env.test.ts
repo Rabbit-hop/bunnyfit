@@ -18,6 +18,22 @@ describe('env config validation', () => {
     expect(env.port).toBe(8099);
   });
 
+  describe('APP_TIMEZONE (issue #17, SDS §8)', () => {
+    it('defaults to Asia/Bangkok when unset or empty', async () => {
+      const { env } = await loadEnv({ APP_TIMEZONE: '' });
+      expect(env.appTimezone).toBe('Asia/Bangkok');
+    });
+
+    it('accepts a valid IANA timezone', async () => {
+      const { env } = await loadEnv({ APP_TIMEZONE: 'UTC' });
+      expect(env.appTimezone).toBe('UTC');
+    });
+
+    it.each(['Not/AZone', 'Bangkok', 'UTC+7'])('rejects APP_TIMEZONE=%s at load time, naming the variable', async (zone) => {
+      await expect(loadEnv({ APP_TIMEZONE: zone })).rejects.toThrow(/APP_TIMEZONE.*IANA/);
+    });
+  });
+
   describe('SUP-01 JWT_SECRET startup check (R10)', () => {
     it('SUP-01-1 rejects a missing JWT_SECRET', async () => {
       const { requireJwtSecret } = await loadEnv({ JWT_SECRET: '' });

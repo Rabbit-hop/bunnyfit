@@ -45,6 +45,12 @@ describe('SystemClock', () => {
     expect(clock.today()).toBe('2026-11-05');
   });
 
+  it('honours the configured timezone (issue #17): the same instant gives different dates under Asia/Bangkok and UTC', () => {
+    const instant = () => new Date('2026-11-04T18:30:00Z');
+    expect(new SystemClock('Asia/Bangkok', instant).today()).toBe('2026-11-05');
+    expect(new SystemClock('UTC', instant).today()).toBe('2026-11-04');
+  });
+
   it('defaults to Asia/Bangkok and a valid YYYY-MM-DD today()', () => {
     // No timezone argument: 18:30Z must roll to the next date only if the default is Bangkok.
     const clock = new SystemClock(undefined, () => new Date('2026-11-04T18:30:00Z'));
