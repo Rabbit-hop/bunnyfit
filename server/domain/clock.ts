@@ -25,7 +25,12 @@ export function toDateString(date: Date, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-/** Default clock: system time converted to the configured business timezone. */
+/**
+ * Default clock: system time converted to the configured business timezone.
+ * The server passes `env.appTimezone` (APP_TIMEZONE, validated in server/config/env.ts);
+ * the `'Asia/Bangkok'` default below only mirrors the SDS §8 default for callers that
+ * pass nothing (tests) — it is not read when the server runs.
+ */
 export class SystemClock implements Clock {
   constructor(
     private readonly timeZone: string = 'Asia/Bangkok',
