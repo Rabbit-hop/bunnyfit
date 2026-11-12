@@ -13,6 +13,17 @@ function str(name: string, fallback: string): string {
   return raw === undefined || raw === '' ? fallback : raw;
 }
 
+/** IANA timezone name (SDS §8 APP_TIMEZONE). Invalid values fail at load, not at the first today() call. */
+function timeZone(name: string, fallback: string): string {
+  const value = str(name, fallback);
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: value });
+  } catch {
+    throw new Error(`Environment variable ${name} must be a valid IANA timezone (for example Asia/Bangkok), got "${value}"`);
+  }
+  return value;
+}
+
 function int(name: string, fallback: number, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): number {
   const raw = process.env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -30,7 +41,7 @@ export const env = {
   nodeEnv: str('NODE_ENV', 'development'),
   port: int('PORT', 8080, 1, 65535),
   logLevel: str('LOG_LEVEL', 'info'),
-  appTimezone: str('APP_TIMEZONE', 'Asia/Bangkok'),
+  appTimezone: timeZone('APP_TIMEZONE', 'Asia/Bangkok'),
   jwtExpiresInSeconds: int('JWT_EXPIRES_IN_SECONDS', 3600, 1),
   bcryptCost: int('BCRYPT_COST', 10, 4, 31),
   // Secrets: empty until the feature that consumes them validates presence.
