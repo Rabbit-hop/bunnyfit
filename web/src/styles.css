@@ -498,3 +498,191 @@ body {
   border-radius: 50%;
   animation: loading-spin 0.9s linear infinite;
 }
+/* S-08 Exercise Library / S-09 Template Form (F-02) */
+.library-section {
+  margin-top: 1.5rem;
+}
+
+.library-section h3 {
+  margin: 0;
+}
+
+.library-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.library-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.library-page select,
+.template-form select,
+.template-form input,
+.inline-form input {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.template-form .field select,
+.template-form .field input {
+  width: 100%;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.form-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.form-actions {
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.library-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+  background: var(--color-surface);
+}
+
+.library-table th,
+.library-table td {
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.library-table .btn {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  font-size: 0.8125rem;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.category-list .btn {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  font-size: 0.8125rem;
+}
+
+.inline-form {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.inline-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.empty-state {
+  margin: 0.75rem 0;
+  color: var(--color-text-muted);
+}
+
+.toast {
+  margin: 0 0 1rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-success);
+  background: var(--color-surface);
+  border: 1px solid var(--color-success);
+  border-radius: 12px;
+}
+
+.skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton {
+  height: 2.5rem;
+  background: linear-gradient(90deg, var(--color-skeleton), var(--color-skeleton-hi), var(--color-skeleton));
+  border-radius: 12px;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(63, 63, 87, 0.45);
+}
+
+.dialog {
+  width: min(380px, 100%);
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border-radius: 20px;
+}
+
+.dialog h3 {
+  margin: 0 0 0.5rem;
+}
+
+.dialog .row-actions {
+  justify-content: flex-end;
+}
