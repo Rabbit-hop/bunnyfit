@@ -30,7 +30,11 @@ export default defineConfig({
       command: 'pnpm exec tsx server/index.ts',
       url: 'http://127.0.0.1:8080/api/health',
       env: { PORT: '8080', NODE_ENV: 'test' },
-      reuseExistingServer: !process.env.CI,
+      // Never reuse a running API: it is already bound to whatever DATABASE_URL it started with
+      // (usually the dev database), so a reused server silently ignores the DATABASE_URL given to
+      // this run and the E2E tests write into the wrong database. If port 8080 is busy, Playwright
+      // now fails loudly: stop `pnpm dev` first.
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
