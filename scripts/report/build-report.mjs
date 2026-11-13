@@ -238,6 +238,17 @@ for (const s of sections) {
   console.log(`  ${s.key.padEnd(8)} ${String(counts[s.key]).padStart(3)} pages  ${s.title}`)
 }
 
+// Every evidence chapter names the commit it was collected on; show them so a mismatch with the documents is visible.
+function evidenceCommitRows() {
+  const rows = evidenceParts.map((ev) => {
+    const m = ev.md.match(/(?:Commit under test |s*|on commit )`([0-9a-f]{40})`/)
+    if (!m) return null
+    const same = m[1] === COMMIT
+    return `<tr><th>Evidence: ${esc(ev.title)}</th><td><code>${m[1].slice(0, 12)}</code> ${same ? '(same as the documents)' : '<b>differs from the documents commit</b>'}</td></tr>`
+  })
+  return rows.filter(Boolean).join(String.fromCharCode(10))
+}
+
 const cover = `<section class="cover">
 <p class="part-label">CPE 334 Software Engineering</p>
 <h1>BunnyFit — Habit and Activity Tracking System</h1>
@@ -246,7 +257,7 @@ const cover = `<section class="cover">
 <tr><th>Team</th><td>Nakagamon Saengdara (67070501064) · Onsinee Chotchuangsakulchai (67070501078)</td></tr>
 <tr><th>Repository</th><td>github.com/Rabbit-hop/bunnyfit</td></tr>
 <tr><th>Documents read from</th><td><code>${esc(REF)}</code> = commit <code>${COMMIT}</code><br>${esc(COMMIT_SUBJECT)} (${esc(COMMIT_DATE)})</td></tr>
-<tr><th>Report generated</th><td>${new Date().toISOString()}</td></tr>
+${evidenceCommitRows()}<tr><th>Report generated</th><td>${new Date().toISOString()}</td></tr>
 <tr><th>Generator</th><td><code>scripts/report/build-report.mjs</code> (issue #12)</td></tr>
 </table>
 </section>`
