@@ -15,8 +15,8 @@ import { expect, test, type Page } from '@playwright/test'
 //   re-run on a later day needs no reseed. The template is deleted at the end (participant snapshots are
 //   unaffected by design, F-03 / AC-27) if the test reaches that step.
 // - "Progress 100%" is asserted for the journey's exercise (item ratio === 1 from GET /api/progress/daily and
-//   the 100% card in History). Alice may hold other items today (validation_feedback.spec.ts adds some), so
-//   the day's overall percentage is NOT required to be 100; the UI's overall must equal the API's overall.
+//   the 100% card in History). Alice is shared with the other specs, which run in parallel and add or complete
+//   her items, so the day's overall percentage is neither 100 nor stable and is deliberately not asserted.
 const MANAGER = { email: 'manager@exercise.test', password: process.env.SEED_MANAGER_PASSWORD ?? 'change-me' }
 const PARTICIPANT = { email: 'alice@exercise.test', password: process.env.SEED_PARTICIPANT_PASSWORD ?? 'change-me' }
 
@@ -45,7 +45,9 @@ async function dailyProgress(page: Page): Promise<Daily> {
 test('AC-25 (Main Journey): template -> plan 3x10 weight 4 -> record 1x10 -> Quick Complete -> 100% -> relogin keeps it', async ({
   page,
 }) => {
-  const name = `E2E Journey ${Date.now().toString(36)}`
+  // Deliberately not prefixed "E2E ": library_ui.spec.ts's afterAll sweep (helpers/cleanup.ts) deletes every
+  // template starting with "E2E " and would remove this one while the journey is still running in parallel.
+  const name = `TEST-25 Journey ${Date.now().toString(36)}`
 
   // 1. Manager creates a BODYWEIGHT_REPS template.
   await login(page, MANAGER, /\/manager\/library$/)
@@ -64,7 +66,8 @@ test('AC-25 (Main Journey): template -> plan 3x10 weight 4 -> record 1x10 -> Qui
 
   // 2. Participant logs in and adds the template with 3 sets x 10 reps, priority weight 4, ending today.
   await login(page, PARTICIPANT, /\/today$/)
-  await page.goto('/plan?add=1')
+  await page.goto('/plan')
+  await page.getByTestId(/^plan-add(-first)?$/).first().click()
   await expect(page.getByTestId('add-exercise-dialog')).toBeVisible()
   await page.getByTestId('picker-search').fill(name)
   await page.locator('[data-testid^="template-card-"]', { hasText: name }).click()
@@ -84,7 +87,7 @@ test('AC-25 (Main Journey): template -> plan 3x10 weight 4 -> record 1x10 -> Qui
 
   // 3. Today: record 1 set x 10 reps -> 10 of 30 reps = 33%.
   await page.goto('/today')
-  const card = page.locator('[data-testid^="item-"]', { hasText: name }).first()
+  const card = page.getByRole('listitem').filter({ hasText: name })
   await expect(card).toBeVisible()
   await card.getByTestId('item-log').click()
   await page.getByTestId('log-sets').fill('1')
@@ -97,9 +100,7 @@ test('AC-25 (Main Journey): template -> plan 3x10 weight 4 -> record 1x10 -> Qui
   await card.getByTestId('item-quick-complete').click()
   await expect.poll(async () => (await dailyProgress(page)).items.find((i) => i.name === name)?.ratio).toBe(1)
   await page.getByTestId('history-toggle').click()
-  await expect(
-    page.locator('[data-testid^="item-"]', { hasText: name }).first().getByTestId('item-pct'),
-  ).toHaveText('100%')
+  await expect(page.getByRole('listitem').filter({ hasText: name }).getByTestId('item-pct')).toHaveText('100%')
 
   // 5. Logout, login again: the values persist (server-side, not client state).
   await page.getByTestId('logout-button').click()
@@ -107,13 +108,15 @@ test('AC-25 (Main Journey): template -> plan 3x10 weight 4 -> record 1x10 -> Qui
   await login(page, PARTICIPANT, /\/today$/)
   const after = await dailyProgress(page)
   expect(after.items.find((i) => i.name === name)?.ratio).toBe(1)
-  if (after.overallPercent !== null) {
-    await expect(page.getByTestId('today-overall-pct')).toContainText(String(Math.round(after.overallPercent)))
-  }
   await page.getByTestId('history-toggle').click()
-  await expect(
-    page.locator('[data-testid^="item-"]', { hasText: name }).first().getByTestId('item-pct'),
-  ).toHaveText('100%')
+  const doneCard = page.getByRole('listitem').filter({ hasText: name })
+  await expect(doneCard.getByTestId('item-pct')).toHaveText('100%')
+  // The recorded values themselves persist: the manual 1 x 10 entry and the Quick Complete entry.
+  await doneCard.getByTestId('item-entries-toggle').click()
+  const entries = doneCard.getByTestId('item-entries').getByRole('listitem')
+  await expect(entries).toHaveCount(2)
+  await expect(entries.filter({ hasText: 'Manual' })).toContainText('10 reps')
+  await expect(entries.filter({ hasText: 'Quick' })).toHaveCount(1)
 
   // Cleanup: remove the template (Manager); the participant's snapshot is untouched by design.
   await page.getByTestId('logout-button').click()

@@ -115,7 +115,9 @@ pnpm run test:e2e
 `DATABASE_URL_TEST`; it fails instead of skipping when `CI=true`, and prints a
 warning and skips locally only when no test database URL is configured.
 `pnpm run test:e2e` starts both the API and the Vite server automatically and
-runs the Playwright smoke tests (SPA shell + `/api/health` through the proxy).
+runs the Playwright tests. The spawned API always uses `DATABASE_URL_TEST` (the run
+fails at startup if it is unset), so that database must be migrated and seeded first and
+port 8080 must be free (stop `pnpm dev`).
 
 The API needs PostgreSQL (F-01 auth reads users and the token denylist from it)
 and the integration suites run against a real database. Before `pnpm test`,
