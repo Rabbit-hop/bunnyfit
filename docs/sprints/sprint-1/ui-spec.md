@@ -2,13 +2,13 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.6.0
+**Document Version:** 0.7.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
-**Status:** Approved: specification-only, implementation may start
+**Status:** 0.7.0 Draft (UI reconciled with the implementation in PR #36, review pending); 0.6.0 was approved
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/ui-spec.md`
-**Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Participant navigation in Sprint 1 is Today and My Plan; Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06). The wider five-tab design is scheduled for later sprints and is not a Sprint 1 gate.
+**Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Participant navigation in Sprint 1 is Today and My Plan; Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06) and open placeholder pages in the five-item bottom bar (0.7.0). The wider design is not a Sprint 1 gate.
 
 **Source baselines**
 
@@ -28,6 +28,7 @@
 | **0.4.0** | 6 Nov 2026 | PR #15 review-fix pass: added contract precedence, API 0.4.0, category endpoint for S-04, Today/Rest Day discriminator and observable disabled controls, Quick Complete No-op behavior, exact contract copy, session-header test ids, and traceability/nit fixes. No baseline or contract change. | Onsinee | Draft |
 | **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: aligned S-04 to the F-03 two-tab Add Exercise dialog, aligned contract copy and empty states, moved the start date to the server `date` and extended the today rule to every date-aware screen, added the ledger time/value/kind and remaining-limit/range helper text, labelled AC-25 extras as supplementary, and fixed the health/test-id/viewport notes. No baseline or contract change. | Onsinee | Draft |
 | **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved and the API Specification reference updated to 0.6.0; no UI, baseline or contract content changed. | Onsinee | Approved |
+| **0.7.0** | 13 Nov 2026 | Reconciled with the UI implemented in PR #36; no baseline, API or contract change. (1) S-05 My Plan is a calendar (Month/Week) with a day summary and that day's list, not a plain list. (2) Participant navigation is a five-item bottom bar: Today, Progress, centre Add (opens S-04 via `/plan?add=1`), My Plan, Profile; Progress and Profile open Sprint 2 placeholders. (3) S-08/S-09: the Template Form is a dialog on `/manager/library` (the two `/manager/library/templates/*` routes were removed) and Categories is a dialog; the Library has category chips, a name search and a card grid. (4) The template picture picker is UI-only and nothing is saved until the API accepts `imageUrl`. (5) Welcome and Loading share one layout; Welcome is shown at `/welcome`. | Onsinee | Draft |
 
 **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence over this consolidated specification. The exact request/response shapes and rules in the F-xx contracts are authoritative; the UI may not depend on removed endpoints or fields. The v0.2.0 draft is reconciliation history only.
 
@@ -84,10 +85,10 @@
 | `/progress` | S-06 Monthly Progress | Participant | S2 (AC-15, CHANGE-06) | `GET /api/progress/daily`, `GET /api/progress/monthly` | AC-15 |
 | `/profile` | S-07 Profile | Participant | S2 (AC-17, CHANGE-04) | `GET /api/profile`, `PUT /api/profile` | AC-17a-d |
 | `/manager/library` | S-08 Exercise Library | Manager | S1 | `GET/POST /api/categories`, `PUT/DELETE /api/categories/:id`, `GET/POST /api/templates`, `GET/PUT/DELETE /api/templates/:id` | AC-02a-c |
-| `/manager/library/templates/new`, `/manager/library/templates/:id` | S-09 Template Form | Manager | S1 | `GET /api/templates/:id`, `POST /api/templates`, `PUT /api/templates/:id`, `GET /api/categories` | AC-02a, AC-02b, AC-11 |
+| dialog on `/manager/library` (0.7.0; the two template-form routes were removed) | S-09 Template Form | Manager | S1 | `GET /api/templates/:id`, `POST /api/templates`, `PUT /api/templates/:id`, `GET /api/categories` | AC-02a, AC-02b, AC-11 |
 | `/403`, `*` | S-10 Error Pages | Any | S1 | None | AC-12a, AC-22b |
 
-**Navigation.** Participant Sprint 1: Today, My Plan, Log out. Sprint 2 adds Progress and Profile (CHANGE-06/04). Manager: Exercise Library, Log out. Sprint 1 uses a bottom tab bar on mobile. Tablet and desktop navigation is optional and planned for Sprint 2. After login: Participant goes to `/today`; Manager goes to `/manager/library`.
+**Navigation.** Participant: a bottom bar with Today, Progress, Add, My Plan and Profile (0.7.0). Add opens the S-04 dialog on `/plan` (`/plan?add=1`). Progress and Profile are Sprint 2 (CHANGE-06/04) and open placeholder pages; Log out is in the top header. Manager: Exercise Library, Log out. Sprint 1 uses a bottom tab bar on mobile. Tablet and desktop navigation is optional and planned for Sprint 2. After login: Participant goes to `/today`; Manager goes to `/manager/library`.
 
 **Entry rule.** An unauthenticated visitor opening `/` sees S-00. Its button goes to `/login`. A visitor with a valid session opening `/` or `/login` is redirected to their landing page. If S-00 is not shipped, `/` redirects unauthenticated visitors to `/login` and authenticated visitors to their landing page.
 
@@ -228,8 +229,9 @@ Title: "Log activity - {exercise}". Fields by mode:
 
 ##### S-05 My Plan (F-03)
 
-- List from `GET /api/plan-items`: exercise name, mode, target, repeat-day chips, priority, date range. The target summary uses the plan fields, for example "4 × 10 reps @ 40 kg" or "3.5 km".
-- Empty state: "No exercises in your plan yet. Add your first one" with a button "Add your first one" that opens S-04.
+- (0.7.0) Calendar card with a Month | Week switch and previous/next arrows; today and the selected day are marked; a dot (Month) or a mascot (Week) marks days that have exercises. Below it a day summary (long date, "N exercises planned" or "Rest Day", button "Add exercise") and that day's list. "Today" comes from `GET /api/plan`; the whole plan comes from one `GET /api/plan-items` and the items on a date are computed in the browser (F-03 contract R12).
+- List item: exercise name, mode, target, repeat-day chips, priority, date range. The target summary uses the plan fields, for example "4 × 10 reps @ 40 kg" or "3.5 km".
+- Empty state: "No exercises in your plan yet. Add your first one" with a button "Add your first one" that opens S-04. A day with nothing planned shows "Rest Day: nothing is planned for this date."
 - Button "Add exercise" opens the S-04 dialog.
 - Sprint 2 adds Edit and End actions.
 
@@ -292,27 +294,27 @@ One screen at `/manager/library` with two areas.
 
 **Templates area**
 
-- Table of name, category, mode, body part, range, MET and actions Edit/Delete.
-- Filters by category and mode. Button "New template".
+- (0.7.0) Card grid of templates with Edit/Delete; category chips (All plus one per category), a name search and a mode filter. Button "New template" opens the S-09 dialog; button "Categories" opens the categories dialog.
 - Delete confirmation: "Delete this template? Participants' existing plans are not affected."
 - Empty state: "No exercises yet. Add the first one".
 
 **Categories area**
 
-- List of categories with inline add and rename.
+- (0.7.0) The categories dialog lists categories with add and rename.
 - Delete shows the notice "This category still has templates. Delete or move them first" when templates still exist (`CATEGORY_HAS_TEMPLATES`).
 
 The Manager never sees participant data. Opening `/today` as a Manager shows `/403`.
 
 ##### S-09 Template Form (F-02)
 
-- Route under the Exercise Library: `/manager/library/templates/new` and `/manager/library/templates/:id`.
+- (0.7.0) A dialog opened from the Exercise Library (no separate route). The earlier `/manager/library/templates/new` and `/:id` routes were removed.
 - Fields: category, name, tracking mode, target body part, Valid Range min and max, MET, and cardio category.
 - The unit label follows the mode: `reps`, `seconds` or `km`.
 - MET is greater than 0 and at most 25, step 0.1.
 - Cardio category is shown and required only for `CARDIO_DISTANCE`; it is forbidden for other modes.
 - Valid Range bounds the plan target. `rangeMax` also caps a single entry and the daily cumulative value (F-02 R10, F-04 R6). For reps modes the range is in total reps.
 - Tracking mode is disabled when editing.
+- (0.7.0) A picture picker is shown; it is UI-only: the choice is not saved and the dialog says so until the API accepts `imageUrl`.
 - Changing the mode clears fields that no longer apply.
 - Server errors appear inline.
 
