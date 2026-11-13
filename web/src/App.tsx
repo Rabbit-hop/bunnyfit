@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { landingPath, useAuth } from './auth/AuthContext'
+import { BottomNav } from './components/BottomNav'
 import { LoadingScreen } from './components/LoadingScreen'
 import { SessionHeader } from './components/SessionHeader'
 import { ErrorPage } from './pages/ErrorPage'
@@ -8,7 +9,6 @@ import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PlanPage } from './pages/PlanPage'
-import { TemplateFormPage } from './pages/TemplateFormPage'
 import { WelcomePage } from './pages/WelcomePage'
 
 type GuardProps = {
@@ -80,7 +80,7 @@ export default function App() {
   }
 
   return (
-    <div className={user ? 'app-shell has-tabbar' : 'app-shell'}>
+    <div className={user?.role === 'PARTICIPANT' ? 'app-shell has-tabbar' : 'app-shell'}>
       {user && <SessionHeader />}
       <main className="app-main">
         <Routes>
@@ -127,25 +127,10 @@ export default function App() {
               </Guard>
             }
           />
-          <Route
-            path="/manager/library/templates/new"
-            element={
-              <Guard role="MANAGER">
-                <TemplateFormPage />
-              </Guard>
-            }
-          />
-          <Route
-            path="/manager/library/templates/:id"
-            element={
-              <Guard role="MANAGER">
-                <TemplateFormPage />
-              </Guard>
-            }
-          />
           <Route path="*" element={<ErrorPage kind="notFound" />} />
         </Routes>
       </main>
+      <BottomNav />
     </div>
   )
 }

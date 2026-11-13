@@ -15,11 +15,15 @@ export function ErrorPage({ kind }: ErrorPageProps) {
   const home = user ? landingPath(user.role) : '/login'
 
   return (
-    <section className="page">
-      <h2>{TITLES[kind]}</h2>
-      <Link className="btn btn-primary" to={home} data-testid="error-home">
-        Go to home
-      </Link>
-    </section>
+    <>
+      <header className="page-holder">
+        <h2>{TITLES[kind]}</h2>
+      </header>
+      <section className="page">
+        <Link className="btn btn-primary" to={home} data-testid="error-home">
+          Go to home
+        </Link>
+      </section>
+    </>
   )
 }

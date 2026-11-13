@@ -1,9 +1,9 @@
 export function LoadingScreen() {
   return (
-    <div className="loading-screen" data-testid="loading-screen" role="status">
+    <div className="loading-screen welcome-screen" data-testid="loading-screen" role="status">
       <img
-        className="loading-title"
-        src="/assets/letgetmoving.svg"
+        className="welcome-logo"
+        src="/assets/letgetmoving-title.svg"
         alt=""
         aria-hidden="true"
       />
@@ -13,6 +13,8 @@ export function LoadingScreen() {
         alt=""
         aria-hidden="true"
       />
+      {/* Same box as the Welcome page's Login button (kept invisible) so the mascot sits identically */}
+      <span className="welcome-login welcome-login-spacer" aria-hidden="true" />
       <span className="sr-only">Loading…</span>
     </div>
   )

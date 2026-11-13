@@ -5,9 +5,13 @@ type PlaceholderPageProps = {
 
 export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
   return (
-    <section className="page">
-      <h2>{title}</h2>
-      <p>{description}</p>
-    </section>
+    <>
+      <header className="page-holder">
+        <h2>{title}</h2>
+      </header>
+      <section className="page">
+        <p>{description}</p>
+      </section>
+    </>
   )
 }
