@@ -2,10 +2,10 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.7.0
+**Document Version:** 0.8.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
-**Status:** 0.7.0 Draft (UI reconciled with the implementation in PR #36, review pending); 0.6.0 was approved
+**Status:** 0.8.0 Draft (0.7.0 reconciled the UI with PR #36; 0.8.0 aligns S-02 Today with the design reference, review pending); 0.6.0 was approved
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/ui-spec.md`
 **Scope:** Sprint 1 screens for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Participant navigation in Sprint 1 is Today and My Plan; Profile (S-07) and monthly progress (S-06) are Sprint 2 (CHANGE-04/06) and open placeholder pages in the five-item bottom bar (0.7.0). The wider design is not a Sprint 1 gate.
@@ -29,6 +29,7 @@
 | **0.5.0** | 6 Nov 2026 | PR #15 second review-fix pass: aligned S-04 to the F-03 two-tab Add Exercise dialog, aligned contract copy and empty states, moved the start date to the server `date` and extended the today rule to every date-aware screen, added the ledger time/value/kind and remaining-limit/range helper text, labelled AC-25 extras as supplementary, and fixed the health/test-id/viewport notes. No baseline or contract change. | Onsinee | Draft |
 | **0.6.0** | 6 Nov 2026 | Reviewer approval recorded after re-review of `752f07d..13163f2`. Status set to Approved and the API Specification reference updated to 0.6.0; no UI, baseline or contract content changed. | Onsinee | Approved |
 | **0.7.0** | 13 Nov 2026 | Reconciled with the UI implemented in PR #36; no baseline, API or contract change. (1) S-05 My Plan is a calendar (Month/Week) with a day summary and that day's list, not a plain list. (2) Participant navigation is a five-item bottom bar: Today, Progress, centre Add (opens S-04 via `/plan?add=1`), My Plan, Profile; Progress and Profile open Sprint 2 placeholders. (3) S-08/S-09: the Template Form is a dialog on `/manager/library` (the two `/manager/library/templates/*` routes were removed) and Categories is a dialog; the Library has category chips, a name search and a card grid. (4) The template picture picker is UI-only and nothing is saved until the API accepts `imageUrl`. (5) Welcome and Loading share one layout; Welcome is shown at `/welcome`. | Onsinee | Draft |
+| **0.8.0** | 13 Nov 2026 | S-02 Today look aligned to the design reference (issue #10): a read-only Monday-to-Sunday week row with today marked (`today-week`), the overall card as a "Today's progress" row with the percentage on the right and "x / y points" below, and per plan item card a coloured exercise tile, a mode badge, a priority badge "P<weight>", "Target …", "Logged a of t … · score s", the item ratio as a percentage (`item-pct`), the Quick Complete / Completed and Log buttons and a small "Entries" link. Behaviour, data sources, copy and the S-02/S-03 test ids are unchanged; there is still no global "Add activity" control and no body-weight chip in Sprint 1. No baseline, contract or API change. | Onsinee | Draft |
 
 **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence over this consolidated specification. The exact request/response shapes and rules in the F-xx contracts are authoritative; the UI may not depend on removed endpoints or fields. The v0.2.0 draft is reconciliation history only.
 
@@ -198,7 +199,7 @@ Use soft white for small body text on card teal. Do not use coral as a large bac
 
 ##### S-02 Today (F-04, F-06)
 
-- Header: date and the shared session header. The body-weight chip from `GET /api/profile` (`70.5 kg`, link to Profile, or "Set your body weight") is Sprint 2 with the Profile screen (CHANGE-04); daily overall progress card with a bar, `overallPercent` and `totalScore / totalWeight`.
+- Header: date and the shared session header, then a read-only week row (Monday to Sunday, today marked; the days are not buttons because logging is only for today). The body-weight chip from `GET /api/profile` (`70.5 kg`, link to Profile, or "Set your body weight") is Sprint 2 with the Profile screen (CHANGE-04); daily overall progress card with a bar, `overallPercent` and `totalScore / totalWeight`.
 - When `overallPercent` is null, show "Rest day: no goal today" in the overall card instead of a percentage (F-06 §6).
 - Plan item card for each `items[]`: name, tracking-mode badge, priority badge, target text, actual vs target, mini bar from `ratio`, item score, and buttons. Today shows only the total `items[].target` and unit, for example "Target 40 reps"; the detailed "4 × 10 reps @ 40 kg" breakdown belongs to My Plan, which has the plan-item fields.
 - Quick Complete is enabled when the day is not a rest day and `ratio < 1`. It calls `POST /api/entries/quick-complete`, then refreshes from `GET /api/progress/daily` and `GET /api/entries`. A 200 with `entry: null` shows "Already completed, nothing added". When `ratio >= 1` the button reads "Completed" and **remains clickable**; clicking it makes the No-op request and shows the same notice. F-04 §6 defines this behaviour, so the button is not disabled.
