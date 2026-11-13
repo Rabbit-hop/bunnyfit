@@ -217,7 +217,7 @@ export function LoginPage() {
             )}
           </div>
 
-          {/* "Remember me", "Forgot password?" and "Create account" are not built (UI spec §3 row 3, decision 17). */}
+          {/* Not built: "Forgot password?" and "Create account" (UI spec S-01: "No registration or password recovery links") and "Remember me" (the spec does not mention it; the API has no remember-me). */}
           <button type="submit" className="btn btn-primary login-submit" disabled={pending} data-testid="login-submit">
             {pending && <span className="btn-spinner" aria-hidden="true" />}
             {pending ? 'Signing in…' : 'Sign In'}
