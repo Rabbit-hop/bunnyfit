@@ -199,7 +199,7 @@ a { color: #2b4fb8; text-decoration: none; }
 .toc tr.part td { background: #e9eefc; font-weight: 600; }
 `
 const MERMAID = `
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr" crossorigin="anonymous"></script>
 <script>window.addEventListener('load', async () => { try { mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' }); await mermaid.run({ querySelector: 'pre.mermaid' }) } catch (e) { document.body.dataset.mermaidError = String(e) } document.body.dataset.ready = '1' })</script>`
 
 const sectionHtml = (s) => `<section class="section${s.landscape ? ' land' : ''}" id="s-${s.key}">
@@ -241,7 +241,7 @@ for (const s of sections) {
 // Every evidence chapter names the commit it was collected on; show them so a mismatch with the documents is visible.
 function evidenceCommitRows() {
   const rows = evidenceParts.map((ev) => {
-    const m = ev.md.match(/(?:Commit under test |s*|on commit )`([0-9a-f]{40})`/)
+    const m = ev.md.match(/\| (?:Commit under test|Repository HEAD when collected) \| `([0-9a-f]{40})`/)
     if (!m) return null
     const same = m[1] === COMMIT
     return `<tr><th>Evidence: ${esc(ev.title)}</th><td><code>${m[1].slice(0, 12)}</code> ${same ? '(same as the documents)' : '<b>differs from the documents commit</b>'}</td></tr>`

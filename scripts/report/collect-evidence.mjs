@@ -201,10 +201,12 @@ async function collectGit() {
     const reviews = JSON.parse(sh('gh', ['api', `repos/${repo}/pulls/${p.number}/reviews`, '--paginate']).out || '[]')
     const comments = JSON.parse(sh('gh', ['api', `repos/${repo}/pulls/${p.number}/comments`, '--paginate']).out || '[]')
     const issueComments = JSON.parse(sh('gh', ['api', `repos/${repo}/issues/${p.number}/comments`, '--paginate']).out || '[]')
-    prs.push({ ...p, reviews, inline: comments.length, discussion: issueComments.length })
+    // Only a teammate's review is evidence of review; the author's own comment on their PR is not.
+    const peer = reviews.filter((r) => r.user?.login !== p.author?.login)
+    prs.push({ ...p, reviews: peer, inline: comments.length, discussion: issueComments.length })
   }
   const authorOf = (p) => p.author?.login ?? '?'
-  const reviewed = prs.filter((p) => p.reviews.some((r) => r.user?.login !== authorOf(p)) || p.reviews.length > 0)
+  const reviewed = prs.filter((p) => p.reviews.length > 0)
   const states = (p) => [...new Set(p.reviews.map((r) => `${r.user?.login}: ${r.state}`))].join('; ')
   const plain = (t) => t.replace(/[`*#>|_]/g, '').replace(/\s+/g, ' ').trim()
   const excerpt = (p) => {
