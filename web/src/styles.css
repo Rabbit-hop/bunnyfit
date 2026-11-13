@@ -414,29 +414,6 @@ body {
   outline-offset: 2px;
 }
 
-.login-options {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  font-size: 0.875rem;
-}
-
-.login-options a {
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.login-footer {
-  margin: 1rem 0 0;
-  font-size: 0.875rem;
-  text-align: center;
-}
-
-.login-footer a {
-  color: var(--color-text);
-  text-decoration: underline;
-}
-
 .field-error {
   margin: 0.35rem 0 0;
   font-size: 0.8125rem;

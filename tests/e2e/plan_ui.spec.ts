@@ -227,3 +227,28 @@ test('S-04 (UI): picking another template clears the target values and old error
   for (const input of await targets.all()) await expect(input).toHaveValue('')
   await expect(page.locator('[data-testid^="field-error-"]')).toHaveCount(0)
 })
+
+test('plan (UI): a tab that becomes visible after midnight moves "today" and the selected day forward', async ({ page }) => {
+  let shiftTo = ''
+  await page.route(/\/api\/plan(\?.*)?$/, async (route) => {
+    try {
+      const response = await route.fetch()
+      if (!shiftTo) return await route.fulfill({ response })
+      const body = await response.json()
+      await route.fulfill({ response, json: { ...body, date: shiftTo } })
+    } catch {
+      // The page was closed while a request was in flight (test teardown).
+    }
+  })
+  await loginAsParticipant(page)
+  await expect(page.getByTestId('plan-loading')).toHaveCount(0)
+  const selected = () => page.locator('[data-testid^="day-"][aria-pressed="true"]').first().getAttribute('data-date')
+  const today = (await selected()) as string
+  const next = new Date(`${today}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  shiftTo = next.toISOString().slice(0, 10)
+
+  await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+  await expect.poll(selected).toBe(shiftTo)
+  await expect(page.locator('.cal-day-today')).toHaveAttribute('data-date', shiftTo)
+})

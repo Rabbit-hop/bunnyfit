@@ -117,6 +117,11 @@ export function LibraryPage() {
     setKeyword(null)
   }
 
+  function chooseMode(mode: string) {
+    setModeFilter(mode)
+    setKeyword(null)
+  }
+
   async function refreshCategories() {
     setCategories(await listCategories())
   }
@@ -256,9 +261,34 @@ export function LibraryPage() {
         ))}
       </div>
 
-      <div className="library-filters">
-        {/* Kept for tests and screen readers; the circles above are the visible category filter */}
-        <label className="sr-only">
+      {/* Row 3: tracking mode (server filter `trackingMode`; a category can span several modes) */}
+      <div className="chip-row chip-row-pills" role="group" aria-label="Tracking mode">
+        <button
+          type="button"
+          aria-pressed={modeFilter === ''}
+          className={modeFilter === '' ? 'chip-pill active' : 'chip-pill'}
+          onClick={() => chooseMode('')}
+          data-testid="mode-chip-all"
+        >
+          All modes
+        </button>
+        {TRACKING_MODES.map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={modeFilter === m}
+            className={modeFilter === m ? 'chip-pill active' : 'chip-pill'}
+            onClick={() => chooseMode(m)}
+            data-testid={`mode-chip-${m}`}
+          >
+            {MODE_LABEL[m]}
+          </button>
+        ))}
+      </div>
+
+      <div className="sr-only">
+        {/* Kept for tests and screen readers; the circles and pills above are the visible filters */}
+        <label>
           Category
           <select
             value={categoryFilter}
@@ -275,14 +305,7 @@ export function LibraryPage() {
         </label>
         <label>
           Mode
-          <select
-            value={modeFilter}
-            onChange={(e) => {
-              setModeFilter(e.target.value)
-              setKeyword(null)
-            }}
-            data-testid="filter-mode"
-          >
+          <select value={modeFilter} onChange={(e) => chooseMode(e.target.value)} data-testid="filter-mode">
             <option value="">All modes</option>
             {TRACKING_MODES.map((m) => (
               <option key={m} value={m}>

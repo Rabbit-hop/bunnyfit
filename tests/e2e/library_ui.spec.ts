@@ -111,3 +111,19 @@ test('S-08 (UI): a filter with no matches says so, the empty-library text is not
   await catRow.getByRole('button', { name: 'Delete' }).click()
   await expect(page.locator('[data-testid^="category-row-"]', { hasText: category })).toHaveCount(0)
 })
+
+test('S-08 (UI): the Mode chip row filters by trackingMode and "All modes" clears it', async ({ page }) => {
+  await loginAsManager(page)
+  await expect(page.getByTestId('library-loading')).toHaveCount(0)
+
+  const filtered = page.waitForResponse((r) => r.url().includes('/api/templates') && r.url().includes('trackingMode=WEIGHT'))
+  await page.getByTestId('mode-chip-WEIGHT').click()
+  await filtered
+  await expect(page.getByTestId('mode-chip-WEIGHT')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('filter-mode')).toHaveValue('WEIGHT')
+
+  const cleared = page.waitForResponse((r) => r.url().includes('/api/templates') && !r.url().includes('trackingMode='))
+  await page.getByTestId('mode-chip-all').click()
+  await cleared
+  await expect(page.getByTestId('mode-chip-all')).toHaveAttribute('aria-pressed', 'true')
+})

@@ -58,6 +58,29 @@ export function PlanPage() {
       })
   }, [reloadKey])
 
+  // A tab left open past Asia/Bangkok midnight: when it becomes visible again ask the server for today.
+  // If the user was still looking at the old "today", follow it to the new one; otherwise keep their choice.
+  const todayRef = useRef('')
+  todayRef.current = today
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || todayRef.current === '') return
+      const previous = todayRef.current
+      getPlan()
+        .then((plan) => {
+          if (!plan || plan.date === previous) return
+          setToday(plan.date)
+          setSelected((current) => (current === previous ? plan.date : current))
+          setReloadKey((k) => k + 1)
+        })
+        .catch(() => {
+          // Keep what is on screen; the next visibility change tries again.
+        })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   // Toasts dismiss themselves.
   useEffect(() => {
     if (!toast) return
