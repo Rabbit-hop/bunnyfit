@@ -208,7 +208,7 @@ export function TodayPage() {
               {done ? 'Completed' : 'Quick Complete'}
             </button>
             <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
-              Goals
+              Record
             </button>
             <span className="item-pct" data-testid="item-pct">
               {Math.round(item.ratio * 100)}%
@@ -300,7 +300,7 @@ export function TodayPage() {
                     Quick Complete
                   </button>
                   <button type="button" className="btn btn-primary pill" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise })}>
-                    Goals
+                    Record
                   </button>
                   <button type="button" className="entries-toggle" data-testid="rest-day-entries-toggle" aria-expanded={expanded.has(exercise.id)} onClick={() => toggle(exercise.id)}>
                     Entries
