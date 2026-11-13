@@ -1769,13 +1769,6 @@ button.bottom-nav-item {
   margin-bottom: 0.3rem;
 }
 
-.week-static {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-}
-
 .overall-card {
   padding: 1rem 1.1rem;
   border-radius: 20px;
@@ -1905,4 +1898,24 @@ button.bottom-nav-item {
 
 .item-actions .entries-toggle {
   margin: 0 0 0 auto;
+}
+
+.view-only {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.875rem;
+  background: var(--color-pink);
+  border-radius: 14px;
+}
+
+.view-only p {
+  margin: 0;
+}
+
+.week-row-card .cal-head {
+  margin-bottom: 0.4rem;
 }
