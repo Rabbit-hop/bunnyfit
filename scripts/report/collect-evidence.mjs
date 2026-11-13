@@ -37,7 +37,8 @@ const strip = (s) => s.replace(/\u001b\[[0-9;]*m/g, '')
 const NODE = process.execPath
 const COMMIT = git('rev-parse', 'HEAD')
 const BRANCH = git('branch', '--show-current') || '(detached HEAD)'
-const DIRTY = git('status', '--short').split('\n').filter(Boolean).filter((l) => !l.includes('docs/local/') && !l.includes('.tmp.config.ts')) // a throw-away Playwright config for a free port does not change the code under test.length
+// A throw-away Playwright config for a free port does not change the code under test, so it is not counted.
+const DIRTY = git('status', '--short').split('\n').filter(Boolean).filter((l) => !l.includes('docs/local/') && !l.includes('.tmp.config.ts')).length
 const STAMP = new Date().toISOString()
 
 const header = (title, label = 'Commit under test') =>
