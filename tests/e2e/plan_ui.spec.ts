@@ -66,7 +66,11 @@ test('S-04 (UI): add from the library, target fields follow the mode', async ({ 
   const before = await page.locator('[data-testid^="plan-item-"]').count()
 
   await page.getByTestId('plan-add').click()
+  // The list keeps showing the unfiltered templates until the filtered response arrives, so wait for it;
+  // otherwise `.first()` can be a template of another mode (seen as a failure when the suite runs in parallel).
+  const filtered = page.waitForResponse((r) => r.url().includes('/api/templates') && r.url().includes('trackingMode=BODYWEIGHT_REPS'))
   await page.getByTestId('picker-mode').selectOption('BODYWEIGHT_REPS')
+  await filtered
   const card = page.locator('[data-testid^="template-card-"]').first()
   await expect(card).toBeVisible()
   await card.click()
