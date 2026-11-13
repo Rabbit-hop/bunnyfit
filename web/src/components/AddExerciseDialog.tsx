@@ -58,6 +58,10 @@ function positive(value: string, integer: boolean): number | null {
 export function AddExerciseDialog({ onClose, onSaved }: Props) {
   const [tab, setTab] = useState<Tab>('library')
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
+  // A failed template reload keeps the form (and what was typed); only the list shows the error + Retry.
+  const [templatesFailed, setTemplatesFailed] = useState(false)
+  const [initKey, setInitKey] = useState(0)
+  const [templatesKey, setTemplatesKey] = useState(0)
   const [today, setToday] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
@@ -93,9 +97,11 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
   // Today comes from the server (GET /api/plan defaults to today), never the browser clock.
   useEffect(() => {
     let cancelled = false
+    setLoadState('loading')
     Promise.all([getPlan(), listCategories()])
       .then(([plan, cats]) => {
-        if (cancelled || !plan) return
+        if (cancelled) return
+        if (!plan) throw new Error('empty plan response') // 204: show the error + Retry, not an endless skeleton
         setToday(plan.date)
         setEffectiveFrom(plan.date)
         setCategories(cats)
@@ -107,28 +113,50 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initKey])
 
   // Templates reload when a server-side filter changes; an older, slower response is ignored.
   useEffect(() => {
     const seq = ++loadSeq.current
+    setTemplatesFailed(false)
     listTemplates({ categoryId: categoryFilter, trackingMode: modeFilter })
       .then((rows) => {
         if (seq === loadSeq.current) setTemplates(rows)
       })
       .catch(() => {
-        if (seq === loadSeq.current) setLoadState('error')
+        if (seq === loadSeq.current) setTemplatesFailed(true)
       })
-  }, [categoryFilter, modeFilter])
+  }, [categoryFilter, modeFilter, templatesKey])
 
+  // Something typed or chosen that Cancel / Esc / the close button would throw away.
+  // Choosing a library template alone does not count: nothing has been typed yet.
+  const dirty =
+    name.trim() !== '' ||
+    bodyPart.trim() !== '' ||
+    cardio !== '' ||
+    [sets, reps, load, durMin, durSec, distance].some((v) => v !== '') ||
+    endDate !== '' ||
+    priority !== 3 ||
+    days.length !== ALL_DAYS.length ||
+    (today !== '' && effectiveFrom !== today)
+
+  function requestClose() {
+    if (saving) return
+    if (dirty && !window.confirm('Discard your unsaved changes?')) return
+    onClose()
+  }
+
+  // Esc uses the latest requestClose (dirty / saving) without re-binding the listener every render.
+  const closeRef = useRef(requestClose)
+  closeRef.current = requestClose
   useEffect(() => {
     dialogRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') closeRef.current()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   useEffect(() => {
     if (formError) noticeRef.current?.focus()
@@ -196,15 +224,34 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
     setDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)))
   }
 
-  function onModeChange(next: TrackingMode) {
-    setCustomMode(next)
-    setCardio('')
+  // Target values belong to one exercise/mode: clear them (and their errors) whenever that changes.
+  function resetTarget() {
     setSets('')
     setReps('')
     setLoad('')
     setDurMin('')
     setDurSec('')
     setDistance('')
+    setFieldErrors({})
+    setFormError('')
+  }
+
+  function onModeChange(next: TrackingMode) {
+    setCustomMode(next)
+    setCardio('')
+    resetTarget()
+  }
+
+  function pickTemplate(t: Template) {
+    if (selected?.id === t.id) return
+    setSelected(t)
+    resetTarget()
+  }
+
+  function switchTab(next: Tab) {
+    if (next === tab) return
+    setTab(next)
+    resetTarget()
   }
 
   async function onSubmit(event: FormEvent) {
@@ -225,6 +272,10 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
     const { target, errors } = parseTarget()
     Object.assign(local, errors)
     if (days.length === 0) local.repeatDays = 'Choose at least one day'
+    // The server's today is the default and the minimum start date (UI spec S-04 / §3.5); typing can bypass min=.
+    if (effectiveFrom === '') local.effectiveFrom = 'Choose a start date'
+    else if (today !== '' && effectiveFrom < today) local.effectiveFrom = 'Start date cannot be before today'
+    if (endDate !== '' && effectiveFrom !== '' && endDate < effectiveFrom) local.endDate = 'End date cannot be before the start date'
     if (Object.keys(local).length > 0) {
       setFieldErrors(local)
       return
@@ -311,7 +362,18 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
         tabIndex={-1}
         ref={dialogRef}
       >
-        <h3 id="add-exercise-title">Add exercise</h3>
+        <div className="dialog-head">
+          <h3 id="add-exercise-title">Add exercise</h3>
+          <button
+            type="button"
+            className="btn btn-secondary dialog-close"
+            onClick={requestClose}
+            aria-label="Close"
+            data-testid="add-exercise-close"
+          >
+            ✕
+          </button>
+        </div>
 
         {loadState === 'loading' && (
           <div className="skeleton-rows" aria-busy="true" data-testid="add-exercise-loading">
@@ -324,8 +386,11 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
           <>
             <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
             <div className="row-actions">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-secondary" onClick={onClose} data-testid="add-exercise-error-close">
                 Close
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => setInitKey((k) => k + 1)} data-testid="add-exercise-retry">
+                Retry
               </button>
             </div>
           </>
@@ -341,7 +406,7 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
                 role="tab"
                 aria-selected={tab === 'library'}
                 className={tab === 'library' ? 'tab tab-active' : 'tab'}
-                onClick={() => setTab('library')}
+                onClick={() => switchTab('library')}
                 data-testid="tab-from-library"
               >
                 From library
@@ -351,7 +416,7 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
                 role="tab"
                 aria-selected={tab === 'custom'}
                 className={tab === 'custom' ? 'tab tab-active' : 'tab'}
-                onClick={() => setTab('custom')}
+                onClick={() => switchTab('custom')}
                 data-testid="tab-custom"
               >
                 Custom
@@ -399,7 +464,15 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
                   />
                 </div>
 
-                {visibleTemplates.length === 0 && (
+                {templatesFailed && (
+                  <ErrorNotice>
+                    Could not load the templates. Your entries are kept.{' '}
+                    <button type="button" className="btn btn-secondary" onClick={() => setTemplatesKey((k) => k + 1)} data-testid="picker-retry">
+                      Retry
+                    </button>
+                  </ErrorNotice>
+                )}
+                {!templatesFailed && visibleTemplates.length === 0 && (
                   <p className="empty-state" data-testid="picker-empty">
                     No templates match
                   </p>
@@ -414,7 +487,7 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
                             type="button"
                             className={selected?.id === t.id ? 'template-card template-card-selected' : 'template-card'}
                             aria-pressed={selected?.id === t.id}
-                            onClick={() => setSelected(t)}
+                            onClick={() => pickTemplate(t)}
                             data-testid={`template-card-${t.id}`}
                           >
                             <strong>{t.name}</strong>
@@ -677,7 +750,7 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
             )}
 
             <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={onClose} data-testid="plan-cancel">
+              <button type="button" className="btn btn-secondary" onClick={requestClose} data-testid="plan-cancel">
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={saving} data-testid="plan-save">

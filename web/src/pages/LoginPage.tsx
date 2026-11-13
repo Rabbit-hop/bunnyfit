@@ -218,11 +218,7 @@ export function LoginPage() {
           </div>
 
           <div className="login-options">
-            {/* TODO: wire up to persistent (localStorage) sessions once that's designed; disabled for now rather than a checkbox with no effect */}
-            <label className="login-remember login-remember-disabled">
-              <input type="checkbox" disabled />
-              Remember me
-            </label>
+            {/* "Remember me" is not built (UI spec: the API has no remember-me; no disabled placeholders). */}
             {/* TODO: wire up to the forgot-password page once that route exists */}
             <a href="#" onClick={(event) => event.preventDefault()}>
               Forgot password?

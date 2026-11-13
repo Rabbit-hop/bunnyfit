@@ -52,12 +52,16 @@ function daysInMonth(year: number, month1: number): number {
   return new Date(Date.UTC(year, month1, 0)).getUTCDate()
 }
 
-/** Same day-of-month `n` months away, clamped to the last day (31 Jan + 1 month = 28/29 Feb). */
-export function addMonths(iso: string, n: number): string {
+/**
+ * Same day-of-month `n` months away, clamped to the last day (31 Jan + 1 month = 28/29 Feb).
+ * `anchorDay` is the day the user really wants (default: the day of `iso`); a calendar that steps
+ * month by month passes the original day so 31 Jan -> 28 Feb -> 31 Mar instead of drifting to the 28th.
+ */
+export function addMonths(iso: string, n: number, anchorDay: number = dayOfMonth(iso)): string {
   const total = Number(iso.slice(0, 4)) * 12 + (Number(iso.slice(5, 7)) - 1) + n
   const year = Math.floor(total / 12)
   const month1 = (total % 12) + 1
-  const day = Math.min(dayOfMonth(iso), daysInMonth(year, month1))
+  const day = Math.min(anchorDay, daysInMonth(year, month1))
   return `${year}-${String(month1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 

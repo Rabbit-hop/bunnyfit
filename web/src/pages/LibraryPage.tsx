@@ -58,6 +58,9 @@ export function LibraryPage() {
       if (seq !== loadSeq.current) return
       setCategories(cats)
       setTemplates(tpls)
+      // A keyword pill only exists while a template with that name is loaded; drop it when its template is gone
+      // (e.g. just deleted) so the list is not left filtered by a pill that no longer shows.
+      setKeyword((current) => (current !== null && tpls.some((t) => t.name === current) ? current : null))
       setState('ready')
     } catch {
       if (seq !== loadSeq.current) return

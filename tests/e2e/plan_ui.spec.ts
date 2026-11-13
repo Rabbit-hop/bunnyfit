@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { addMonths } from '../../web/src/lib/dates.js'
 
 // Supplementary UI coverage for issue #9 (F-03 S-04/S-05). Not the RTM artifact for
 // AC-03a-c / AC-11 (tests/integration/goal_config.test.ts, tests/unit/boundary_validation.test.ts)
@@ -129,4 +130,100 @@ test('bottom bar: Today and My Plan link to their pages; Progress and Profile sa
   await page.getByTestId('nav-profile').click()
   await expect(page.getByTestId('nav-coming-soon')).toContainText('Profile')
   await expect(page).toHaveURL(/\/plan$/)
+})
+
+test('calendar (UI): stepping months from the 31st returns to the 31st instead of drifting to the 28th', async ({ page }) => {
+  await loginAsParticipant(page)
+  await expect(page.getByTestId('plan-loading')).toHaveCount(0)
+  // Any 31st shown in the 6-week grid (it also lists the neighbouring months' days).
+  const cell = page.locator('[data-testid^="day-"][data-date$="-31"]').first()
+  await expect(cell).toBeVisible()
+  const start = (await cell.getAttribute('data-date')) as string
+  await cell.click()
+
+  const selected = () => page.locator('[data-testid^="day-"][aria-pressed="true"]').first().getAttribute('data-date')
+  const one = addMonths(start, 1, 31)
+  const two = addMonths(one, 1, 31)
+  await page.getByTestId('cal-next').click()
+  await expect.poll(selected).toBe(one)
+  await page.getByTestId('cal-next').click()
+  await expect.poll(selected).toBe(two)
+  await page.getByTestId('cal-prev').click()
+  await expect.poll(selected).toBe(one)
+  await page.getByTestId('cal-prev').click()
+  await expect.poll(selected).toBe(start)
+})
+
+test('S-04 (UI): a cleared or past start date is rejected before anything is sent', async ({ page }) => {
+  await loginAsParticipant(page)
+  await page.getByTestId('plan-add').click()
+  await page.getByTestId('tab-custom').click()
+  await page.getByTestId('custom-name').fill(`E2E Date ${Date.now().toString(36)}`)
+  await page.getByTestId('custom-body-part').fill('Core')
+  await page.getByTestId('target-sets').fill('2')
+  await page.getByTestId('target-reps').fill('5')
+
+  let posted = false
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().includes('/api/plan-items')) posted = true
+  })
+  await page.getByTestId('plan-start').fill('')
+  await page.getByTestId('plan-save').click()
+  await expect(page.getByTestId('field-error-effectiveFrom')).toContainText('start date')
+  await page.getByTestId('plan-start').fill('2000-01-01')
+  await page.getByTestId('plan-save').click()
+  await expect(page.getByTestId('field-error-effectiveFrom')).toContainText('before today')
+  expect(posted).toBe(false)
+  await expect(page.getByTestId('add-exercise-dialog')).toBeVisible()
+})
+
+test('S-04 (UI): Esc and the close button ask before discarding typed input, and picking another template clears the target', async ({ page }) => {
+  await loginAsParticipant(page)
+  await page.getByTestId('plan-add').click()
+  await expect(page.getByTestId('add-exercise-dialog')).toBeVisible()
+
+  // Untouched form: Esc closes without a prompt.
+  let prompts = 0
+  page.on('dialog', async (d) => {
+    prompts += 1
+    await d.dismiss()
+  })
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('add-exercise-dialog')).toHaveCount(0)
+  expect(prompts).toBe(0)
+
+  // Typed input: Esc asks; dismissing keeps the dialog and the input.
+  await page.getByTestId('plan-add').click()
+  await page.getByTestId('tab-custom').click()
+  await page.getByTestId('custom-name').fill('Keep me')
+  await page.keyboard.press('Escape')
+  await expect.poll(() => prompts).toBe(1)
+  await expect(page.getByTestId('add-exercise-dialog')).toBeVisible()
+  await expect(page.getByTestId('custom-name')).toHaveValue('Keep me')
+  await page.getByTestId('add-exercise-close').click()
+  await expect.poll(() => prompts).toBe(2)
+  await expect(page.getByTestId('add-exercise-dialog')).toBeVisible()
+
+  // Accepting the prompt closes it.
+  page.removeAllListeners('dialog')
+  page.on('dialog', (d) => void d.accept())
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('add-exercise-dialog')).toHaveCount(0)
+})
+
+test('S-04 (UI): picking another template clears the target values and old errors', async ({ page }) => {
+  await loginAsParticipant(page)
+  await page.getByTestId('plan-add').click()
+  const cards = page.locator('[data-testid^="template-card-"]')
+  await expect(cards.nth(1)).toBeVisible()
+  await cards.nth(0).click()
+  const targets = page.locator('input[data-testid^="target-"]')
+  await expect(targets.first()).toBeVisible()
+  for (const input of await targets.all()) await input.fill('99999')
+  await page.getByTestId('plan-save').click()
+  await expect(page.locator('[data-testid^="field-error-"]').first()).toBeVisible()
+
+  await cards.nth(1).click()
+  for (const input of await targets.all()) await expect(input).toHaveValue('')
+  await expect(page.locator('[data-testid^="field-error-"]')).toHaveCount(0)
 })

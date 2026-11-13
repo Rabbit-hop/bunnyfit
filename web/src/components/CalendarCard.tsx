@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { addDays, addMonths, dayOfMonth, formatMonthYear, isSameMonth, monthGrid, weekOf } from '../lib/dates'
 import { formatDay, WEEKDAYS } from '../lib/plan'
 
@@ -25,7 +26,16 @@ function Arrow({ dir, label, testId, onClick }: { dir: 'prev' | 'next'; label: s
 
 export function CalendarCard({ mode, selected, today, hasPlan, onModeChange, onSelect }: Props) {
   const week = weekOf(selected)
-  const step = mode === 'month' ? (n: number) => addMonths(selected, n) : (n: number) => addDays(selected, 7 * n)
+  // Month arrows clamp to short months (31 Jan -> 28 Feb); remember the day the user chose so
+  // stepping on goes 28 Feb -> 31 Mar. Any selection that did not come from an arrow resets it.
+  const [nav, setNav] = useState<{ at: string; anchor: number } | null>(null)
+  const anchor = nav && nav.at === selected ? nav.anchor : dayOfMonth(selected)
+  function step(n: number) {
+    if (mode === 'week') return addDays(selected, 7 * n)
+    const next = addMonths(selected, n, anchor)
+    setNav({ at: next, anchor })
+    return next
+  }
   const title = mode === 'month' ? formatMonthYear(selected) : `${formatDay(week[0])} – ${formatDay(week[6])}`
   const days = mode === 'month' ? monthGrid(selected) : week
 

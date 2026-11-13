@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AddExerciseDialog } from '../components/AddExerciseDialog'
 import { CalendarCard, type CalendarMode } from '../components/CalendarCard'
@@ -75,7 +75,18 @@ export function PlanPage() {
     setReloadKey((k) => k + 1)
   }
 
-  const hasPlan = (iso: string) => itemsOn(all, iso, isoWeekday(iso)).length > 0
+  // The calendar asks about up to 42 dates per render; answer each date once per plan load.
+  const hasPlan = useMemo(() => {
+    const cache = new Map<string, boolean>()
+    return (iso: string) => {
+      let planned = cache.get(iso)
+      if (planned === undefined) {
+        planned = itemsOn(all, iso, isoWeekday(iso)).length > 0
+        cache.set(iso, planned)
+      }
+      return planned
+    }
+  }, [all])
   const entries = selected ? itemsOn(all, selected, isoWeekday(selected)) : []
   const ready = state === 'ready' && selected !== ''
 

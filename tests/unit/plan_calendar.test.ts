@@ -31,6 +31,24 @@ describe('dates', () => {
     expect(addMonths('2026-01-15', -1)).toBe('2025-12-15');
   });
 
+  it('addMonths with an anchor day restores the 31st after a short month (no drift)', () => {
+    // Without the anchor the second step starts from 28 Feb and stays on the 28th.
+    expect(addMonths('2026-02-28', 1)).toBe('2026-03-28');
+    let date = '2026-01-31';
+    const forward: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      date = addMonths(date, 1, 31);
+      forward.push(date);
+    }
+    expect(forward).toEqual(['2026-02-28', '2026-03-31', '2026-04-30']);
+    const back: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      date = addMonths(date, -1, 31);
+      back.push(date);
+    }
+    expect(back).toEqual(['2026-03-31', '2026-02-28', '2026-01-31']);
+  });
+
   it('monthGrid has 42 Monday-first dates that include the whole month', () => {
     const grid = monthGrid('2026-11-13');
     expect(grid).toHaveLength(42);
