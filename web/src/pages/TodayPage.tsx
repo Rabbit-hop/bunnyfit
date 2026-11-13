@@ -58,6 +58,7 @@ export function TodayPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
   const loadSeq = useRef(0)
 
@@ -165,50 +166,108 @@ export function TodayPage() {
   }
 
   const firstTime = daily.isRestDay && exercises.length === 0
+  // Completed activities (ratio >= 1) live behind the History button; Today lists only what is still open.
+  const openItems = daily.items.filter((i) => i.ratio < 1)
+  const doneItems = daily.items.filter((i) => i.ratio >= 1)
+
+  const card = (item: DailyItem) => {
+    const done = item.ratio >= 1
+    const own = entriesOf(item.userExerciseId)
+    const open = expanded.has(item.userExerciseId)
+    const msg = cardNotice[item.userExerciseId]
+    return (
+        <li className="item-card" key={item.planItemId} data-testid={`item-${item.userExerciseId}`}>
+          <div className="item-top">
+            <ModeTile mode={item.trackingMode} />
+            <div className="item-main">
+              <div className="item-head">
+                <strong>{item.name}</strong>
+                <span className="badge">{MODE_LABEL[item.trackingMode]}</span>
+              </div>
+              <p className="item-target">Target {formatQuantity(item.target, item.unit)}</p>
+              <p className="item-actual" data-testid="item-actual">
+                Logged {formatQuantity(item.actual, item.unit)} of {formatQuantity(item.target, item.unit)} · score {formatScore(item.itemScore)}
+              </p>
+            </div>
+            <span className="badge-p" title={`Priority ${item.priorityWeight}`} aria-label={`Priority ${item.priorityWeight}`}>
+              P{item.priorityWeight}
+            </span>
+          </div>
+          <div className="bar bar-mini" role="progressbar" aria-label={`${item.name} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(item.ratio * 100)}>
+            <div className="bar-fill" style={{ width: `${Math.min(100, item.ratio * 100)}%` }} />
+          </div>
+          {msg && <ErrorNotice>{msg}</ErrorNotice>}
+          <div className="item-actions">
+            <button
+              type="button"
+              className={done ? 'btn pill pill-done' : 'btn btn-primary pill'}
+              data-testid="item-quick-complete"
+              disabled={busy === item.userExerciseId}
+              onClick={() => void quickComplete(item.userExerciseId)}
+            >
+              {done ? 'Completed' : 'Quick Complete'}
+            </button>
+            <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
+              Goals
+            </button>
+            <span className="item-pct" data-testid="item-pct">
+              {Math.round(item.ratio * 100)}%
+            </span>
+          </div>
+          <button type="button" className="entries-toggle" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
+            Entries
+          </button>
+          {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty="No entries yet today." />}
+        </li>
+    )
+  }
 
   return (
     <section className="today-page" data-testid="today-page">
       <header className="page-holder">
         <h2>Today</h2>
       </header>
-      <div className="page today-panel">
-      <p className="today-date" data-testid="today-date" data-date={daily.date}>
-        {formatLongDate(daily.date)}
-      </p>
-      {isMockToday && <p className="mock-banner" data-testid="mock-banner">Showing mock data (not connected to the API).</p>}
 
-      {toast && (
-        <p className="toast" role="status" data-testid="today-toast">
-          {toast}
+      <div className="today-top">
+        <p className="today-date" data-testid="today-date" data-date={daily.date}>
+          {formatLongDate(daily.date)}
         </p>
-      )}
-      {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
-
-      <WeekRow today={daily.date} onOtherDay={() => setToast(OTHER_DAY)} />
-
-      <div className="overall-card" data-testid="overall-card">
-        {daily.overallPercent === null ? (
-          <p className="overall-rest" data-testid="today-overall-pct">
-            Rest day: no goal today
+        {isMockToday && <p className="mock-banner" data-testid="mock-banner">Showing mock data (not connected to the API).</p>}
+        {toast && (
+          <p className="toast" role="status" data-testid="today-toast">
+            {toast}
           </p>
-        ) : (
-          <>
-            <div className="overall-row">
-              <span className="overall-label">Today&apos;s progress</span>
-              <span className="overall-pct" data-testid="today-overall-pct">
-                {formatPercent(daily.overallPercent)}
-              </span>
-            </div>
-            <div className="bar" role="progressbar" aria-label="Overall progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(daily.overallPercent)}>
-              <div className="bar-fill" style={{ width: `${Math.min(100, daily.overallPercent)}%` }} />
-            </div>
-            <p className="overall-score" data-testid="today-overall-score">
-              {formatScore(daily.totalScore)} / {formatScore(daily.totalWeight)} points
-            </p>
-          </>
         )}
+        {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
+
+        <WeekRow today={daily.date} onOtherDay={() => setToast(OTHER_DAY)} />
+
+        <div className="overall-card" data-testid="overall-card">
+          {daily.overallPercent === null ? (
+            <p className="overall-rest" data-testid="today-overall-pct">
+              Rest day: no goal today
+            </p>
+          ) : (
+            <>
+              <div className="overall-row">
+                <span className="overall-label">Today&apos;s progress</span>
+                <span className="overall-pct" data-testid="today-overall-pct">
+                  {formatPercent(daily.overallPercent)}
+                </span>
+              </div>
+              <div className="bar" role="progressbar" aria-label="Overall progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(daily.overallPercent)}>
+                <div className="bar-fill" style={{ width: `${Math.min(100, daily.overallPercent)}%` }} />
+              </div>
+              <p className="overall-score" data-testid="today-overall-score">
+                {formatScore(daily.totalScore)} / {formatScore(daily.totalWeight)} points
+              </p>
+            </>
+          )}
+        </div>
+
       </div>
 
+      <div className="page today-panel">
       {firstTime && (
         <div className="empty-card" data-testid="first-time">
           <p className="empty-state">Add an exercise to your plan first</p>
@@ -241,7 +300,7 @@ export function TodayPage() {
                     Quick Complete
                   </button>
                   <button type="button" className="btn btn-primary pill" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise })}>
-                    Log
+                    Goals
                   </button>
                   <button type="button" className="entries-toggle" data-testid="rest-day-entries-toggle" aria-expanded={expanded.has(exercise.id)} onClick={() => toggle(exercise.id)}>
                     Entries
@@ -258,60 +317,35 @@ export function TodayPage() {
       )}
 
       {!daily.isRestDay && (
-        <ul className="item-list">
-          {daily.items.map((item) => {
-            const done = item.ratio >= 1
-            const own = entriesOf(item.userExerciseId)
-            const open = expanded.has(item.userExerciseId)
-            const msg = cardNotice[item.userExerciseId]
-            return (
-              <li className="item-card" key={item.planItemId} data-testid={`item-${item.userExerciseId}`}>
-                <div className="item-top">
-                  <ModeTile mode={item.trackingMode} />
-                  <div className="item-main">
-                    <div className="item-head">
-                      <strong>{item.name}</strong>
-                      <span className="badge">{MODE_LABEL[item.trackingMode]}</span>
-                    </div>
-                    <p className="item-target">Target {formatQuantity(item.target, item.unit)}</p>
-                    <p className="item-actual" data-testid="item-actual">
-                      Logged {formatQuantity(item.actual, item.unit)} of {formatQuantity(item.target, item.unit)} · score {formatScore(item.itemScore)}
-                    </p>
-                  </div>
-                  <span className="badge-p" title={`Priority ${item.priorityWeight}`} aria-label={`Priority ${item.priorityWeight}`}>
-                    P{item.priorityWeight}
-                  </span>
-                </div>
-                <div className="bar bar-mini" role="progressbar" aria-label={`${item.name} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(item.ratio * 100)}>
-                  <div className="bar-fill" style={{ width: `${Math.min(100, item.ratio * 100)}%` }} />
-                </div>
-                {msg && <ErrorNotice>{msg}</ErrorNotice>}
-                <div className="item-actions">
-                  <button
-                    type="button"
-                    className={done ? 'btn pill pill-done' : 'btn btn-primary pill'}
-                    data-testid="item-quick-complete"
-                    disabled={busy === item.userExerciseId}
-                    onClick={() => void quickComplete(item.userExerciseId)}
-                  >
-                    {done ? 'Completed' : 'Quick Complete'}
-                  </button>
-                  <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
-                    Log
-                  </button>
-                  <span className="item-pct" data-testid="item-pct">
-                    {Math.round(item.ratio * 100)}%
-                  </span>
-                </div>
-                <button type="button" className="entries-toggle" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
-                  Entries
-                </button>
-                {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty="No entries yet today." />}
-              </li>
+        <>
+          <div className="panel-head">
+            <h3 className="panel-title">{showHistory ? 'History' : "Today's activities"}</h3>
+            <button type="button" className="btn btn-secondary pill" data-testid="history-toggle" aria-pressed={showHistory} onClick={() => setShowHistory((v) => !v)}>
+              {showHistory ? 'Back' : doneItems.length > 0 ? `History (${doneItems.length})` : 'History'}
+            </button>
+          </div>
+          {showHistory ? (
+            doneItems.length > 0 ? (
+              <ul className="item-list" data-testid="history-list">
+                {doneItems.map(card)}
+              </ul>
+            ) : (
+              <p className="empty-state" data-testid="history-empty">
+                Nothing completed yet today.
+              </p>
             )
-          })}
-        </ul>
+          ) : openItems.length > 0 ? (
+            <ul className="item-list" data-testid="open-list">
+              {openItems.map(card)}
+            </ul>
+          ) : (
+            <p className="empty-state" data-testid="all-done">
+              All activities are done for today. Completed ones are in History.
+            </p>
+          )}
+        </>
       )}
+      </div>
 
       {logTarget && (
         <LogEntryDialog
@@ -331,7 +365,6 @@ export function TodayPage() {
           }}
         />
       )}
-      </div>
     </section>
   )
 }

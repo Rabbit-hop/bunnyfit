@@ -1912,8 +1912,42 @@ button.bottom-nav-item {
   padding: clamp(0.75rem, 4vw, 1.5rem);
 }
 
-.today-panel .today-date {
-  margin: 0 0 0.75rem;
+/* The date, week row and progress card sit on the page; the soft-blue panel holds only the activities */
+.today-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.today-top > * {
+  margin: 0;
+}
+
+.today-top .today-date {
+  padding: 0 0.25rem;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pill[aria-pressed='true'] {
+  background: var(--color-primary);
+}
+
+/* Activity cards let the panel show through (65 % white) */
+.today-panel .item-card {
+  background: rgba(255, 255, 255, 0.65);
 }
