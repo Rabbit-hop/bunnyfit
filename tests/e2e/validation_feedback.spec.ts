@@ -97,13 +97,16 @@ test('TEST-23-2 (AC-23): LOG_DATE_MISMATCH closes the dialog and shows a reload 
 })
 
 test('TEST-23-3 (AC-23 / AC-04b): on a real Rest Day Quick Complete is disabled with an explanation', async ({ page }) => {
-  // Bob only gets plan items that start tomorrow, so for him today is a Rest Day that still has exercises.
+  // Bob only gets plan items that start in the future, so for him today is a Rest Day that still has exercises.
+  // The item is far ahead (not "tomorrow") because this test cannot delete it: a one-day offset would make
+  // the leftover from every earlier run active on the next day and break the Rest Day. Assumption kept
+  // visible: Bob must have NO plan item that applies today (seed gives him none).
   const headers = await loginAs(page, OTHER_PARTICIPANT)
   const plan = await page.request.get('/api/plan', { headers })
   const today: string = (await plan.json()).date
   const next = new Date(`${today}T00:00:00Z`)
-  next.setUTCDate(next.getUTCDate() + 1)
-  const tomorrow = next.toISOString().slice(0, 10)
+  next.setUTCDate(next.getUTCDate() + 365)
+  const startsLater = next.toISOString().slice(0, 10)
   const restName = uniqueName('E2E Rest')
   const res = await page.request.post('/api/plan-items', {
     headers,
@@ -112,8 +115,8 @@ test('TEST-23-3 (AC-23 / AC-04b): on a real Rest Day Quick Complete is disabled 
       exercise: { name: restName, targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' },
       priorityWeight: 2,
       targetDistanceKm: 2,
-      effectiveFrom: tomorrow,
-      endDate: tomorrow,
+      effectiveFrom: startsLater,
+      endDate: startsLater,
     },
   })
   expect(res.status()).toBe(201)
