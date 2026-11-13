@@ -55,6 +55,14 @@ test('S-04 (UI): add from the library, target fields follow the mode', async ({ 
   await loginAsParticipant(page)
   // Count only after the list has loaded, otherwise `before` is read while the skeleton shows.
   await expect(page.getByTestId('plan-loading')).toHaveCount(0)
+  // The list shows the selected day. Items created below start tomorrow, so look at tomorrow.
+  const todayIso = await page.locator('[data-testid^="day-"][aria-pressed="true"]').getAttribute('data-date')
+  const next = new Date(`${todayIso}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 1)
+  const tomorrowIso = next.toISOString().slice(0, 10)
+  if ((await page.getByTestId(`day-${tomorrowIso}`).count()) === 0) await page.getByTestId('cal-next').click()
+  await page.getByTestId(`day-${tomorrowIso}`).click()
+  await expect(page.getByTestId('plan-loading')).toHaveCount(0)
   const before = await page.locator('[data-testid^="plan-item-"]').count()
 
   await page.getByTestId('plan-add').click()
@@ -67,13 +75,16 @@ test('S-04 (UI): add from the library, target fields follow the mode', async ({ 
   await expect(page.getByTestId('range-helper')).toContainText('Allowed range')
   await page.getByTestId('target-sets').fill('2')
   await page.getByTestId('target-reps').fill('5')
-  await page.getByTestId('repeat-day-6').uncheck()
+  // Switch off one weekday, but never tomorrow's own, or the item would not occur on the day we watch.
+  const tomorrowWeekday = next.getUTCDay() === 0 ? 7 : next.getUTCDay()
+  await page.getByTestId(`repeat-day-${tomorrowWeekday === 6 ? 5 : 6}`).uncheck()
   await setTomorrow(page)
   await expect(page.getByTestId('plan-summary')).toContainText('2 × 5 reps')
 
   await page.getByTestId('plan-save').click()
   await expect(page.getByTestId('plan-toast')).toBeVisible()
-  await expect(page.locator('[data-testid^="plan-item-"]')).toHaveCount(before + 1)
+  // Tests run in parallel and the other one also adds an item for tomorrow, so "grew" rather than "+1".
+  await expect.poll(() => page.locator('[data-testid^="plan-item-"]').count()).toBeGreaterThan(before)
 })
 
 test('AC-03b/AC-11 (UI): an out-of-range duration shows an inline error and keeps the dialog open', async ({ page }) => {
@@ -96,4 +107,22 @@ test('S-04 (UI): nothing is saved without choosing a template', async ({ page })
   await page.getByTestId('plan-add').click()
   await page.getByTestId('plan-save').click()
   await expect(page.getByTestId('error-notice')).toContainText('Choose an exercise')
+})
+
+test('bottom bar: Today and My Plan link to their pages; Progress and Profile say they come in Sprint 2', async ({ page }) => {
+  await loginAsParticipant(page)
+  await page.goto('/today')
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+
+  await page.getByTestId('nav-plan').click()
+  await expect(page).toHaveURL(/\/plan$/)
+  await expect(page.getByTestId('plan-page')).toBeVisible()
+
+  await page.getByTestId('nav-progress').click()
+  await expect(page.getByTestId('nav-coming-soon')).toContainText('Sprint 2')
+  await expect(page).toHaveURL(/\/plan$/)
+
+  await page.getByTestId('nav-profile').click()
+  await expect(page.getByTestId('nav-coming-soon')).toContainText('Profile')
+  await expect(page).toHaveURL(/\/plan$/)
 })
