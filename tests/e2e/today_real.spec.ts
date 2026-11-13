@@ -31,6 +31,9 @@ test('Quick Complete on a real plan item reaches its target; the next click is a
   const card = await loginAndPlan(page, 3.5)
   await expect(card).toContainText('Target 3.5 km')
   await card.getByTestId('item-quick-complete').click()
+  // The completed activity leaves Today's list (its card is gone until History is opened).
+  await expect(card).toHaveCount(0)
+  await page.getByTestId('history-toggle').click()
   await expect(card.getByTestId('item-actual')).toContainText('3.5 km of 3.5 km')
   await expect(card.getByTestId('item-quick-complete')).toHaveText('Completed')
   await card.getByTestId('item-entries-toggle').click()
@@ -172,6 +175,7 @@ test('Week row (real API): tapping another day only shows a message; no other da
 test('Log dialog: the helper shows the daily limit left, not the target (entries above the target are allowed)', async ({ page }) => {
   const card = await loginAndPlan(page, 2)
   await card.getByTestId('item-quick-complete').click()
+  await page.getByTestId('history-toggle').click()
   await expect(card.getByTestId('item-actual')).toContainText('2 km of 2 km')
   await card.getByTestId('item-log').click()
   await expect(page.getByTestId('log-remaining')).toContainText('Daily limit left: 98 km')

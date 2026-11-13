@@ -25,10 +25,27 @@ test('Quick Complete reaches 100% and a second click is a no-op notice', async (
   await openToday(page, 'normal')
   const squat = page.getByTestId('item-ue-squat')
   await squat.getByTestId('item-quick-complete').click()
-  await expect(squat.getByTestId('item-actual')).toContainText('40 reps of 40 reps')
-  await expect(squat.getByTestId('item-quick-complete')).toHaveText('Completed')
-  await squat.getByTestId('item-quick-complete').click()
+  // A completed activity leaves Today's list and is kept under History.
+  await expect(page.getByTestId('today-toast')).toHaveText('Quick Complete added.')
+  await expect(page.getByTestId('open-list').getByTestId('item-ue-squat')).toHaveCount(0)
+  await page.getByTestId('history-toggle').click()
+  const done = page.getByTestId('history-list').getByTestId('item-ue-squat')
+  await expect(done.getByTestId('item-actual')).toContainText('40 reps of 40 reps')
+  await expect(done.getByTestId('item-quick-complete')).toHaveText('Completed')
+  await done.getByTestId('item-quick-complete').click()
   await expect(page.getByTestId('today-toast')).toHaveText('Already completed, nothing added')
+})
+
+test('History: Today lists only unfinished activities; completed ones are behind the History button', async ({ page }) => {
+  await openToday(page, 'normal')
+  await expect(page.getByTestId('open-list').getByTestId('item-ue-squat')).toBeVisible()
+  await expect(page.getByTestId('history-toggle')).toHaveText('History')
+  await page.getByTestId('history-toggle').click()
+  await expect(page.getByTestId('history-empty')).toBeVisible()
+  await page.getByTestId('history-toggle').click() // Back
+  await expect(page.getByTestId('open-list')).toBeVisible()
+  await page.getByTestId('open-list').getByTestId('item-ue-squat').getByTestId('item-quick-complete').click()
+  await expect(page.getByTestId('history-toggle')).toHaveText(/History \(\d+\)/)
 })
 
 test('Log dialog: preview, inline server error keeps values, then a valid save', async ({ page }) => {
