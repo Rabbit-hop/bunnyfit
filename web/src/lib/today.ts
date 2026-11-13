@@ -203,7 +203,10 @@ const realApi: TodayApi = {
 // Phase 1 of issue #10: the screens run against responses shaped exactly like API spec §6-§7, with no
 // network. `?mock=rest` and `?mock=first` open the Rest Day and first-time states. Phase 2 sets the
 // default to the real API; VITE_TODAY_MOCK=1 or a ?mock= query parameter runs the screens on the mock.
-const USE_MOCK = import.meta.env.VITE_TODAY_MOCK === '1' || new URLSearchParams(window.location.search).has('mock')
+// ?mock= works only on the Vite dev server (the e2e tests run there); a production build ignores it, so a deployed
+// /today?mock=normal cannot show fake data. VITE_TODAY_MOCK=1 stays available for a deliberate mock build.
+const USE_MOCK =
+  import.meta.env.VITE_TODAY_MOCK === '1' || (import.meta.env.DEV && new URLSearchParams(window.location.search).has('mock'))
 
 type MockPlan = { exercise: UserExercise; priorityWeight: number; target: number; targetSets: number | null }
 

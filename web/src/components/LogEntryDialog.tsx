@@ -15,8 +15,6 @@ type Props = {
   date: string
   /** Today's cumulative so far, in the exercise unit. */
   actual: number
-  /** Planned target in the exercise unit; null on a Rest Day or for an unplanned exercise. */
-  target: number | null
   onClose: () => void
   onSaved: (entry: LedgerEntry | null) => void
   /** LOG_DATE_MISMATCH: the page reloads Today (UI spec §3.5). */
@@ -32,15 +30,18 @@ const FIELD_LABEL: Record<string, string> = {
   distanceKm: 'Distance',
 }
 
-/** Stricter of the target and the daily cap (F-04 §6), never below zero. */
-export function remainingToday(unit: Unit, rangeMax: number, actual: number, target: number | null): number {
-  const limit = Math.min(DAILY_CAP[unit], rangeMax, target ?? Infinity)
+/**
+ * Daily limit left, never below zero: the stricter of the daily cap and the template rangeMax (F-04 R6).
+ * The target is not a limit: the server accepts entries above it (AC-14b, the ratio stays capped at 1.0).
+ */
+export function remainingToday(unit: Unit, rangeMax: number, actual: number): number {
+  const limit = Math.min(DAILY_CAP[unit], rangeMax)
   return Math.max(0, Math.round((limit - actual) * 100) / 100)
 }
 
 const toInt = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN)
 
-export function LogEntryDialog({ exercise, date, actual, target, onClose, onSaved, onDateMismatch }: Props) {
+export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDateMismatch }: Props) {
   const { unit } = exercise
   const [sets, setSets] = useState('')
   const [reps, setReps] = useState('')
@@ -79,7 +80,7 @@ export function LogEntryDialog({ exercise, date, actual, target, onClose, onSave
   if (unit === 'seconds' && totalSeconds > 0) preview = `Adds ${formatQuantity(totalSeconds, 'seconds')}`
   if (unit === 'km' && distanceN > 0) preview = `Adds ${formatQuantity(distanceN, 'km')}`
 
-  const remaining = remainingToday(unit, exercise.rangeMax, actual, target)
+  const remaining = remainingToday(unit, exercise.rangeMax, actual)
 
   // The client checks only required, numeric, integer and > 0 (UI spec §3.4); the server owns the limits.
   function validate(): Record<string, string> {
@@ -186,7 +187,7 @@ export function LogEntryDialog({ exercise, date, actual, target, onClose, onSave
           {preview}
         </p>
         <p className="log-helper" data-testid="log-remaining">
-          Remaining today: {formatQuantity(remaining, unit)} ({target == null ? 'daily limit' : 'target or daily limit, whichever is lower'})
+          Daily limit left: {formatQuantity(remaining, unit)} (daily cap or the exercise's range, whichever is lower)
         </p>
 
         <div className="row-actions">

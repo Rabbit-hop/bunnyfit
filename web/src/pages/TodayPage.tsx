@@ -27,7 +27,7 @@ import {
 type LoadState = 'loading' | 'ready' | 'error'
 type Snapshot = { daily: DailyProgress; entries: LedgerEntry[]; cumulative: Cumulative[]; exercises: UserExercise[] }
 
-type LogTarget = { exercise: UserExercise; target: number | null }
+type LogTarget = { exercise: UserExercise }
 
 const NOT_AVAILABLE = 'Quick Complete is not available for this exercise today'
 
@@ -150,8 +150,10 @@ export function TodayPage() {
     return (
       <section className="today-page" data-testid="today-page">
         <header className="page-holder">
-          <h2>Today</h2>
+          <h2>{viewDate ? 'Past day' : 'Today'}</h2>
         </header>
+        {/* The week row stays so a failed past day is never a dead end: pick another day or go back to today. */}
+        {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
         <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
         <button type="button" className="btn btn-primary" data-testid="today-retry" onClick={() => void load()}>
           Retry
@@ -167,7 +169,7 @@ export function TodayPage() {
 
   function openLog(item: DailyItem) {
     const exercise = exerciseOf(item.userExerciseId)
-    if (exercise) setLogTarget({ exercise, target: item.target })
+    if (exercise) setLogTarget({ exercise })
   }
 
   const readOnly = viewDate !== ''
@@ -255,7 +257,7 @@ export function TodayPage() {
                   <button type="button" className="btn btn-secondary pill" data-testid="rest-day-quick-complete" disabled aria-describedby={`why-${exercise.id}`}>
                     Quick Complete
                   </button>
-                  <button type="button" className="btn btn-primary pill" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise, target: null })}>
+                  <button type="button" className="btn btn-primary pill" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise })}>
                     Log
                   </button>
                   <button type="button" className="entries-toggle" data-testid="rest-day-entries-toggle" aria-expanded={expanded.has(exercise.id)} onClick={() => toggle(exercise.id)}>
@@ -337,7 +339,6 @@ export function TodayPage() {
           exercise={logTarget.exercise}
           date={daily.date}
           actual={cumulativeValue(cumOf(logTarget.exercise.id), logTarget.exercise.unit)}
-          target={logTarget.target}
           onClose={() => setLogTarget(null)}
           onSaved={() => {
             setLogTarget(null)
