@@ -28,7 +28,8 @@ import {
 
 type Props = {
   onClose: () => void
-  onSaved: (name: string) => void
+  /** `effectiveFrom` lets the calendar jump to the day the new item starts on. */
+  onSaved: (name: string, effectiveFrom?: string) => void
 }
 
 type Tab = 'library' | 'custom'
@@ -253,7 +254,10 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
     setSaving(true)
     try {
       const created = await createPlanItem(body)
-      onSaved(created?.userExercise.name ?? (tab === 'library' ? (selected?.name ?? '') : name.trim()))
+      onSaved(
+        created?.userExercise.name ?? (tab === 'library' ? (selected?.name ?? '') : name.trim()),
+        created?.planItem.effectiveFrom ?? effectiveFrom,
+      )
     } catch (error) {
       const { message, fields: apiFields } = describeError(error)
       const shown: Record<string, string> = {}
