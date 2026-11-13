@@ -120,8 +120,10 @@ export function TodayPage() {
 
   if (state === 'loading') {
     return (
-      <section className="page today-page" data-testid="today-page" aria-busy="true">
-        <h2>Today</h2>
+      <section className="today-page" data-testid="today-page" aria-busy="true">
+        <header className="page-holder">
+          <h2>Today</h2>
+        </header>
         <div className="skeleton-rows" data-testid="today-skeleton">
           <div className="skeleton skeleton-tall" />
           <div className="skeleton skeleton-tall" />
@@ -133,8 +135,10 @@ export function TodayPage() {
 
   if (state === 'error' || !snap) {
     return (
-      <section className="page today-page" data-testid="today-page">
-        <h2>Today</h2>
+      <section className="today-page" data-testid="today-page">
+        <header className="page-holder">
+          <h2>Today</h2>
+        </header>
         <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
         <button type="button" className="btn btn-primary" data-testid="today-retry" onClick={() => void load()}>
           Retry
@@ -156,8 +160,8 @@ export function TodayPage() {
   const firstTime = daily.isRestDay && exercises.length === 0
 
   return (
-    <section className="page today-page" data-testid="today-page">
-      <header className="today-header">
+    <section className="today-page" data-testid="today-page">
+      <header className="page-holder">
         <h2>Today</h2>
         <p className="today-date" data-testid="today-date" data-date={daily.date}>
           {formatLongDate(daily.date)}
