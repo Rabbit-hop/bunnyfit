@@ -25,6 +25,15 @@ function uniqueName(prefix: string) {
   return `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
 }
 
+// Ledger rows the real API holds today for the exercise snapshot with this name (STS "no row added").
+async function ledgerFor(page: Page, headers: Record<string, string>, name: string) {
+  const exercises = (await (await page.request.get('/api/user-exercises', { headers })).json()) as { id: string; name: string }[]
+  const exercise = exercises.find((e) => e.name === name)
+  expect(exercise, `snapshot "${name}" exists`).toBeTruthy()
+  const day = (await (await page.request.get('/api/entries', { headers })).json()) as { entries: { userExerciseId: string }[] }
+  return { exerciseId: exercise!.id, rows: day.entries.filter((e) => e.userExerciseId === exercise!.id).length }
+}
+
 test('TEST-23-1 (AC-23): sets 21 is rejected by the server, the field error names the limit and keeps the value', async ({ page }) => {
   const headers = await loginAs(page, PARTICIPANT)
   const name = uniqueName('E2E Sets')
@@ -40,6 +49,7 @@ test('TEST-23-1 (AC-23): sets 21 is rejected by the server, the field error name
   })
   expect(res.status()).toBe(201)
   await page.reload()
+  expect((await ledgerFor(page, headers, name)).rows).toBe(0)
   const card = page.getByRole('listitem').filter({ hasText: name })
   await card.getByTestId('item-log').click()
   await page.getByTestId('log-sets').fill('21')
@@ -48,6 +58,8 @@ test('TEST-23-1 (AC-23): sets 21 is rejected by the server, the field error name
   await expect(page.getByTestId('field-error-sets')).toContainText('20')
   await expect(page.getByTestId('log-dialog')).toBeVisible()
   await expect(page.getByTestId('log-sets')).toHaveValue('21')
+  // STS TEST-23-1: no row added (the request reached the real server and was rejected).
+  expect((await ledgerFor(page, headers, name)).rows).toBe(0)
 })
 
 test('TEST-23-2 (AC-23): LOG_DATE_MISMATCH closes the dialog and shows a reload notice', async ({ page }) => {
@@ -90,11 +102,12 @@ test('TEST-23-3 (AC-23 / AC-04b): on a real Rest Day Quick Complete is disabled 
   const next = new Date(`${today}T00:00:00Z`)
   next.setUTCDate(next.getUTCDate() + 1)
   const tomorrow = next.toISOString().slice(0, 10)
+  const restName = uniqueName('E2E Rest')
   const res = await page.request.post('/api/plan-items', {
     headers,
     data: {
       source: 'CUSTOM',
-      exercise: { name: uniqueName('E2E Rest'), targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' },
+      exercise: { name: restName, targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' },
       priorityWeight: 2,
       targetDistanceKm: 2,
       effectiveFrom: tomorrow,
@@ -107,4 +120,43 @@ test('TEST-23-3 (AC-23 / AC-04b): on a real Rest Day Quick Complete is disabled 
   await expect(page.getByTestId('today-overall-pct')).toHaveText('Rest day: no goal today')
   await expect(page.getByTestId('rest-day-quick-complete').first()).toBeDisabled()
   await expect(page.getByTestId('rest-day-picker')).toContainText('Quick Complete is not available for this exercise today')
+
+  // STS TEST-23-3: a forced request (the UI control is disabled, so it is sent straight to the real API)
+  // is rejected with QUICK_COMPLETE_NOT_AVAILABLE and adds no row.
+  const before = await ledgerFor(page, headers, restName)
+  expect(before.rows).toBe(0)
+  const forced = await page.request.post('/api/entries/quick-complete', { headers, data: { userExerciseId: before.exerciseId } })
+  expect(forced.status()).toBe(400)
+  expect((await forced.json()).code).toBe('QUICK_COMPLETE_NOT_AVAILABLE')
+  expect((await ledgerFor(page, headers, restName)).rows).toBe(0)
+})
+
+test('TEST-23-3 (AC-23): a Quick Complete rejected with QUICK_COMPLETE_NOT_AVAILABLE shows the notice on the card', async ({ page }) => {
+  // The Rest Day control is disabled and has no click handler, so the notice text cannot be reached from
+  // there. The only UI path that renders it is a Quick Complete the server rejects: the rejection is
+  // injected on the wire (same status, code and envelope as API spec §6.2), like TEST-23-2.
+  const headers = await loginAs(page, PARTICIPANT)
+  const name = uniqueName('E2E Quick')
+  const res = await page.request.post('/api/plan-items', {
+    headers,
+    data: {
+      source: 'CUSTOM',
+      exercise: { name, targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' },
+      priorityWeight: 2,
+      targetDistanceKm: 3,
+    },
+  })
+  expect(res.status()).toBe(201)
+  await page.reload()
+  await page.route('**/api/entries/quick-complete', async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'QUICK_COMPLETE_NOT_AVAILABLE', message: 'not available today', fields: [] }),
+    })
+  })
+  const card = page.getByRole('listitem').filter({ hasText: name })
+  await card.getByTestId('item-quick-complete').click()
+  await expect(card).toContainText('Quick Complete is not available for this exercise today')
+  await expect(card.getByTestId('item-quick-complete')).toHaveText('Quick Complete')
 })
