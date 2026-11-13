@@ -173,3 +173,31 @@ test('Week row (real API): yesterday opens read-only from GET /api/progress/dail
   await page.getByTestId('today-back').click()
   await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', todayIso)
 })
+
+// --- PR #37 review follow-ups ---------------------------------------------------------------
+
+test('Past day that fails to load keeps the heading and the week row, and today is one tap away', async ({ page }) => {
+  await loginAs(page, PARTICIPANT)
+  await expect(page.getByTestId('today-skeleton')).toHaveCount(0)
+  const todayIso = (await page.getByTestId('today-date').getAttribute('data-date'))!
+  await page.route('**/api/progress/daily?date=*', (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error', fields: [] }) }),
+  )
+  await page.getByTestId('today-week-prev').click()
+  await expect(page.getByTestId('today-retry')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Past day' })).toBeVisible()
+  await expect(page.getByTestId('today-week')).toBeVisible()
+  await page.unroute('**/api/progress/daily?date=*')
+  // The previous week is shown, so the way back is the next-week arrow (it never goes past today).
+  await page.getByTestId('today-week-next').click()
+  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', todayIso)
+  await expect(page.getByTestId('today-readonly')).toHaveCount(0)
+})
+
+test('Log dialog: the helper shows the daily limit left, not the target (entries above the target are allowed)', async ({ page }) => {
+  const card = await loginAndPlan(page, 2)
+  await card.getByTestId('item-quick-complete').click()
+  await expect(card.getByTestId('item-actual')).toContainText('2 km of 2 km')
+  await card.getByTestId('item-log').click()
+  await expect(page.getByTestId('log-remaining')).toContainText('Daily limit left: 98 km')
+})
