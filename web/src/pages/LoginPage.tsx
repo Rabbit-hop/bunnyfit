@@ -217,30 +217,12 @@ export function LoginPage() {
             )}
           </div>
 
-          <div className="login-options">
-            {/* TODO: wire up to persistent (localStorage) sessions once that's designed; disabled for now rather than a checkbox with no effect */}
-            <label className="login-remember login-remember-disabled">
-              <input type="checkbox" disabled />
-              Remember me
-            </label>
-            {/* TODO: wire up to the forgot-password page once that route exists */}
-            <a href="#" onClick={(event) => event.preventDefault()}>
-              Forgot password?
-            </a>
-          </div>
-
+          {/* "Remember me", "Forgot password?" and "Create account" are not built (UI spec §3 row 3, decision 17). */}
           <button type="submit" className="btn btn-primary login-submit" disabled={pending} data-testid="login-submit">
             {pending && <span className="btn-spinner" aria-hidden="true" />}
             {pending ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-        <p className="login-footer">
-          Don’t have an account?{' '}
-          {/* TODO: switch to <Link to="/register"> once the signup page exists */}
-          <a href="#" onClick={(event) => event.preventDefault()}>
-            Create account
-          </a>
-        </p>
       </section>
     </div>
   )

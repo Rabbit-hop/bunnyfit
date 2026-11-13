@@ -18,24 +18,34 @@ export function getToken(): string | null {
   return memoryToken
 }
 
+// sessionStorage can throw (blocked site data, private windows); the in-memory token still works then.
 export function loadSession(): string | null {
-  const token = sessionStorage.getItem(TOKEN_KEY)
+  let token: string | null = null
+  try {
+    token = sessionStorage.getItem(TOKEN_KEY)
+  } catch {
+    token = null
+  }
   memoryToken = token
   return token
 }
 
 export function saveSession(token: string, user: AuthUser): void {
   memoryToken = token
-  sessionStorage.setItem(TOKEN_KEY, token)
-  sessionStorage.setItem(USER_KEY, JSON.stringify(user))
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token)
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user))
+  } catch {
+    // Not persisted across reloads, but the session works for this page load.
+  }
 }
 
 export function readStoredUser(): AuthUser | null {
-  const raw = sessionStorage.getItem(USER_KEY)
-  if (!raw) {
-    return null
-  }
   try {
+    const raw = sessionStorage.getItem(USER_KEY)
+    if (!raw) {
+      return null
+    }
     return JSON.parse(raw) as AuthUser
   } catch {
     return null
@@ -44,6 +54,10 @@ export function readStoredUser(): AuthUser | null {
 
 export function destroySession(): void {
   memoryToken = null
-  sessionStorage.removeItem(TOKEN_KEY)
-  sessionStorage.removeItem(USER_KEY)
+  try {
+    sessionStorage.removeItem(TOKEN_KEY)
+    sessionStorage.removeItem(USER_KEY)
+  } catch {
+    // Nothing stored that could be removed.
+  }
 }
