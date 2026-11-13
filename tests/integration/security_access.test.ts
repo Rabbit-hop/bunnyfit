@@ -254,6 +254,9 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     afterAll(async () => {
       await prisma.planItem.deleteMany({ where: { id: { in: createdItems } } });
+      // E2E runs on the same database can leave plan items and ledger rows on template-sourced exercises.
+      await prisma.ledgerEntry.deleteMany({ where: { userExercise: { userId: { in: [aliceId, bobId] }, sourceTemplateId: { not: null } } } });
+      await prisma.planItem.deleteMany({ where: { userExercise: { userId: { in: [aliceId, bobId] }, sourceTemplateId: { not: null } } } });
       await prisma.userExercise.deleteMany({ where: { userId: { in: [aliceId, bobId] }, sourceTemplateId: { not: null } } });
     });
 

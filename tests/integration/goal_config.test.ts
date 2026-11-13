@@ -42,6 +42,8 @@ describeWithDatabase('F-03 goal configuration (real PostgreSQL)', () => {
     items: await prisma.planItem.findMany({ orderBy: { id: 'asc' } }),
   });
   const cleanup = async () => {
+    // E2E runs share this database and leave ledger rows behind; they reference user exercises.
+    await prisma.ledgerEntry.deleteMany();
     await prisma.planItem.deleteMany();
     await prisma.userExercise.deleteMany();
     await prisma.exerciseTemplate.deleteMany({ where: { category: { name: 'F03 Range' } } });
@@ -264,6 +266,7 @@ describeWithDatabase('F-03 goal configuration (real PostgreSQL)', () => {
         .get(`/api/plan${date ? `?date=${date}` : ''}`)
         .set(bearer(token ?? (await aliceToken())));
     const clearPlans = async () => {
+      await prisma.ledgerEntry.deleteMany();
       await prisma.planItem.deleteMany();
       await prisma.userExercise.deleteMany();
     };
