@@ -152,3 +152,24 @@ test('AC-23 case 3 / AC-04b (UI): on a real Rest Day Quick Complete is disabled 
   await expect(page.getByTestId('rest-day-quick-complete').first()).toBeDisabled()
   await expect(page.getByTestId('rest-day-picker')).toContainText('Quick Complete is not available for this exercise today')
 })
+
+test('Week row (real API): yesterday opens read-only from GET /api/progress/daily?date=, then Back to today', async ({ page }) => {
+  await loginAs(page, PARTICIPANT)
+  await expect(page.getByTestId('today-skeleton')).toHaveCount(0)
+  const todayIso = (await page.getByTestId('today-date').getAttribute('data-date'))!
+  const prev = new Date(`${todayIso}T00:00:00Z`)
+  prev.setUTCDate(prev.getUTCDate() - 1)
+  const yesterday = prev.toISOString().slice(0, 10)
+  // Yesterday may be in the previous week: the arrow moves a week back, then the day button is clickable.
+  const dayButton = page.getByTestId(`today-day-${yesterday}`)
+  if ((await dayButton.count()) === 0) await page.getByTestId('today-week-prev').click()
+  const responded = page.waitForResponse((r) => r.url().includes(`/api/progress/daily?date=`) && r.status() === 200)
+  await page.getByTestId(`today-day-${yesterday}`).click()
+  await responded
+  await expect(page.getByTestId('today-readonly')).toBeVisible()
+  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', yesterday)
+  await expect(page.getByTestId('item-quick-complete')).toHaveCount(0)
+  await expect(page.getByTestId('rest-day-quick-complete')).toHaveCount(0)
+  await page.getByTestId('today-back').click()
+  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', todayIso)
+})
