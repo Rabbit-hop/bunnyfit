@@ -477,7 +477,8 @@ export function AddExerciseDialog({ onClose, onSaved }: Props) {
                     No templates match
                   </p>
                 )}
-                {grouped.map((group) => (
+                {/* After a failed (re)load the notice replaces the list: older cards would look current but are not. */}
+                {(templatesFailed ? [] : grouped).map((group) => (
                   <div key={group.name} className="picker-group">
                     <h4>{group.name}</h4>
                     <ul className="picker-list">

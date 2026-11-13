@@ -98,7 +98,11 @@ export function CalendarCard({ mode, selected, today, hasPlan, onModeChange, onS
                 aria-label={`${iso}${iso === today ? ' (today)' : ''}${planned ? ', has exercises' : ''}`}
                 data-testid={`day-${iso}`}
                 data-date={iso}
-                onClick={() => onSelect(iso)}
+                onClick={() => {
+                  // A click is a deliberate choice, even of the date that is already selected: forget the arrow anchor.
+                  setNav(null)
+                  onSelect(iso)
+                }}
               >
                 {dayOfMonth(iso)}
               </button>

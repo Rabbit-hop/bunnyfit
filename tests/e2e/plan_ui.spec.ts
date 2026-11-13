@@ -252,3 +252,41 @@ test('plan (UI): a tab that becomes visible after midnight moves "today" and the
   await expect.poll(selected).toBe(shiftTo)
   await expect(page.locator('.cal-day-today')).toHaveAttribute('data-date', shiftTo)
 })
+
+// --- PR #36 review follow-ups ---------------------------------------------------------------
+
+test('Add dialog: after a failed template reload the notice replaces the old cards', async ({ page }) => {
+  await loginAsParticipant(page)
+  await page.getByTestId('plan-add').click()
+  await expect(page.locator('[data-testid^="template-card-"]').first()).toBeVisible()
+  await page.route('**/api/templates**', (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error', fields: [] }) }),
+  )
+  await page.getByTestId('picker-mode').selectOption('BODYWEIGHT_REPS')
+  await expect(page.getByTestId('picker-retry')).toBeVisible()
+  await expect(page.locator('[data-testid^="template-card-"]')).toHaveCount(0)
+})
+
+test('Calendar: clicking the date that is already selected resets the month-arrow anchor', async ({ page }) => {
+  await loginAsParticipant(page)
+  const todayIso = (await page.locator('[data-testid^="day-"][aria-pressed="true"]').getAttribute('data-date'))!
+  const [y = 0, m = 1] = todayIso.split('-').map(Number)
+  const ymd = (year: number, month0: number, day: number) => new Date(Date.UTC(year, month0, day)).toISOString().slice(0, 10)
+  const daysIn = (year: number, month0: number) => new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate()
+  // A = first month from now on whose next month is shorter than 31 days (Jan, Mar, May, Aug, Oct); then B = A + 1, C = B + 2.
+  const SHORT_NEXT = [0, 2, 4, 7, 9]
+  let k = 0
+  while (!SHORT_NEXT.includes((m - 1 + k) % 12)) k++
+  for (let i = 0; i < k; i++) await page.getByTestId('cal-next').click()
+  const a = (m - 1 + k)
+  await page.getByTestId(ymdTestId(ymd(y, a, 31))).click()
+  await page.getByTestId('cal-next').click() // 31st clamps to the last day of B, anchor stays 31
+  const bLast = daysIn(y, a + 1)
+  await expect(page.getByTestId(ymdTestId(ymd(y, a + 1, bLast)))).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId(ymdTestId(ymd(y, a + 1, bLast))).click() // same date again: a deliberate choice
+  await page.getByTestId('cal-next').click()
+  // The anchor was forgotten, so the step keeps B's last day instead of jumping back to the 31st.
+  await expect(page.getByTestId(ymdTestId(ymd(y, a + 2, Math.min(bLast, daysIn(y, a + 2)))))).toHaveAttribute('aria-pressed', 'true')
+})
+
+const ymdTestId = (iso: string) => `day-${iso}`

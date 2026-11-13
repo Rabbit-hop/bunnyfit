@@ -1755,3 +1755,199 @@ button.bottom-nav-item {
     font-size: 0.75rem;
   }
 }
+
+/* ===== Today (reference look): week row, progress card, exercise cards with a tile and a P badge ===== */
+.week-row-card {
+  margin-bottom: 0.75rem;
+  padding: 0.8rem 0.7rem 0.6rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+}
+
+.week-row-card .cal-labels {
+  margin-bottom: 0.3rem;
+}
+
+.overall-card {
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+}
+
+.overall-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.overall-label {
+  font-weight: 600;
+}
+
+.overall-pct {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.item-list {
+  gap: 0.85rem;
+}
+
+.item-card {
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+}
+
+.item-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-card .item-head strong {
+  flex: 0 1 auto;
+}
+
+.mode-tile {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--color-text);
+  border-radius: 14px;
+}
+
+.mode-tile svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mode-tile-pink {
+  background: var(--color-pink);
+}
+
+.mode-tile-green {
+  background: #d4f2df;
+}
+
+.mode-tile-yellow {
+  background: #fdf0c2;
+}
+
+.mode-tile-blue {
+  background: var(--color-primary);
+}
+
+.badge-p {
+  flex: 0 0 auto;
+  min-width: 2.1rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--color-pink-bar);
+  border-radius: 999px;
+}
+
+.item-card .bar-mini {
+  margin-top: 0.6rem;
+}
+
+.item-actions {
+  align-items: center;
+  margin-top: 0.7rem;
+}
+
+.pill {
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+}
+
+.pill-done {
+  color: var(--color-text-muted);
+  background: #e4e7f1;
+  border: 0;
+}
+
+.item-pct {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.entries-toggle {
+  min-height: 32px;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.item-actions .entries-toggle {
+  margin: 0 0 0 auto;
+}
+
+.week-row-card .week-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+
+/* Today: everything below the title sits in one soft-blue panel, like the other pages */
+.today-panel {
+  padding: clamp(0.75rem, 4vw, 1.5rem);
+}
+
+/* The date, week row and progress card sit on the page; the soft-blue panel holds only the activities */
+.today-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.today-top > * {
+  margin: 0;
+}
+
+.today-top .today-date {
+  padding: 0 0.25rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pill[aria-pressed='true'] {
+  background: var(--color-primary);
+}
+
+/* Activity cards let the panel show through (65 % white) */
+.today-panel .item-card {
+  background: rgba(255, 255, 255, 0.65);
+}

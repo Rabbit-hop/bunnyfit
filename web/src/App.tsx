@@ -9,6 +9,7 @@ import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PlanPage } from './pages/PlanPage'
+import { TodayPage } from './pages/TodayPage'
 import { WelcomePage } from './pages/WelcomePage'
 
 type GuardProps = {
@@ -91,7 +92,7 @@ export default function App() {
             path="/today"
             element={
               <Guard role="PARTICIPANT">
-                <PlaceholderPage title="Today" description="Participant daily logging is implemented in issue #10." />
+                <TodayPage />
               </Guard>
             }
           />
