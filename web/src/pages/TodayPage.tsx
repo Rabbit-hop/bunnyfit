@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { LogEntryDialog } from '../components/LogEntryDialog'
+import { ModeTile } from '../components/ModeTile'
+import { WeekRow } from '../components/WeekRow'
 import {
   KIND_LABEL,
   MODE_LABEL,
@@ -14,7 +16,6 @@ import {
   formatQuantity,
   formatScore,
   isMockToday,
-  priorityLabel,
   todayApi,
   type Cumulative,
   type DailyItem,
@@ -176,6 +177,8 @@ export function TodayPage() {
       )}
       {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
 
+      <WeekRow today={daily.date} />
+
       <div className="overall-card" data-testid="overall-card">
         {daily.overallPercent === null ? (
           <p className="overall-rest" data-testid="today-overall-pct">
@@ -183,14 +186,17 @@ export function TodayPage() {
           </p>
         ) : (
           <>
-            <p className="overall-pct" data-testid="today-overall-pct">
-              {formatPercent(daily.overallPercent)}
-            </p>
+            <div className="overall-row">
+              <span className="overall-label">Today&apos;s progress</span>
+              <span className="overall-pct" data-testid="today-overall-pct">
+                {formatPercent(daily.overallPercent)}
+              </span>
+            </div>
             <div className="bar" role="progressbar" aria-label="Overall progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(daily.overallPercent)}>
               <div className="bar-fill" style={{ width: `${Math.min(100, daily.overallPercent)}%` }} />
             </div>
             <p className="overall-score" data-testid="today-overall-score">
-              {formatScore(daily.totalScore)} / {formatScore(daily.totalWeight)}
+              {formatScore(daily.totalScore)} / {formatScore(daily.totalWeight)} points
             </p>
           </>
         )}
@@ -214,18 +220,23 @@ export function TodayPage() {
           <ul className="item-list" data-testid="rest-day-picker">
             {exercises.map((exercise) => (
               <li className="item-card" key={exercise.id} data-testid={`rest-${exercise.id}`}>
-                <div className="item-head">
-                  <strong>{exercise.name}</strong>
-                  <span className="badge">{MODE_LABEL[exercise.trackingMode]}</span>
+                <div className="item-top">
+                  <ModeTile mode={exercise.trackingMode} />
+                  <div className="item-main">
+                    <div className="item-head">
+                      <strong>{exercise.name}</strong>
+                      <span className="badge">{MODE_LABEL[exercise.trackingMode]}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="item-actions">
-                  <button type="button" className="btn btn-secondary" data-testid="rest-day-quick-complete" disabled aria-describedby={`why-${exercise.id}`}>
+                  <button type="button" className="btn btn-secondary pill" data-testid="rest-day-quick-complete" disabled aria-describedby={`why-${exercise.id}`}>
                     Quick Complete
                   </button>
-                  <button type="button" className="btn btn-primary" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise, target: null })}>
+                  <button type="button" className="btn btn-primary pill" data-testid="rest-day-log" onClick={() => setLogTarget({ exercise, target: null })}>
                     Log
                   </button>
-                  <button type="button" className="btn btn-secondary" data-testid="rest-day-entries-toggle" aria-expanded={expanded.has(exercise.id)} onClick={() => toggle(exercise.id)}>
+                  <button type="button" className="entries-toggle" data-testid="rest-day-entries-toggle" aria-expanded={expanded.has(exercise.id)} onClick={() => toggle(exercise.id)}>
                     Entries
                   </button>
                 </div>
@@ -248,36 +259,46 @@ export function TodayPage() {
             const msg = cardNotice[item.userExerciseId]
             return (
               <li className="item-card" key={item.planItemId} data-testid={`item-${item.userExerciseId}`}>
-                <div className="item-head">
-                  <strong>{item.name}</strong>
-                  <span className="badge">{MODE_LABEL[item.trackingMode]}</span>
-                  <span className="badge badge-priority">{priorityLabel(item.priorityWeight)}</span>
+                <div className="item-top">
+                  <ModeTile mode={item.trackingMode} />
+                  <div className="item-main">
+                    <div className="item-head">
+                      <strong>{item.name}</strong>
+                      <span className="badge">{MODE_LABEL[item.trackingMode]}</span>
+                    </div>
+                    <p className="item-target">Target {formatQuantity(item.target, item.unit)}</p>
+                    <p className="item-actual" data-testid="item-actual">
+                      Logged {formatQuantity(item.actual, item.unit)} of {formatQuantity(item.target, item.unit)} · score {formatScore(item.itemScore)}
+                    </p>
+                  </div>
+                  <span className="badge-p" title={`Priority ${item.priorityWeight}`} aria-label={`Priority ${item.priorityWeight}`}>
+                    P{item.priorityWeight}
+                  </span>
                 </div>
-                <p className="item-target">Target {formatQuantity(item.target, item.unit)}</p>
-                <p className="item-actual" data-testid="item-actual">
-                  {formatQuantity(item.actual, item.unit)} of {formatQuantity(item.target, item.unit)} · score {formatScore(item.itemScore)}
-                </p>
                 <div className="bar bar-mini" role="progressbar" aria-label={`${item.name} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(item.ratio * 100)}>
-                  <div className="bar-fill" style={{ width: `${item.ratio * 100}%` }} />
+                  <div className="bar-fill" style={{ width: `${Math.min(100, item.ratio * 100)}%` }} />
                 </div>
                 {msg && <ErrorNotice>{msg}</ErrorNotice>}
                 <div className="item-actions">
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className={done ? 'btn pill pill-done' : 'btn btn-primary pill'}
                     data-testid="item-quick-complete"
                     disabled={busy === item.userExerciseId}
                     onClick={() => void quickComplete(item.userExerciseId)}
                   >
                     {done ? 'Completed' : 'Quick Complete'}
                   </button>
-                  <button type="button" className="btn btn-secondary" data-testid="item-log" onClick={() => openLog(item)}>
+                  <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
                     Log
                   </button>
-                  <button type="button" className="btn btn-secondary" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
-                    Entries
-                  </button>
+                  <span className="item-pct" data-testid="item-pct">
+                    {Math.round(item.ratio * 100)}%
+                  </span>
                 </div>
+                <button type="button" className="entries-toggle" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
+                  Entries
+                </button>
                 {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" />}
               </li>
             )
