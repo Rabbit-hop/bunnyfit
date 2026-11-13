@@ -11,7 +11,8 @@ async function loginAndPlan(page: Page, targetKm: number) {
   await page.getByTestId('login-email').fill(PARTICIPANT.email)
   await page.getByTestId('login-password').fill(PARTICIPANT.password)
   await page.getByTestId('login-submit').click()
-  await expect(page).toHaveURL(/\/today$/)
+  // Login can still be pending after 5 s on a cold API/Vite start (same allowance as library_ui.spec.ts).
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
   const token = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
   const name = `E2E Today ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
   const res = await page.request.post('/api/plan-items', {
@@ -63,7 +64,8 @@ async function loginAs(page: Page, who: { email: string; password: string }) {
   await page.getByTestId('login-email').fill(who.email)
   await page.getByTestId('login-password').fill(who.password)
   await page.getByTestId('login-submit').click()
-  await expect(page).toHaveURL(/\/today$/)
+  // Login can still be pending after 5 s on a cold API/Vite start (same allowance as library_ui.spec.ts).
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
   const token = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
   return { Authorization: `Bearer ${token}` }
 }

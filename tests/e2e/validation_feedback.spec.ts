@@ -16,7 +16,8 @@ async function loginAs(page: Page, who: { email: string; password: string }) {
   await page.getByTestId('login-email').fill(who.email)
   await page.getByTestId('login-password').fill(who.password)
   await page.getByTestId('login-submit').click()
-  await expect(page).toHaveURL(/\/today$/)
+  // Login can still be pending after 5 s on a cold API/Vite start (same allowance as library_ui.spec.ts).
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
   const token = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
   return { Authorization: `Bearer ${token}` }
 }
@@ -55,7 +56,8 @@ test('TEST-23-1 (AC-23): sets 21 is rejected by the server, the field error name
   await page.getByTestId('log-sets').fill('21')
   await page.getByTestId('log-reps').fill('1')
   await page.getByTestId('log-save').click()
-  await expect(page.getByTestId('field-error-sets')).toContainText('20')
+  // AC-23: the notice names the field and the limit (server message: "cumulative sets ≤ 20").
+  await expect(page.getByTestId('field-error-sets')).toContainText(/sets.*20/i)
   await expect(page.getByTestId('log-dialog')).toBeVisible()
   await expect(page.getByTestId('log-sets')).toHaveValue('21')
   // STS TEST-23-1: no row added (the request reached the real server and was rejected).
