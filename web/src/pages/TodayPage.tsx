@@ -136,11 +136,13 @@ export function TodayPage() {
         <header className="page-holder">
           <h2>{viewDate ? 'Past day' : 'Today'}</h2>
         </header>
-        {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
-        <div className="skeleton-rows" data-testid="today-skeleton">
-          <div className="skeleton skeleton-tall" />
-          <div className="skeleton skeleton-tall" />
-          <div className="skeleton skeleton-tall" />
+        <div className="page today-panel">
+          {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
+          <div className="skeleton-rows" data-testid="today-skeleton">
+            <div className="skeleton skeleton-tall" />
+            <div className="skeleton skeleton-tall" />
+            <div className="skeleton skeleton-tall" />
+          </div>
         </div>
       </section>
     )
@@ -153,11 +155,13 @@ export function TodayPage() {
           <h2>{viewDate ? 'Past day' : 'Today'}</h2>
         </header>
         {/* The week row stays so a failed past day is never a dead end: pick another day or go back to today. */}
-        {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
-        <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
-        <button type="button" className="btn btn-primary" data-testid="today-retry" onClick={() => void load()}>
-          Retry
-        </button>
+        <div className="page today-panel">
+          {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
+          <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
+          <button type="button" className="btn btn-primary" data-testid="today-retry" onClick={() => void load()}>
+            Retry
+          </button>
+        </div>
       </section>
     )
   }
@@ -179,10 +183,11 @@ export function TodayPage() {
     <section className="today-page" data-testid="today-page">
       <header className="page-holder">
         <h2>{readOnly ? 'Past day' : 'Today'}</h2>
-        <p className="today-date" data-testid="today-date" data-date={daily.date}>
-          {formatLongDate(daily.date)}
-        </p>
       </header>
+      <div className="page today-panel">
+      <p className="today-date" data-testid="today-date" data-date={daily.date}>
+        {formatLongDate(daily.date)}
+      </p>
       {isMockToday && <p className="mock-banner" data-testid="mock-banner">Showing mock data (not connected to the API).</p>}
 
       {toast && (
@@ -352,6 +357,7 @@ export function TodayPage() {
           }}
         />
       )}
+      </div>
     </section>
   )
 }
