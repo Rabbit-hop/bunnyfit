@@ -66,30 +66,16 @@ test('First-time user is sent to My Plan', async ({ page }) => {
   await expect(page.getByTestId('first-time-link')).toHaveAttribute('href', '/plan')
 })
 
-test('Week row: a past day is view-only with no Quick Complete or Log, future days are disabled, Back to today restores', async ({ page }) => {
+test('Week row: tapping another day shows a short message and changes nothing', async ({ page }) => {
   await openToday(page, 'normal')
-  await expect(page.getByTestId('item-ue-squat')).toBeVisible()
-  // Mock "today" is Thu 2026-11-05: Mon 02 .. Wed 04 are past, Fri 06 .. Sun 08 are in the future.
-  await expect(page.getByTestId('today-day-2026-11-06')).toBeDisabled()
-  await expect(page.getByTestId('today-week-next')).toBeDisabled()
-
+  const squat = page.getByTestId('item-ue-squat')
+  await expect(squat).toBeVisible()
+  // Mock "today" is Thu 2026-11-05. A past day and a later day both only explain that Today is for today.
   await page.getByTestId('today-day-2026-11-03').click()
-  await expect(page.getByTestId('today-readonly')).toBeVisible()
-  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', '2026-11-03')
-  await expect(page.getByTestId('item-ue-squat')).toBeVisible()
-  await expect(page.getByTestId('item-quick-complete')).toHaveCount(0)
-  await expect(page.getByTestId('item-log')).toHaveCount(0)
-
-  await page.getByTestId('today-back').click()
-  await expect(page.getByTestId('today-readonly')).toHaveCount(0)
+  await expect(page.getByTestId('today-toast')).toHaveText("Only today's activity can be viewed and logged.")
   await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', '2026-11-05')
-  await expect(page.getByTestId('item-ue-squat').getByTestId('item-quick-complete')).toBeVisible()
-})
-
-test('Week row: the previous-week arrow opens the same weekday a week earlier, read-only', async ({ page }) => {
-  await openToday(page, 'normal')
-  await expect(page.getByTestId('item-ue-squat')).toBeVisible()
-  await page.getByTestId('today-week-prev').click()
-  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', '2026-10-29')
-  await expect(page.getByTestId('today-readonly')).toBeVisible()
+  await expect(squat.getByTestId('item-quick-complete')).toBeVisible()
+  await page.getByTestId('today-day-2026-11-07').click()
+  await expect(page.getByTestId('today-toast')).toHaveText("Only today's activity can be viewed and logged.")
+  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', '2026-11-05')
 })

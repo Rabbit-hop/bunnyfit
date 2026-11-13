@@ -153,45 +153,20 @@ test('AC-23 case 3 / AC-04b (UI): on a real Rest Day Quick Complete is disabled 
   await expect(page.getByTestId('rest-day-picker')).toContainText('Quick Complete is not available for this exercise today')
 })
 
-test('Week row (real API): yesterday opens read-only from GET /api/progress/daily?date=, then Back to today', async ({ page }) => {
-  await loginAs(page, PARTICIPANT)
-  await expect(page.getByTestId('today-skeleton')).toHaveCount(0)
-  const todayIso = (await page.getByTestId('today-date').getAttribute('data-date'))!
-  const prev = new Date(`${todayIso}T00:00:00Z`)
-  prev.setUTCDate(prev.getUTCDate() - 1)
-  const yesterday = prev.toISOString().slice(0, 10)
-  // Yesterday may be in the previous week: the arrow moves a week back, then the day button is clickable.
-  const dayButton = page.getByTestId(`today-day-${yesterday}`)
-  if ((await dayButton.count()) === 0) await page.getByTestId('today-week-prev').click()
-  const responded = page.waitForResponse((r) => r.url().includes(`/api/progress/daily?date=`) && r.status() === 200)
-  await page.getByTestId(`today-day-${yesterday}`).click()
-  await responded
-  await expect(page.getByTestId('today-readonly')).toBeVisible()
-  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', yesterday)
-  await expect(page.getByTestId('item-quick-complete')).toHaveCount(0)
-  await expect(page.getByTestId('rest-day-quick-complete')).toHaveCount(0)
-  await page.getByTestId('today-back').click()
-  await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', todayIso)
-})
-
 // --- PR #37 review follow-ups ---------------------------------------------------------------
 
-test('Past day that fails to load keeps the heading and the week row, and today is one tap away', async ({ page }) => {
+test('Week row (real API): tapping another day only shows a message; no other day is requested or opened', async ({ page }) => {
   await loginAs(page, PARTICIPANT)
   await expect(page.getByTestId('today-skeleton')).toHaveCount(0)
   const todayIso = (await page.getByTestId('today-date').getAttribute('data-date'))!
-  await page.route('**/api/progress/daily?date=*', (route) =>
-    route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error', fields: [] }) }),
-  )
-  await page.getByTestId('today-week-prev').click()
-  await expect(page.getByTestId('today-retry')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Past day' })).toBeVisible()
-  await expect(page.getByTestId('today-week')).toBeVisible()
-  await page.unroute('**/api/progress/daily?date=*')
-  // The previous week is shown, so the way back is the next-week arrow (it never goes past today).
-  await page.getByTestId('today-week-next').click()
+  const other: string[] = []
+  page.on('request', (r) => {
+    if (/\/api\/(progress\/daily|entries)/.test(r.url())) other.push(r.url())
+  })
+  await page.locator('[data-testid^="today-day-"]:not([aria-current="date"])').first().click()
+  await expect(page.getByTestId('today-toast')).toHaveText("Only today's activity can be viewed and logged.")
   await expect(page.getByTestId('today-date')).toHaveAttribute('data-date', todayIso)
-  await expect(page.getByTestId('today-readonly')).toHaveCount(0)
+  expect(other).toHaveLength(0)
 })
 
 test('Log dialog: the helper shows the daily limit left, not the target (entries above the target are allowed)', async ({ page }) => {
