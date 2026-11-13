@@ -93,8 +93,7 @@ export type EntryInput = {
 export type EntryResult = { entry: LedgerEntry | null; cumulative: Cumulative }
 
 export type TodayApi = {
-  /** No date = today (server clock); a past date is read-only (F-06 R13 rejects dates after today). */
-  getDaily(date?: string): Promise<DailyProgress>
+  getDaily(): Promise<DailyProgress>
   getEntries(date: string): Promise<DayEntries>
   listUserExercises(): Promise<UserExercise[]>
   createEntry(input: EntryInput): Promise<EntryResult>
@@ -185,8 +184,7 @@ export function describeError(
 // ---------------------------------------------------------------- real API
 
 const realApi: TodayApi = {
-  getDaily: async (date) =>
-    (await apiFetch<DailyProgress>(`/api/progress/daily${date ? `?date=${encodeURIComponent(date)}` : ''}`))!,
+  getDaily: async () => (await apiFetch<DailyProgress>('/api/progress/daily'))!,
   getEntries: async (date) => (await apiFetch<DayEntries>(`/api/entries?date=${encodeURIComponent(date)}`))!,
   listUserExercises: async () => (await apiFetch<UserExercise[]>('/api/user-exercises')) ?? [],
   createEntry: async (input) =>
@@ -354,7 +352,7 @@ function mockAddEntry(input: EntryInput, kind: EntryKind): EntryResult {
 }
 
 const mockApi: TodayApi = {
-  getDaily: (date) => delay(date && date !== MOCK_DATE ? { ...mockDaily(), date } : mockDaily()),
+  getDaily: () => delay(mockDaily()),
   getEntries: (date) => {
     const entries = mockStore().entries.filter((e) => e.logDate === date)
     const ids = [...new Set(entries.map((e) => e.userExerciseId))]

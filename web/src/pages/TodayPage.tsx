@@ -30,6 +30,8 @@ type Snapshot = { daily: DailyProgress; entries: LedgerEntry[]; cumulative: Cumu
 type LogTarget = { exercise: UserExercise }
 
 const NOT_AVAILABLE = 'Quick Complete is not available for this exercise today'
+// Tapping another day in the week row only explains this; Today has no screen for other days.
+const OTHER_DAY = "Only today's activity can be viewed and logged."
 
 function EntryList({ entries, unit, scored, testId, empty }: { entries: LedgerEntry[]; unit: UserExercise['unit']; scored: boolean; testId: string; empty: string }) {
   if (entries.length === 0) return <p className="empty-state" data-testid={testId}>{empty}</p>
@@ -56,9 +58,6 @@ export function TodayPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null)
-  // '' = today (the live, loggable view); otherwise a past day opened from the week row (read-only).
-  const [viewDate, setViewDate] = useState('')
-  const [todayDate, setTodayDate] = useState('')
   const noticeRef = useRef<HTMLDivElement>(null)
   const loadSeq = useRef(0)
 
@@ -67,8 +66,7 @@ export function TodayPage() {
     const seq = ++loadSeq.current
     if (!quiet) setState('loading')
     try {
-      const daily = await todayApi.getDaily(viewDate || undefined)
-      if (!viewDate) setTodayDate(daily.date)
+      const daily = await todayApi.getDaily()
       const [day, exercises] = await Promise.all([todayApi.getEntries(daily.date), todayApi.listUserExercises()])
       if (seq !== loadSeq.current) return
       setSnap({ daily, entries: day.entries, cumulative: day.cumulative, exercises })
@@ -77,7 +75,7 @@ export function TodayPage() {
       if (seq !== loadSeq.current) return
       setState('error')
     }
-  }, [viewDate])
+  }, [])
 
   useEffect(() => {
     void load()
@@ -114,13 +112,6 @@ export function TodayPage() {
     }
   }
 
-  function selectDay(iso: string) {
-    setViewDate(iso === todayDate ? '' : iso)
-    setExpanded(new Set())
-    setToast('')
-    setNotice('')
-  }
-
   function toggle(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -134,10 +125,9 @@ export function TodayPage() {
     return (
       <section className="today-page" data-testid="today-page" aria-busy="true">
         <header className="page-holder">
-          <h2>{viewDate ? 'Past day' : 'Today'}</h2>
+          <h2>Today</h2>
         </header>
         <div className="page today-panel">
-          {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
           <div className="skeleton-rows" data-testid="today-skeleton">
             <div className="skeleton skeleton-tall" />
             <div className="skeleton skeleton-tall" />
@@ -152,11 +142,9 @@ export function TodayPage() {
     return (
       <section className="today-page" data-testid="today-page">
         <header className="page-holder">
-          <h2>{viewDate ? 'Past day' : 'Today'}</h2>
+          <h2>Today</h2>
         </header>
-        {/* The week row stays so a failed past day is never a dead end: pick another day or go back to today. */}
         <div className="page today-panel">
-          {todayDate && <WeekRow today={todayDate} selected={viewDate || todayDate} onSelect={selectDay} />}
           <ErrorNotice>Something went wrong. Please try again.</ErrorNotice>
           <button type="button" className="btn btn-primary" data-testid="today-retry" onClick={() => void load()}>
             Retry
@@ -176,13 +164,12 @@ export function TodayPage() {
     if (exercise) setLogTarget({ exercise })
   }
 
-  const readOnly = viewDate !== ''
-  const firstTime = !readOnly && daily.isRestDay && exercises.length === 0
+  const firstTime = daily.isRestDay && exercises.length === 0
 
   return (
     <section className="today-page" data-testid="today-page">
       <header className="page-holder">
-        <h2>{readOnly ? 'Past day' : 'Today'}</h2>
+        <h2>Today</h2>
       </header>
       <div className="page today-panel">
       <p className="today-date" data-testid="today-date" data-date={daily.date}>
@@ -197,26 +184,17 @@ export function TodayPage() {
       )}
       {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
 
-      <WeekRow today={todayDate || daily.date} selected={daily.date} onSelect={selectDay} />
-
-      {readOnly && (
-        <div className="view-only" data-testid="today-readonly">
-          <p>Viewing a past day: view only. Logging is for today.</p>
-          <button type="button" className="btn btn-secondary pill" data-testid="today-back" onClick={() => selectDay(todayDate)}>
-            Back to today
-          </button>
-        </div>
-      )}
+      <WeekRow today={daily.date} onOtherDay={() => setToast(OTHER_DAY)} />
 
       <div className="overall-card" data-testid="overall-card">
         {daily.overallPercent === null ? (
           <p className="overall-rest" data-testid="today-overall-pct">
-            {readOnly ? 'Rest day: no goal that day' : 'Rest day: no goal today'}
+            Rest day: no goal today
           </p>
         ) : (
           <>
             <div className="overall-row">
-              <span className="overall-label">{readOnly ? 'Progress that day' : "Today's progress"}</span>
+              <span className="overall-label">Today&apos;s progress</span>
               <span className="overall-pct" data-testid="today-overall-pct">
                 {formatPercent(daily.overallPercent)}
               </span>
@@ -240,7 +218,7 @@ export function TodayPage() {
         </div>
       )}
 
-      {daily.isRestDay && !firstTime && !readOnly && (
+      {daily.isRestDay && !firstTime && (
         <div data-testid="rest-day">
           <p className="rest-banner" role="status" data-testid="rest-day-banner">
             Rest day: log anything you did
@@ -309,22 +287,18 @@ export function TodayPage() {
                 </div>
                 {msg && <ErrorNotice>{msg}</ErrorNotice>}
                 <div className="item-actions">
-                  {!readOnly && (
-                    <>
-                      <button
-                        type="button"
-                        className={done ? 'btn pill pill-done' : 'btn btn-primary pill'}
-                        data-testid="item-quick-complete"
-                        disabled={busy === item.userExerciseId}
-                        onClick={() => void quickComplete(item.userExerciseId)}
-                      >
-                        {done ? 'Completed' : 'Quick Complete'}
-                      </button>
-                      <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
-                        Log
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    className={done ? 'btn pill pill-done' : 'btn btn-primary pill'}
+                    data-testid="item-quick-complete"
+                    disabled={busy === item.userExerciseId}
+                    onClick={() => void quickComplete(item.userExerciseId)}
+                  >
+                    {done ? 'Completed' : 'Quick Complete'}
+                  </button>
+                  <button type="button" className="btn btn-secondary pill" data-testid="item-log" onClick={() => openLog(item)}>
+                    Log
+                  </button>
                   <span className="item-pct" data-testid="item-pct">
                     {Math.round(item.ratio * 100)}%
                   </span>
@@ -332,7 +306,7 @@ export function TodayPage() {
                 <button type="button" className="entries-toggle" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
                   Entries
                 </button>
-                {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty={readOnly ? 'No entries that day.' : 'No entries yet today.'} />}
+                {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty="No entries yet today." />}
               </li>
             )
           })}
