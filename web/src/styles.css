@@ -1,5 +1,7 @@
 /* Design tokens — pastel palette sampled from the Figma frames (UI_spec §3.6, v0.3.0) */
 :root {
+  --drip-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 36' preserveAspectRatio='none'%3E%3Cpath d='M0 0h160v10c-10 0-14 8-18 14s-8 12-18 12-14-8-18-14-8-10-16-10-14 8-18 14-8 12-18 12S16 30 12 24 4 10 0 10z'/%3E%3C/svg%3E");
+  --drip-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 36' preserveAspectRatio='none'%3E%3Cpath d='M0 0h220v12c-14 0-20 6-26 14s-12 10-22 10-16-8-22-16-12-8-24-8-18 8-24 16-12 8-22 8-16-8-22-16-12-8-24-8z'/%3E%3C/svg%3E");
   --color-sky: #eaeffd;
   --color-cloud: #dee7fd;
   --color-card: #dfe8fe;
@@ -42,6 +44,12 @@ body {
   background-color: var(--color-cloud);
   box-shadow: 0 0 40px rgba(63, 63, 87, 0.12);
   overflow-x: hidden;
+  /* Sub-page background for every screen except Welcome and Login */
+  background-color: var(--color-cloud);
+  background-image: url('/assets/Background_Mobile_Sub.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
 }
 
 /* S-01 Login: decorative background, pink floor anchored bottom (UI_spec §3.9) */
@@ -59,10 +67,10 @@ body {
 }
 
 .has-tabbar .app-main {
-  padding-bottom: 5.5rem;
+  padding-bottom: 6.5rem;
 }
 
-/* Session header (logged in) */
+/* Session header (logged in): blue bar, rounded bottom */
 .session-header {
   position: sticky;
   top: 0;
@@ -70,48 +78,101 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.75rem 1.25rem;
   padding: 0.75rem clamp(1rem, 4vw, 3rem);
+  background: var(--color-primary);
+  border-bottom: none;
+  border-radius: 0 0 24px 24px;
+}
+
+/* Page holder (every logged-in page): a blue block that holds the title and controls,
+   with stacked wavy layers underneath. The session bar merges into it. */
+.page-holder {
+  --pad: clamp(1rem, 4vw, 3rem);
+  position: relative;
+  z-index: 5;
+  margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 3rem;
+  padding: 0.75rem var(--pad) 2.25rem;
+}
+
+.page-holder > * {
+  position: relative;
+  z-index: 1;
+}
+
+.page-holder::before,
+.page-holder::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  mask-repeat: repeat-x, no-repeat;
+  -webkit-mask-repeat: repeat-x, no-repeat;
+}
+
+/* Back layer: lighter, hangs lowest */
+.page-holder::before {
+  z-index: 0;
+  bottom: -30px;
+  height: calc(100% + 30px);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  mask-image: var(--drip-b), linear-gradient(#000, #000);
+  -webkit-mask-image: var(--drip-b), linear-gradient(#000, #000);
+  mask-size: 220px 36px, 100% calc(100% - 35px);
+  -webkit-mask-size: 220px 36px, 100% calc(100% - 35px);
+  mask-position: left bottom, left top;
+  -webkit-mask-position: left bottom, left top;
+}
+
+/* Front layer: the primary blue block */
+.page-holder::after {
+  z-index: 0;
+  bottom: 0;
+  height: 100%;
+  background: var(--color-primary);
+  mask-image: var(--drip-a), linear-gradient(#000, #000);
+  -webkit-mask-image: var(--drip-a), linear-gradient(#000, #000);
+  mask-size: 160px 36px, 100% calc(100% - 35px);
+  -webkit-mask-size: 160px 36px, 100% calc(100% - 35px);
+  mask-position: left bottom, left top;
+  -webkit-mask-position: left bottom, left top;
+}
+
+.app-shell:has(.page-holder) .session-header {
+  position: relative;
+  border-radius: 0;
+  padding-bottom: 0.25rem;
+}
+
+.page-holder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.page-holder h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.page-holder .today-date {
+  color: var(--color-text);
+}
+
+.page-holder .btn-primary {
+  color: #fff;
+  background: var(--color-text);
+}
+
+.page-holder > .lib-top {
+  margin-bottom: 0.75rem;
 }
 
 .session-brand {
   font-size: 1.25rem;
   font-weight: 700;
-}
-
-/* Bottom nav bar (fallback shell: 64 px, pink bar, active = primary pill) */
-.session-nav {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  width: min(480px, 100%);
-  min-height: 64px;
-  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
-  background: var(--color-pink-bar);
-  border-top: 1px solid var(--color-border);
-}
-
-.session-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0 1rem;
-  color: var(--color-text);
-  text-decoration: none;
-  border-radius: 999px;
-}
-
-.session-nav a.active {
-  background: var(--color-primary);
-  color: var(--color-text);
 }
 
 .session-user {
@@ -129,8 +190,104 @@ body {
   padding: 0.15rem 0.55rem;
   font-size: 0.75rem;
   color: var(--color-text);
-  background: var(--color-primary);
+  background: var(--color-surface);
   border-radius: 999px;
+}
+
+/* ===== Bottom nav: pink bar, active icon lifts + label ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: min(480px, 100%);
+  height: 68px;
+  padding: 0 0.5rem env(safe-area-inset-bottom);
+  background: var(--color-pink-bar);
+  border-top: 1px solid var(--color-border);
+}
+
+.bottom-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-cloud);
+  border-radius: 50%;
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.bottom-nav-item.is-center {
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  background: var(--color-text);
+}
+
+.bottom-nav-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.bottom-nav-label {
+  position: absolute;
+  top: calc(100% + 4px);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--color-text);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  pointer-events: none;
+}
+
+.bottom-nav-item.active {
+  transform: translateY(-14px);
+  background: var(--color-primary);
+  box-shadow: 0 6px 12px rgba(120, 140, 220, 0.4);
+}
+
+.bottom-nav-item.is-center.active {
+  background: var(--color-text);
+}
+
+.bottom-nav-item.active .bottom-nav-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bottom-nav-item:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-item,
+  .bottom-nav-label {
+    transition: none;
+  }
 }
 
 /* Generic card (fallback shell: radius 20) */
@@ -400,35 +557,76 @@ body {
   }
 }
 
-/* Welcome (full-screen, outside app-shell — App.tsx /welcome branch) */
-.welcome-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: min(480px, 100%);
-  min-height: 100dvh;
-  margin: 0 auto;
-  padding: 8vh 1.5rem 10vh;
-  background-color: var(--color-cloud);
-  background-image: url('/assets/Background_Mobile.png');
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  box-shadow: 0 0 40px rgba(63, 63, 87, 0.12);
-  overflow-x: hidden;
-}
-
+/* Welcome (full-screen, outside app-shell): same layout as the Loading screen above
+   (shared .loading-screen), plus the delayed Login button under the title. */
 .welcome-logo {
-  width: min(300px, 75%);
+  width: min(88%, 380px);
   height: auto;
 }
 
+.welcome-screen {
+  justify-content: flex-start; /* everything stacks from the top */
+  padding-top: 14vh;
+  gap: 0.25rem;
+}
+
+.welcome-screen {
+  height: 100dvh;
+  min-height: 0;
+}
+
+/* Images shrink with the screen height so the Login button always stays in view */
+.welcome-screen .welcome-logo {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: min(100%, 420px);
+  max-height: 28dvh;
+  object-fit: contain;
+}
+
+.welcome-screen .loading-mascot {
+  flex: 0 0 auto; /* keep the square crop; the title shrinks instead */
+  min-height: 0;
+  /* The PNG has large transparent margins above and below the character: crop to a square around it */
+  aspect-ratio: 1.3 / 1; /* the character fills ~75% of the square crop's height, so a wider, shorter crop loses nothing */
+  width: min(148%, 580px, 80dvh);
+  max-height: 68dvh;
+  margin: auto 0 3rem; /* feet on the pink track at the bottom of the background */
+  object-fit: cover;
+  object-position: 50% 54%;
+}
+
 .welcome-login {
+  flex: 0 0 auto;
+  margin-bottom: 6vh;
   min-width: min(260px, 80%);
+  min-height: 64px;
+  background: var(--color-primary);
   opacity: 0;
   animation: welcome-fade-in 0.6s ease-out 1.8s forwards;
+}
+
+.welcome-login-spacer {
+  visibility: hidden;
+  animation: none;
+}
+
+/* The "Login" word is an image (white lettering) on the blue button */
+.welcome-login-word {
+  display: block;
+  width: 110px;
+  height: auto;
+}
+
+/* Short screens: less top space, smaller character, so nothing overlaps or gets cropped */
+@media (max-height: 700px) {
+  .welcome-screen {
+    padding-top: 4vh;
+  }
+
+  .welcome-screen .loading-mascot {
+    width: min(148%, 580px, 70dvh);
+  }
 }
 
 @keyframes welcome-fade-in {
@@ -498,6 +696,7 @@ body {
   border-radius: 50%;
   animation: loading-spin 0.9s linear infinite;
 }
+
 /* S-08 Exercise Library / S-09 Template Form (F-02) */
 .library-section {
   margin-top: 1.5rem;
@@ -572,31 +771,6 @@ body {
   margin-top: 0.5rem;
 }
 
-.table-scroll {
-  overflow-x: auto;
-}
-
-.library-table {
-  width: 100%;
-  font-size: 0.8125rem;
-  border-collapse: collapse;
-  background: var(--color-surface);
-}
-
-.library-table th,
-.library-table td {
-  padding: 0.5rem;
-  text-align: left;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.library-table .btn {
-  min-height: 36px;
-  padding: 0 0.85rem;
-  font-size: 0.8125rem;
-}
-
 .category-list {
   display: flex;
   flex-direction: column;
@@ -634,9 +808,78 @@ body {
   min-width: 0;
 }
 
-.empty-state {
-  margin: 0.75rem 0;
+/* Dialog shell (S-03 Log Entry; same look as the F-02 confirm dialog) */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(63, 63, 87, 0.45);
+}
+
+.dialog {
+  width: min(380px, 100%);
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border-radius: 20px;
+}
+
+.dialog h3 {
+  margin: 0 0 0.5rem;
+}
+
+.dialog .row-actions {
+  justify-content: flex-end;
+}
+
+.log-dialog .field {
+  margin-bottom: 0.75rem;
+}
+
+.duration-inputs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.log-preview {
+  min-height: 1.25rem;
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.log-helper {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+/* S-02 Today + shared feedback blocks */
+.today-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.today-date {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.mock-banner {
+  margin: 0 0 1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-warning);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-warning);
+  border-radius: 12px;
 }
 
 .toast {
@@ -652,7 +895,7 @@ body {
 .skeleton-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .skeleton {
@@ -661,30 +904,458 @@ body {
   border-radius: 12px;
 }
 
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(63, 63, 87, 0.45);
+.skeleton-tall {
+  height: 7rem;
 }
 
-.dialog {
-  width: min(380px, 100%);
-  padding: 1.25rem;
+.empty-state,
+.muted {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.empty-card {
+  padding: 1rem;
+  text-align: center;
   background: var(--color-surface);
+  border-radius: 16px;
+}
+
+.overall-card {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 16px;
+}
+
+.overall-pct {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.overall-rest {
+  margin: 0;
+  font-weight: 600;
+}
+
+.overall-score {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.bar {
+  height: 12px;
+  overflow: hidden;
+  background: var(--color-skeleton);
+  border-radius: 999px;
+}
+
+.bar-mini {
+  height: 8px;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--color-pink-bar);
+  border-radius: 999px;
+}
+
+.rest-banner {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  background: var(--color-pink);
+  border-radius: 12px;
+}
+
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-card {
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.item-head strong {
+  flex: 1 1 100%;
+  font-size: 1.0625rem;
+}
+
+.item-target,
+.item-actual {
+  margin: 0.35rem 0;
+  font-size: 0.875rem;
+}
+
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.item-actions .btn {
+  min-height: 44px;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+}
+
+.item-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge {
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-cloud);
+  border-radius: 999px;
+}
+
+.badge-priority {
+  background: var(--color-pink);
+}
+
+.badge-muted {
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+}
+
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.entry-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ===== Exercise Library (card layout) ===== */
+.lib-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.lib-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.lib-new {
+  min-height: 40px;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+}
+
+.lib-heading {
+  margin: 1rem 0 0.75rem;
+  font-size: 1rem;
+}
+
+.lib-categories {
+  margin-top: 2rem;
+}
+
+.chip-row {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.5rem;
+  scrollbar-width: none;
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-circle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  padding: 0.35rem;
+  overflow: hidden;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.chip-circle.active {
+  color: #fff;
+  background: var(--color-text);
+}
+
+.chip-row-pills {
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.search-dot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--color-text);
+  background: var(--color-pink);
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+}
+
+.chip-pill {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip-pill.active {
+  background: var(--color-primary);
+}
+
+.chip-circle:focus-visible,
+.chip-pill:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exercise-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1rem 0.75rem;
+  text-align: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
   border-radius: 20px;
 }
 
-.dialog h3 {
-  margin: 0 0 0.5rem;
+.exercise-card-art {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 
-.dialog .row-actions {
+.exercise-card-name {
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.exercise-card-cat {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.exercise-card-meta {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.exercise-card-actions {
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.exercise-card-actions .btn {
+  min-height: 34px;
+  padding: 0 0.7rem;
+  font-size: 0.75rem;
+}
+
+.lib-top {
+  flex-wrap: nowrap;
+}
+
+.lib-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lib-top-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  margin-left: auto;
   justify-content: flex-end;
+}
+
+.dialog-wide {
+  width: min(440px, 100%);
+  max-height: 85dvh;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dialog-head h3 {
+  margin: 0;
+}
+
+.dialog-close {
+  min-height: 36px;
+  width: 36px;
+  padding: 0;
+}
+/* Template dialog: picture picker */
+.template-dialog {
+  overflow-y: auto;
+}
+
+.image-picker {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.image-picker-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.image-picker-preview {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+}
+
+.image-picker-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.image-option {
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.image-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.image-option.active {
+  border-color: currentColor;
+}
+
+/* Library name search */
+.search-box {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-box input {
+  min-height: 40px;
+  width: min(220px, 50vw);
+  padding: 0 0.875rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
+  border-radius: 999px;
+}
+
+button.bottom-nav-item {
+  padding: 0;
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+}
+
+.bottom-nav-notice {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--color-text);
+  border-radius: 999px;
+}
+
+/* ===== F-03 My Plan / Add Exercise styles (from feature/F-03-plan-ui) ===== */
+.table-scroll {
+  overflow-x: auto;
 }
 
 /* My Plan (S-05) */
@@ -759,13 +1430,6 @@ body {
   color: var(--color-text);
   font-weight: 600;
   background: var(--color-primary);
-}
-
-/* Add Exercise dialog (S-04) */
-.dialog-wide {
-  width: min(560px, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
 }
 
 .add-exercise-form {
@@ -886,4 +1550,218 @@ body {
   padding: 0.5rem 0.75rem;
   background: var(--color-card);
   border-radius: 12px;
+}
+
+/* My Plan (S-05): week calendar, day summary, day panel */
+.plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.calendar-card {
+  padding: 0.9rem 0.8rem 0.8rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+}
+
+/* Month | Week switch */
+.cal-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 0.75rem;
+  padding: 3px;
+  background: var(--color-sky);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.cal-toggle button {
+  min-height: 36px;
+  color: var(--color-text);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.cal-toggle .cal-toggle-on {
+  color: var(--color-surface);
+  font-weight: 600;
+  background: var(--color-text);
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.cal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.cal-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--color-text);
+  background: var(--color-sky);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cal-arrow svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cal-labels,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.2rem;
+}
+
+.cal-labels {
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.cal-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cal-grid li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.cal-day {
+  width: 100%;
+  max-width: 2.6rem;
+  height: 2.3rem;
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.cal-grid-week .cal-day {
+  background: #f3f3f5;
+}
+
+.cal-grid-week .cal-day-selected {
+  background: var(--color-text);
+}
+
+.cal-day-outside {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+.cal-day-today:not(.cal-day-selected) {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.cal-day-selected {
+  color: var(--color-surface);
+  font-weight: 600;
+  background: var(--color-text);
+  opacity: 1;
+}
+
+.cal-day:focus-visible,
+.cal-arrow:focus-visible,
+.cal-toggle button:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-pink-bar);
+  border-radius: 50%;
+}
+
+.cal-dot-off {
+  visibility: hidden;
+}
+
+/* The mascot PNG has transparent padding; object-view-box crops it to the head. */
+.cal-mascot {
+  width: 1.9rem;
+  height: auto;
+  aspect-ratio: 846 / 580;
+  object-view-box: inset(27.5% 8.7% 34.8% 8.7%);
+}
+
+.cal-mascot-dim {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+.day-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  background: var(--color-primary);
+  border-radius: 20px;
+}
+
+.day-summary p {
+  margin: 0;
+}
+
+.day-summary-date {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.day-summary-count {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.day-summary .btn {
+  flex-shrink: 0;
+  background: var(--color-surface);
+}
+
+.day-panel {
+  min-height: 45vh;
+  padding: 0.9rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+}
+
+.day-panel .plan-card {
+  background: var(--color-sky);
 }

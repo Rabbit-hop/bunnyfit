@@ -53,7 +53,18 @@ export type Template = {
   metValue: number
   rangeMin: number
   rangeMax: number
+  /** Not in the Sprint 1 API contract; absent until the backend supports it. */
+  imageUrl?: string | null
 }
+
+// Picture choice is UI-only until F-02/API spec add `imageUrl` (whitelisted app paths, no uploads).
+export const IMAGE_FIELD_ENABLED = false
+export const DEFAULT_TEMPLATE_IMAGE = '/character/emoji.png'
+export const TEMPLATE_IMAGES = [
+  { id: 'emoji', src: '/character/emoji.png', label: 'Smile' },
+  { id: 'emoji2', src: '/character/emoji2.png', label: 'Cheer' },
+  { id: 'character', src: '/character/full_character.png', label: 'Bunny' },
+] as const
 
 export type TemplateInput = {
   categoryId: string
@@ -64,6 +75,7 @@ export type TemplateInput = {
   metValue: number
   rangeMin: number
   rangeMax: number
+  imageUrl?: string | null
 }
 
 export const listCategories = () => apiFetch<Category[]>('/api/categories').then((r) => r ?? [])
