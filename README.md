@@ -153,6 +153,7 @@ web/               # React SPA
 prisma/            # schema, migrations, seed
 tests/             # unit/, integration/, e2e/ exist; system/, performance/ planned
 docs/              # srs.md, features.md, traceability.md, system-sds.md, sprints/
+scripts/           # report/ builds the Deliverable 1 PDF evidence (see scripts/report/README.md)
 docker-compose.yml   # dev database (postgres:17); `--profile app` adds migrate + app
 Dockerfile  .dockerignore                  # multi-stage image (Lab 5)
 .github/workflows/ci.yml                   # PR checks (Lab 5); deploy workflow still planned
@@ -169,8 +170,8 @@ Foundation conventions worth knowing before touching the code:
   `{ method, path, featureId, auth, roles, ownership }`
   (`server/routes/registry.ts`); the Access Matrix tests (SDS §6.3,
   `tests/integration/security_access.test.ts`) fail on a route without a policy (the only exemption is the SPA shell fallback; F-01 contract §4.5).
-  F-01 routes and its test-only probe routes are covered now; the real routes of
-  F-02/03/04/06 are added in stage 2.
+  The registry holds the real Sprint 1 routes (SYS-01, F-01, F-02, F-03, F-04, F-06);
+  routes of later sprints are added to it, and to the matrix tests, as they land.
   Async route handlers must be wrapped in `asyncHandler`
   (`server/middleware/asyncHandler.ts`) because Express 4 does not forward rejections.
 - **Prisma schema** follows `docs/system-sds.md` v1.1.0, including
