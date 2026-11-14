@@ -18,5 +18,41 @@ services:
       timeout: 5s
       retries: 12
 
+  # One-shot: apply committed migrations (SDS §9.1). Seed on demand:
+  #   docker compose run --rm migrate pnpm run db:seed
+  migrate:
+    build:
+      context: .
+      target: migrate
+    profiles: ["app"]
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/bunnyfit
+      SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:?set in .env}
+      SEED_PARTICIPANT_PASSWORD: ${SEED_PARTICIPANT_PASSWORD:?set in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # API + built web UI on http://127.0.0.1:${APP_PORT:-8080}
+  app:
+    build:
+      context: .
+    profiles: ["app"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/bunnyfit
+      JWT_SECRET: ${JWT_SECRET:?set in .env (at least 32 bytes)}
+      JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-3600}
+      BCRYPT_COST: ${BCRYPT_COST:-10}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Bangkok}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   pgdata:
