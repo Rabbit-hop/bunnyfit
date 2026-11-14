@@ -90,6 +90,17 @@ pnpm run dev:web   # Vite SPA on http://127.0.0.1:5173, proxies /api to the API
 | `pnpm run db:migrate:dev` | Create/apply a migration in development |
 | `pnpm run db:seed` | Seed the baseline data |
 
+## Run in Docker
+
+```bash
+docker compose --profile app up -d --build        # db + migrate + app on http://127.0.0.1:8080
+docker compose --profile app run --rm migrate pnpm run db:seed
+```
+
+Needs `JWT_SECRET` (at least 32 bytes) and the two `SEED_*` passwords in `.env`;
+`docker compose up -d` without `--profile app` still starts only the database.
+Variables, CI and release steps: `docs/labs/lab-05/deployment.md`.
+
 ## Verify a local run
 
 ```bash
@@ -142,8 +153,9 @@ web/               # React SPA
 prisma/            # schema, migrations, seed
 tests/             # unit/, integration/, e2e/ exist; system/, performance/ planned
 docs/              # srs.md, features.md, traceability.md, system-sds.md, sprints/
-docker-compose.yml   # dev database only (postgres:17); app image is Lab 5
-Dockerfile  .github/workflows/             # planned (Lab 5), not created yet
+docker-compose.yml   # dev database (postgres:17); `--profile app` adds migrate + app
+Dockerfile  .dockerignore                  # multi-stage image (Lab 5)
+.github/workflows/ci.yml                   # PR checks (Lab 5); deploy workflow still planned
 .env.example
 ```
 
@@ -172,5 +184,6 @@ Foundation conventions worth knowing before touching the code:
 
 ## Pending (tracked by GitHub issues)
 
-- App image / full `docker compose up` (app + DB) / CI gates — Lab 5
-  (`docker-compose.yml` currently starts the dev database only)
+- Lab 5 (issue #22): the Dockerfile, the compose `app` profile and `ci.yml` exist;
+  branch protection, the GCP deployment and the deploy workflow are still open.
+  Details and status: `docs/labs/lab-05/deployment.md`.
