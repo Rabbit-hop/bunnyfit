@@ -1,0 +1,172 @@
+name: CI
+
+# Lab 5 (R-05, R-06) and SDS §9.3.
+#   PR into a staging branch : install, type-check, build, unit + API/DB integration tests, Docker image build
+#   PR into main (release)   : all of the above + Playwright UI E2E
+# Branch protection (set in GitHub, not in this file) makes `test` and `docker-build`
+# (and `e2e` for main) required checks, so a failing check blocks the merge.
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'staging/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Throwaway values for the CI service container only. They protect nothing and are not real secrets.
+  CI_DB_PASSWORD: ci-throwaway-db
+  DATABASE_URL: postgresql://user:ci-throwaway-db@localhost:5432/bunnyfit
+  DATABASE_URL_TEST: postgresql://user:ci-throwaway-db@localhost:5432/bunnyfit_test
+  SEED_MANAGER_PASSWORD: ci-Manager-Pass-1
+  SEED_PARTICIPANT_PASSWORD: ci-Participant-Pass-1
+  APP_TIMEZONE: Asia/Bangkok
+  BCRYPT_COST: '4'
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: ci-throwaway-db
+          POSTGRES_DB: bunnyfit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d bunnyfit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Create the development database
+        # DATABASE_URL must name a different database from DATABASE_URL_TEST (tests/globalSetup.ts).
+        run: PGPASSWORD="$CI_DB_PASSWORD" psql -h localhost -U user -d bunnyfit_test -c 'CREATE DATABASE bunnyfit'
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Unit and API/DB integration tests
+        # tests/globalSetup.ts applies the committed migrations and the seed to DATABASE_URL_TEST first.
+        run: pnpm exec vitest run --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+
+      - name: Test summary
+        if: always()
+        run: |
+          if [ -f test-results/junit.xml ]; then
+            line=$(grep -m1 '<testsuites' test-results/junit.xml)
+            {
+              echo '### Vitest'
+              echo "- tests: $(echo "$line" | grep -o ' tests="[0-9]*"' | grep -o '[0-9]*')"
+              echo "- failures: $(echo "$line" | grep -o ' failures="[0-9]*"' | grep -o '[0-9]*')"
+              echo "- errors: $(echo "$line" | grep -o ' errors="[0-9]*"' | grep -o '[0-9]*')"
+              echo "- commit: ${GITHUB_SHA}"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No junit.xml was produced.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  docker-build:
+    name: docker-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the runtime image (default target)
+        run: docker build --tag bunnyfit:ci-${{ github.sha }} .
+
+      - name: Build the migrate image
+        run: docker build --target migrate --tag bunnyfit-migrate:ci-${{ github.sha }} .
+
+  e2e:
+    name: e2e
+    # Release gate: only for pull requests into main (SDS §9.3). A skipped job counts as passing for a required check.
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: ci-throwaway-db
+          POSTGRES_DB: bunnyfit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d bunnyfit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate a per-run JWT secret
+        run: |
+          secret="$(openssl rand -base64 48)"
+          echo "::add-mask::$secret"
+          echo "JWT_SECRET=$secret" >> "$GITHUB_ENV"
+
+      - name: Migrate and seed the test database
+        run: |
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:migrate
+          DATABASE_URL="$DATABASE_URL_TEST" pnpm run db:seed
+
+      - name: Install the Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Playwright E2E
+        run: pnpm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
