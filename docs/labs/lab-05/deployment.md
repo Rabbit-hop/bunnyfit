@@ -13,7 +13,7 @@
 | Application | One TypeScript Node/Express process serving the API and the built React SPA (one origin) | In the repository |
 | Database | PostgreSQL via Prisma; migrations committed under `prisma/migrations/` | In the repository |
 | Image | Multi-stage `Dockerfile` (targets `build`, `migrate`, `prod-deps`, `runtime`; `runtime` is the default) | In the repository (commit `beebd91`) |
-| CI | GitHub Actions `.github/workflows/ci.yml` | In the repository; **not yet run on GitHub** at the time of writing |
+| CI | GitHub Actions `.github/workflows/ci.yml` | In the repository. On PR #42 (head `d2a3880`, run 43584550940): `test` and `docker-build` passed, `e2e` was skipped because that PR targets staging; the `e2e` job has **not** run yet |
 | Registry, runtime, database, secrets (planned, SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | **Planned, not created** |
 | Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | **Planned, not written** |
 
@@ -78,7 +78,7 @@ What was checked so far (14 Nov 2026, local machine, image built from commit `be
 | Pull request into `staging/**` or `main` | `docker-build` | builds the runtime and migrate images (does not start them) |
 | Pull request into `main` only | `e2e` | migrate and seed the test database, install Chromium, run Playwright |
 
-Branch protection (a GitHub setting, not a file) is to require `test`, `docker-build` and, for `main`, `e2e`. **Not yet configured**; it can only be selected after the checks have run once. The failing-check demonstration (C-02) uses a temporary branch and is **not yet done**.
+Branch protection (a GitHub setting, not a file) is to require `test`, `docker-build` and, for `main`, `e2e`. **Not configured when this was written**; a check can only be selected after it has run once, which `test` and `docker-build` now have (PR #42) and `e2e` has not. The failing-check demonstration (C-02) uses a temporary branch and is **not yet done**.
 
 Actions are pinned to full commit SHAs.
 
