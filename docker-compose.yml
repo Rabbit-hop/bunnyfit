@@ -27,12 +27,15 @@ services:
     profiles: ["app"]
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/bunnyfit
-      SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:?set in .env}
-      SEED_PARTICIPANT_PASSWORD: ${SEED_PARTICIPANT_PASSWORD:?set in .env}
+      SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:-}
+      SEED_PARTICIPANT_PASSWORD: ${SEED_PARTICIPANT_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
 
+  # JWT_SECRET and SEED_* default to empty here on purpose: Compose interpolates every service, even
+  # ones in an inactive profile, so a required (:?) variable would break a plain `docker compose up -d`.
+  # The app refuses to start without a valid JWT_SECRET, and the seed refuses empty passwords.
   # API + built web UI on http://127.0.0.1:${APP_PORT:-8080}
   app:
     build:
@@ -41,7 +44,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/bunnyfit
-      JWT_SECRET: ${JWT_SECRET:?set in .env (at least 32 bytes)}
+      JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-3600}
       BCRYPT_COST: ${BCRYPT_COST:-10}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Bangkok}
