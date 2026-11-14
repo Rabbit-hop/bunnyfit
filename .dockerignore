@@ -1,0 +1,21 @@
+# Keep the build context small and free of secrets (Lab 5 R-01/R-02).
+.git
+.github
+node_modules
+dist
+.env
+.env.*
+!.env.example
+docs
+evidence
+tests/e2e
+test-results
+playwright-report
+coverage
+*.log
+.DS_Store
+.idea
+.vscode
+Dockerfile
+docker-compose.yml
+.dockerignore
