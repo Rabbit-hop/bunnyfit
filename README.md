@@ -142,7 +142,7 @@ web/               # React SPA
 prisma/            # schema, migrations, seed
 tests/             # unit/, integration/, e2e/ exist; system/, performance/ planned
 docs/              # srs.md, features.md, traceability.md, system-sds.md, sprints/
-scripts/           # loop-gate.sh (typecheck + test + build); report/ builds the Deliverable 1 PDF evidence (see scripts/report/README.md)
+scripts/           # report/ builds the Deliverable 1 PDF evidence (see scripts/report/README.md)
 docker-compose.yml   # dev database only (postgres:17); app image is Lab 5
 Dockerfile  .github/workflows/             # planned (Lab 5), not created yet
 .env.example
