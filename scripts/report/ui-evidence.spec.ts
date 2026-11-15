@@ -85,8 +85,11 @@ test('normal workflow: Participant logs in, plans, logs and completes an exercis
   await snap(page, G, 'n03-card-before', 'A plan item before Quick Complete', `Plan item "${name}": target 2 km, nothing logged yet (this item was added through \`POST /api/plan-items\` by the script).`, card)
 
   await card.getByTestId('item-quick-complete').click()
+  // The completed activity leaves Today's list; it is shown behind the History button.
+  await expect(card).toHaveCount(0)
+  await page.getByTestId('history-toggle').click()
   await expect(card.getByTestId('item-quick-complete')).toHaveText('Completed')
-  await snap(page, G, 'n04-card-after', 'The same item after Quick Complete', 'After one tap on Quick Complete the card shows 2 km of 2 km, 100 % and the button reads "Completed" (`POST /api/entries/quick-complete`, then `GET /api/progress/daily`).', card)
+  await snap(page, G, 'n04-card-after', 'The same item after Quick Complete (in History)', 'After one tap on Quick Complete the activity leaves Today\'s list and appears under History showing 2 km of 2 km, 100 % and the button reads "Completed" (`POST /api/entries/quick-complete`, then `GET /api/progress/daily`).', card)
 
   await card.getByTestId('item-log').click()
   await expect(page.getByTestId('log-dialog')).toBeVisible()
