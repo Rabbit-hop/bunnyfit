@@ -40,6 +40,18 @@ Compose-only variables (used by `docker-compose.yml`, not read by the applicatio
 
 The CI workflow contains throwaway values (`ci-throwaway-db`, `ci-Manager-Pass-1`, `ci-Participant-Pass-1`) for its own disposable Postgres service container. They protect nothing and are not used outside CI.
 
+### Cloud-readiness audit (issue #46, 17 Nov 2026)
+
+Checked on `staging/sprint-1` at `6425e68`:
+
+- **Settings:** the only `process.env` reads in `server/` are in `server/config/env.ts`; every name in the table above is read there. `JWT_SECRET` is validated at startup (missing or under 32 bytes → the API refuses to start).
+- **Repository:** the only tracked env file is `.env.example` (placeholders). A `git grep` for connection strings with a password, AWS-style keys and private-key headers found nothing outside the git-ignored `docs/local/`. This is a pattern search, not a full secret scan.
+- **State outside the container:** sessions are JWTs with the `RevokedToken` denylist in PostgreSQL; the server code has no upload handling and writes no files. Nothing the app needs is kept only in the container.
+- **Seed accounts:** `prisma/seed.ts` takes both passwords from `SEED_MANAGER_PASSWORD` / `SEED_PARTICIPANT_PASSWORD` and refuses to run when either is empty, so the values can come from Secret Manager without a code change.
+- **Logs with the database unreachable:** the API was started against an unreachable database whose URL contained a test password; a login request returned `500 INTERNAL_ERROR` with the generic message, and the server log held the Prisma "Can't reach database server at host:port" error plus a stack trace but not the password or the connection string. Only this failure was tried; other error paths were not.
+
+**Readiness decision (#46): no `/api/ready` endpoint.** The contract defines one public deployment check, `GET /api/health` (SDS §5.2, api-spec SYS-01), which does not touch the database. The deploy smoke check in SDS §9 is `/api/health` + login + one persisted read; login and the read go through the database, so the smoke check after each deploy does verify the database connection. The trade-off: `/api/health` stays `200` when the database is down, so it is a liveness check only and must not be read as readiness. Adding `/api/ready` later would be a contract change (SDS, api-spec, route registry, AC-12c/AC-22c matrix, RTM) and is not part of Sprint 1.
+
 ## 3. Commands
 
 Prerequisites: Node ≥ 22.12, pnpm (version pinned by `package.json`), Docker with Compose.
