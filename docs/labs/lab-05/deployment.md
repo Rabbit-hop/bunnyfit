@@ -14,7 +14,7 @@
 | Database | PostgreSQL via Prisma; migrations committed under `prisma/migrations/` | In the repository |
 | Image | Multi-stage `Dockerfile` (targets `build`, `migrate`, `prod-deps`, `runtime`; `runtime` is the default) | In the repository (commit `beebd91`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` | In the repository. Pull-request run on PR #42, head `005136a` (run 43706494746): `test` and `docker-build` passed, `e2e` skipped because the PR targets staging. Manual `workflow_dispatch` run on the same head (run 43706506031): `test` (27 files, 393 tests), `docker-build` and `e2e` (Playwright, 40 tests) all passed |
-| Registry, runtime, database, secrets (planned, SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | **Planned, not created** |
+| Registry, runtime, database, secrets (SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | Created by the course portal (see §5); first manual deployment done 21 Nov 2026 (§5.1) |
 | Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | **Planned, not written** |
 
 Differences from the Student Guide reference stack: GCP access changed after the handout (course update, 20 Nov 2026). The team does not create its own GCP Free Trial project, billing account or budget (Guide Episode 1); the course portal provides a shared project and a team prefix, and creates the Cloud SQL instance, Artifact Registry repository, Cloud Run service, migration job and Secret Manager secrets. The team still builds, migrates and deploys the application itself. Record any further difference here when a choice differs.
@@ -84,7 +84,7 @@ Actions are pinned to full commit SHAs.
 
 ## 5. GCP resources
 
-The values below come from the course portal: project, region and prefix from "Activate & status", the rest from the "Team resources" tab (portal status "Resources ready, 6/6 steps", 20 Nov 2026). The tab states it is recorded system output, not a live Google Cloud check, so nothing here has been confirmed with `gcloud` yet. Only secret reference names are listed; no secret value is recorded.
+The values below come from the course portal: project, region and prefix from "Activate & status", the rest from the "Team resources" tab (portal status "Resources ready, 6/6 steps", 20 Nov 2026). The tab states it is recorded system output, not a live Google Cloud check. Later `gcloud` checks (§5.1) confirmed the Cloud Run service, the migration job and the registry repository, and the Cloud SQL connection and the `DATABASE_URL` / `ADMIN_PASSWORD` secrets attached to the service and job; the Cloud SQL instance itself was not inspected directly. Only secret reference names are listed; no secret value is recorded.
 
 | Item | Value |
 | --- | --- |
@@ -96,10 +96,23 @@ The values below come from the course portal: project, region and prefix from "A
 | Migration job | `s27d6b925-migrate` |
 | Cloud SQL instance / database | instance `s27d6b925-pg` (tier `db-f1-micro`), database `s27d6b925`, user `s27d6b925`, connection name `cpe-se-course-2026:asia-southeast1:s27d6b925-pg` |
 | Runtime service account | `s27d6b925-runner@cpe-se-course-2026.iam.gserviceaccount.com` |
-| Secret Manager secrets (names only) | `s27d6b925-database-url` (DATABASE_URL), `s27d6b925-admin-password`, `s27d6b925-demo-password` (demo seeding). The portal does not list a `JWT_SECRET` secret; that is an open question for the deploy step. |
-| Public URL | shown in the portal "Team resources" tab (Cloud Run URL); not copied here because the app is not deployed yet |
+| Secret Manager secrets (names only) | `s27d6b925-database-url` (DATABASE_URL), `s27d6b925-admin-password`, `s27d6b925-demo-password` (demo seeding). The portal lists no `JWT_SECRET` secret and the deploying account cannot create secrets, so `JWT_SECRET` is stored in the portal slot `s27d6b925-app-secret-1` (added with the Project Kit, `kit.sh secrets add 1`). |
+| Public URL | `https://s27d6b925-4d7hbszvwq-as.a.run.app` (as printed by `gcloud run services describe`) |
 
 Cost controls to apply (Lab 5 §5): alerts-only budget before any resource, Cloud Run minimum instances 0 and maximum 3 or fewer, smallest Cloud SQL tier, tear down or pause when idle.
+
+### 5.1 First manual deployment (21 Nov 2026, issue #47)
+
+Run in Cloud Shell by one team member (the course project allows one account). Source: `staging/sprint-1` at `6425e684d937bcb2613288b4f6580f2b95d17b4d` (merge of PR #42). The pipeline in §6 is not used yet.
+
+1. Built and pushed two images to `$BASE` (`asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925`): `:<SHA>` (target `runtime`) and `:migrate-<SHA>` (target `migrate`).
+2. Migration job: the portal job held a placeholder image and a `python` placeholder command, so it was updated with `--image …:migrate-<SHA> --command pnpm --args run,db:migrate`; execution `s27d6b925-migrate-swtqn` completed.
+3. `JWT_SECRET`: `gcloud secrets create` was denied for the team account; the value was added to slot `s27d6b925-app-secret-1` with `kit.sh secrets add 1 --from-stdin` (value never displayed).
+4. Seed (once): the same job was updated to `--command pnpm --args run,db:seed` with `SEED_MANAGER_PASSWORD` mapped to `s27d6b925-admin-password` and `SEED_PARTICIPANT_PASSWORD` mapped to `s27d6b925-demo-password`; execution `s27d6b925-migrate-8kmf5` completed. The job was then set back to `pnpm run db:migrate`.
+5. Service: `gcloud run services update s27d6b925 --image …:<SHA> --update-env-vars NODE_ENV=production,APP_TIMEZONE=Asia/Bangkok,LOG_LEVEL=info,BCRYPT_COST=10,JWT_EXPIRES_IN_SECONDS=3600 --update-secrets JWT_SECRET=s27d6b925-app-secret-1:latest --min-instances 0`; revision `s27d6b925-00002-xsz` serves 100% of traffic. `DATABASE_URL` and the Cloud SQL connection were already attached by the portal; maximum instances stay at the portal value of 1.
+6. Checks: `curl <URL>/api/health` returned `{"status":"ok"}`. Sign-in with a seeded account in the browser was reported as working by the team member who ran the deployment; the screenshot belongs on issue #47 and is not part of this repository.
+
+Not done / known gaps: the deploy workflow (`deploy.yml`) and smoke script are not written; the `e2e` suite was not run against the cloud URL; the seed ran as a one-off command and re-running it resets the seeded passwords to the secret values.
 
 ## 6. Release procedure
 
@@ -111,4 +124,10 @@ Cost controls to apply (Lab 5 §5): alerts-only budget before any resource, Clou
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
 5. Roll back by redeploying an earlier image tag, then roll forward.
 
-**Finding the commit that is running:** `GET /api/health` returns only `{"status":"ok"}` and does not report a commit. The intended answer is the image tag (the full commit SHA) of the active Cloud Run revision. This section must be completed with the exact command once the service exists.
+**Finding the commit that is running:** `GET /api/health` returns only `{"status":"ok"}` and does not report a commit. The intended answer is the image tag (the full commit SHA) of the active Cloud Run revision. Exact command (read-only):
+
+```
+gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)'
+```
+
+The tag after the last colon is the full commit SHA of the running image. For the 21 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d` (taken from the build command; the `describe` output was not captured).
