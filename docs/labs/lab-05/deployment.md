@@ -130,4 +130,4 @@ Not done / known gaps: the deploy workflow (`deploy.yml`) and smoke script are n
 gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)'
 ```
 
-The tag after the last colon is the full commit SHA of the running image. For the 21 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d` (taken from the build command; the `describe` output was not captured).
+The tag after the last colon is the full commit SHA of the running image. For the 21 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 21 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
