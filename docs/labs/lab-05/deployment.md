@@ -17,7 +17,7 @@
 | Registry, runtime, database, secrets (planned, SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | **Planned, not created** |
 | Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | **Planned, not written** |
 
-Differences from the Student Guide reference stack: none decided yet. Record any here when a choice differs.
+Differences from the Student Guide reference stack: GCP access changed after the handout (course update, 20 Nov 2026). The team does not create its own GCP Free Trial project, billing account or budget (Guide Episode 1); the course portal provides a shared project and a team prefix, and creates the Cloud SQL instance, Artifact Registry repository, Cloud Run service, migration job and Secret Manager secrets. The team still builds, migrates and deploys the application itself. Record any further difference here when a choice differs.
 
 ## 2. Environment variables
 
@@ -84,12 +84,13 @@ Actions are pinned to full commit SHAs.
 
 ## 5. GCP resources
 
-Not created yet. Fill in this table when each resource exists (names must come from the real project, not guesses).
+The project, region and prefix below come from the course portal. Rows marked _TBD_ are filled in only after the portal reports the resources ready and they are read from its "Team resources" tab (names must come from the real project, not guesses).
 
 | Item | Value |
 | --- | --- |
-| GCP project ID | _TBD_ |
-| Region | _TBD_ |
+| GCP project ID | `cpe-se-course-2026` (shared course project, assigned by the course portal; not a secret) |
+| Region | `asia-southeast1` (assigned by the course portal) |
+| Team prefix | `s27d6b925` (assigned by the course portal; every team resource name starts with it) |
 | Artifact Registry repository | _TBD_ |
 | Cloud Run service | _TBD_ |
 | Cloud SQL instance / database | _TBD_ |
