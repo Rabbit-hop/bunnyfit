@@ -14,7 +14,7 @@
 | Database | PostgreSQL via Prisma; migrations committed under `prisma/migrations/` | In the repository |
 | Image | Multi-stage `Dockerfile` (targets `build`, `migrate`, `prod-deps`, `runtime`; `runtime` is the default) | In the repository (commit `beebd91`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` | In the repository. Pull-request run on PR #42, head `005136a` (run 43706494746): `test` and `docker-build` passed, `e2e` skipped because the PR targets staging. Manual `workflow_dispatch` run on the same head (run 43706506031): `test` (27 files, 393 tests), `docker-build` and `e2e` (Playwright, 40 tests) all passed |
-| Registry, runtime, database, secrets (SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | Created by the course portal (see §5); first manual deployment done 21 Nov 2026 (§5.1) |
+| Registry, runtime, database, secrets (SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | Created by the course portal (see §5); first manual deployment done 20 Nov 2026 (§5.1) |
 | Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | **Planned, not written** |
 
 Differences from the Student Guide reference stack: GCP access changed after the handout (course update, 20 Nov 2026). The team does not create its own GCP Free Trial project, billing account or budget (Guide Episode 1); the course portal provides a shared project and a team prefix, and creates the Cloud SQL instance, Artifact Registry repository, Cloud Run service, migration job and Secret Manager secrets. The team still builds, migrates and deploys the application itself. Record any further difference here when a choice differs.
@@ -101,7 +101,7 @@ The values below come from the course portal: project, region and prefix from "A
 
 Cost controls to apply (Lab 5 §5): alerts-only budget before any resource, Cloud Run minimum instances 0 and maximum 3 or fewer, smallest Cloud SQL tier, tear down or pause when idle.
 
-### 5.1 First manual deployment (21 Nov 2026, issue #47)
+### 5.1 First manual deployment (20 Nov 2026, issue #47)
 
 Run in Cloud Shell by one team member (the course project allows one account). Source: `staging/sprint-1` at `6425e684d937bcb2613288b4f6580f2b95d17b4d` (merge of PR #42). The pipeline in §6 is not used yet.
 
@@ -130,4 +130,4 @@ Not done / known gaps: the deploy workflow (`deploy.yml`) and smoke script are n
 gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)'
 ```
 
-The tag after the last colon is the full commit SHA of the running image. For the 21 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 21 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
+The tag after the last colon is the full commit SHA of the running image. For the 20 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 20 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
