@@ -84,18 +84,20 @@ Actions are pinned to full commit SHAs.
 
 ## 5. GCP resources
 
-The project, region and prefix below come from the course portal. Rows marked _TBD_ are filled in only after the portal reports the resources ready and they are read from its "Team resources" tab (names must come from the real project, not guesses).
+The values below come from the course portal: project, region and prefix from "Activate & status", the rest from the "Team resources" tab (portal status "Resources ready, 6/6 steps", 20 Nov 2026). The tab states it is recorded system output, not a live Google Cloud check, so nothing here has been confirmed with `gcloud` yet. Only secret reference names are listed; no secret value is recorded.
 
 | Item | Value |
 | --- | --- |
-| GCP project ID | `cpe-se-course-2026` (shared course project, assigned by the course portal; not a secret) |
-| Region | `asia-southeast1` (assigned by the course portal) |
-| Team prefix | `s27d6b925` (assigned by the course portal; every team resource name starts with it) |
-| Artifact Registry repository | _TBD_ |
-| Cloud Run service | _TBD_ |
-| Cloud SQL instance / database | _TBD_ |
-| Secret Manager secrets | _TBD_ (expected: `DATABASE_URL`, `JWT_SECRET`, seed passwords) |
-| Public URL | _TBD_ |
+| GCP project ID | `cpe-se-course-2026` (shared course project; not a secret) |
+| Region | `asia-southeast1` |
+| Team prefix | `s27d6b925` (every team resource name starts with it) |
+| Artifact Registry repository | `s27d6b925`; image URI `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925` (append a tag) |
+| Cloud Run service | `s27d6b925` |
+| Migration job | `s27d6b925-migrate` |
+| Cloud SQL instance / database | instance `s27d6b925-pg` (tier `db-f1-micro`), database `s27d6b925`, user `s27d6b925`, connection name `cpe-se-course-2026:asia-southeast1:s27d6b925-pg` |
+| Runtime service account | `s27d6b925-runner@cpe-se-course-2026.iam.gserviceaccount.com` |
+| Secret Manager secrets (names only) | `s27d6b925-database-url` (DATABASE_URL), `s27d6b925-admin-password`, `s27d6b925-demo-password` (demo seeding). The portal does not list a `JWT_SECRET` secret; that is an open question for the deploy step. |
+| Public URL | shown in the portal "Team resources" tab (Cloud Run URL); not copied here because the app is not deployed yet |
 
 Cost controls to apply (Lab 5 §5): alerts-only budget before any resource, Cloud Run minimum instances 0 and maximum 3 or fewer, smallest Cloud SQL tier, tear down or pause when idle.
 
