@@ -84,7 +84,7 @@ Actions are pinned to full commit SHAs.
 
 ## 5. GCP resources
 
-The values below come from the course portal: project, region and prefix from "Activate & status", the rest from the "Team resources" tab (portal status "Resources ready, 6/6 steps", 20 Nov 2026). The tab states it is recorded system output, not a live Google Cloud check. Later `gcloud` checks (§5.1) confirmed the Cloud Run service, the migration job and the registry repository, and the Cloud SQL connection and the `DATABASE_URL` / `ADMIN_PASSWORD` secrets attached to the service and job; the Cloud SQL instance itself was not inspected directly. Only secret reference names are listed; no secret value is recorded.
+The values below come from the course portal: project, region and prefix from "Activate & status", the rest from the "Team resources" tab (portal status "Resources ready, 6/6 steps", 20 Nov 2026). The tab states it is recorded system output, not a live Google Cloud check. On 20 Nov 2026 the team member ran read-only `gcloud run services describe` and `gcloud run jobs describe` in Cloud Shell; they showed the Cloud Run service and the migration job, the Cloud SQL connection and the `DATABASE_URL` / `ADMIN_PASSWORD` secrets attached to both, and the images were then pushed to the registry repository (§5.1). The raw output is not attached anywhere; a summary is in the [issue #47 comment](https://github.com/Rabbit-hop/bunnyfit/issues/47#issuecomment-7021400384). The Cloud SQL instance itself was not inspected directly. Only secret reference names are listed; no secret value is recorded.
 
 | Item | Value |
 | --- | --- |
@@ -96,7 +96,7 @@ The values below come from the course portal: project, region and prefix from "A
 | Migration job | `s27d6b925-migrate` |
 | Cloud SQL instance / database | instance `s27d6b925-pg` (tier `db-f1-micro`), database `s27d6b925`, user `s27d6b925`, connection name `cpe-se-course-2026:asia-southeast1:s27d6b925-pg` |
 | Runtime service account | `s27d6b925-runner@cpe-se-course-2026.iam.gserviceaccount.com` |
-| Secret Manager secrets (names only) | `s27d6b925-database-url` (DATABASE_URL), `s27d6b925-admin-password`, `s27d6b925-demo-password` (demo seeding). The portal lists no `JWT_SECRET` secret and the deploying account cannot create secrets, so `JWT_SECRET` is stored in the portal slot `s27d6b925-app-secret-1` (added with the Project Kit, `kit.sh secrets add 1`). |
+| Secret Manager secrets (names only) | `s27d6b925-database-url` (DATABASE_URL), `s27d6b925-admin-password`, `s27d6b925-demo-password` (demo seeding). The portal lists no `JWT_SECRET` secret and the deploying account cannot create secrets, so `JWT_SECRET` is stored in the portal slot `s27d6b925-app-secret-1` (added with the Project Kit, `kit.sh secrets add 1`; the kit is the zip `cpe334-project-kit-s27d6b925.zip` downloaded from the course portal and is not in this repository). |
 | Public URL | `https://s27d6b925-4d7hbszvwq-as.a.run.app` (as printed by `gcloud run services describe`) |
 
 Cost controls to apply (Lab 5 §5): alerts-only budget before any resource, Cloud Run minimum instances 0 and maximum 3 or fewer, smallest Cloud SQL tier, tear down or pause when idle.
@@ -110,7 +110,7 @@ Run in Cloud Shell by one team member (the course project allows one account). S
 3. `JWT_SECRET`: `gcloud secrets create` was denied for the team account; the value was added to slot `s27d6b925-app-secret-1` with `kit.sh secrets add 1 --from-stdin` (value never displayed).
 4. Seed (once): the same job was updated to `--command pnpm --args run,db:seed` with `SEED_MANAGER_PASSWORD` mapped to `s27d6b925-admin-password` and `SEED_PARTICIPANT_PASSWORD` mapped to `s27d6b925-demo-password`; execution `s27d6b925-migrate-8kmf5` completed. The job was then set back to `pnpm run db:migrate`.
 5. Service: `gcloud run services update s27d6b925 --image …:<SHA> --update-env-vars NODE_ENV=production,APP_TIMEZONE=Asia/Bangkok,LOG_LEVEL=info,BCRYPT_COST=10,JWT_EXPIRES_IN_SECONDS=3600 --update-secrets JWT_SECRET=s27d6b925-app-secret-1:latest --min-instances 0`; revision `s27d6b925-00002-xsz` serves 100% of traffic. `DATABASE_URL` and the Cloud SQL connection were already attached by the portal; maximum instances stay at the portal value of 1.
-6. Checks: `curl <URL>/api/health` returned `{"status":"ok"}`. Sign-in with a seeded account in the browser was reported as working by the team member who ran the deployment; the screenshot belongs on issue #47 and is not part of this repository.
+6. Checks: `curl <URL>/api/health` returned `{"status":"ok"}`. Sign-in with a seeded account in the browser was reported as working by the team member who ran the deployment; the login and Today-page screenshots are attached to the [issue #47 comment](https://github.com/Rabbit-hop/bunnyfit/issues/47#issuecomment-7021400384) and are not part of this repository. Only sign-in was shown; no main action or rejected action was recorded.
 
 Not done / known gaps: the deploy workflow (`deploy.yml`) and smoke script are not written; the `e2e` suite was not run against the cloud URL; the seed ran as a one-off command and re-running it resets the seeded passwords to the secret values.
 
