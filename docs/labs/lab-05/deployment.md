@@ -104,7 +104,13 @@ The required names match the job names in `ci.yml` (`test`, `docker-build`, `e2e
 
 ### 4.1 GitHub to GCP sign-in (issue #48)
 
-**Not done yet.** Planned: a deployer service account with only Cloud Run Developer, Artifact Registry Writer on this repository's registry and Service Account User on the runtime service account; Workload Identity Federation (pool `github-actions`, provider `github-main`) restricted by an attribute condition to this repository, the `main` branch and the GitHub Environment `demo`; no service-account key. The GitHub Environment `demo` (limited to `main`, with variables `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, no secrets) is not created yet. This section will be filled with the real names after they exist.
+Difference from the Student Guide (Episode 6): the team did not create the deployer service account or the Workload Identity Federation (WIF) pool itself. On 21 Nov 2026 the team account was denied `iam.serviceAccounts.list`, `iam.workloadIdentityPools.list` and `getIamPolicy` on the shared course project, and the Project Kit README says changing IAM or creating a service account is done by the TA or the portal. Instead:
+
+- The course portal lists the deployer service account `s27d6b925-deployer@cpe-se-course-2026.iam.gserviceaccount.com` (portal text before connecting: "not linked to GitHub Actions").
+- A team member used the portal tab "Lab 5 · Repository review" to connect `Rabbit-hop/bunnyfit` ("Connect GitHub Actions (WIF)"; the portal reported success). The portal then showed the GitHub variables below and a `deploy.yml` to download. Per the portal, it does not write to the repository.
+- GitHub Environment `demo`, created by the team and read back through `gh api` on 21 Nov 2026: deployment branches limited to the single rule `main`; four variables `GCP_PROJECT_ID` (`cpe-se-course-2026`), `GCP_REGION` (`asia-southeast1`), `WIF_PROVIDER` (`projects/670075229477/locations/global/workloadIdentityPools/s27d6b925-pool/providers/s27d6b925-provider`), `WIF_SERVICE_ACCOUNT` (the deployer above); no environment secrets; no required reviewers. The values equal those pasted from the portal's Team resources tab. None is a secret.
+
+Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; a sign-in from GitHub Actions has not been run (the `deploy.yml` workflow is not in the repository yet, it belongs to issue #49 and only works from `main`); the portal's own connection step was reported by the team member, not re-run.
 
 Actions are pinned to full commit SHAs.
 
