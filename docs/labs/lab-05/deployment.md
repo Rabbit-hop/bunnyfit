@@ -91,7 +91,20 @@ What was checked so far (14 Nov 2026, local machine, image built from commit `be
 | Pull request into `staging/**` or `main` | `docker-build` | builds the runtime and migrate images (does not start them) |
 | Pull request into `main` only | `e2e` | migrate and seed the test database, install Chromium, run Playwright |
 
-Branch protection (a GitHub setting, not a file) is to require `test`, `docker-build` and, for `main`, `e2e`. **Not configured when this was written**; a check can only be selected after it has run once, which `test` and `docker-build` have (PR #42) and `e2e` has, via a manual `workflow_dispatch` run (no pull-request run into `main` has happened yet). The failing-check demonstration (C-02) uses a temporary branch and is **not yet done**.
+Branch protection is a GitHub setting, not a file. Read through `gh api` on 20 Nov 2026, two repository rulesets are `active`, with no bypass actors (`bypass_actors` empty, `current_user_can_bypass` = `never` for the checking account):
+
+| Ruleset | Target | Required status checks (GitHub Actions) | Other rules |
+| --- | --- | --- | --- |
+| `protect-main` | default branch | `test`, `docker-build`, `e2e` | 1 approving review; blocks deletion and non-fast-forward; "require branches to be up to date" is off |
+| `protect-staging` | `staging/**` | `test`, `docker-build` | 1 approving review; blocks deletion and non-fast-forward; "up to date" is off |
+
+The required names match the job names in `ci.yml` (`test`, `docker-build`, `e2e`). The course Student Guide names a single check `test-and-docker`; this repository splits it into `test` and `docker-build`. "Up to date" is off on purpose until the release PR to `main` (staging does not yet contain every commit of `main`).
+
+**Failing-check demonstration (C-02, issue #48).** Pull request [#60](https://github.com/Rabbit-hop/bunnyfit/pull/60) (`test/48-prove-gate` into `staging/sprint-1`, one commit adding a test that fails on purpose): `test` failed (run 44774204694), `docker-build` passed, `e2e` was skipped (base is staging), and GitHub reported the merge state as `BLOCKED`. The PR was closed without merging on 20 Nov 2026 (16:38 UTC) and its branch deleted. The screenshot is attached to the [issue #48 comment](https://github.com/Rabbit-hop/bunnyfit/issues/48#issuecomment-7045093845) and is not part of this repository. Limits: the demonstration is on `staging/sprint-1`, not `main` (`ci.yml` is not on `main` yet, so a PR into `main` would run no checks), so the `e2e` gate was not exercised; the PR also lacked an approving review, so the block shown is the combination of rules unless the screenshot's required-check message says otherwise.
+
+### 4.1 GitHub to GCP sign-in (issue #48)
+
+**Not done yet.** Planned: a deployer service account with only Cloud Run Developer, Artifact Registry Writer on this repository's registry and Service Account User on the runtime service account; Workload Identity Federation (pool `github-actions`, provider `github-main`) restricted by an attribute condition to this repository, the `main` branch and the GitHub Environment `demo`; no service-account key. The GitHub Environment `demo` (limited to `main`, with variables `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, no secrets) is not created yet. This section will be filled with the real names after they exist.
 
 Actions are pinned to full commit SHAs.
 
