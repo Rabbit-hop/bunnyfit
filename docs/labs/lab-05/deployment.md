@@ -125,17 +125,28 @@ Run in Cloud Shell by one team member (the course project allows one account). S
 5. Service: `gcloud run services update s27d6b925 --image …:<SHA> --update-env-vars NODE_ENV=production,APP_TIMEZONE=Asia/Bangkok,LOG_LEVEL=info,BCRYPT_COST=10,JWT_EXPIRES_IN_SECONDS=3600 --update-secrets JWT_SECRET=s27d6b925-app-secret-1:latest --min-instances 0`; revision `s27d6b925-00002-xsz` serves 100% of traffic. `DATABASE_URL` and the Cloud SQL connection were already attached by the portal; maximum instances stay at the portal value of 1.
 6. Checks: `curl <URL>/api/health` returned `{"status":"ok"}`. Sign-in with a seeded account in the browser was reported as working by the team member who ran the deployment; the login and Today-page screenshots are attached to the [issue #47 comment](https://github.com/Rabbit-hop/bunnyfit/issues/47#issuecomment-7021400384) and are not part of this repository. Only sign-in was shown; no main action or rejected action was recorded.
 
-Not done / known gaps: the deploy workflow (`deploy.yml`) and smoke script are not written; the `e2e` suite was not run against the cloud URL; the seed ran as a one-off command and re-running it resets the seeded passwords to the secret values.
+Not done / known gaps: the deploy workflow (`deploy.yml`, issue #49) was not written at the time of this deployment; the `e2e` suite was not run against the cloud URL; the seed ran as a one-off command and re-running it resets the seeded passwords to the secret values.
 
 ## 6. Release procedure
 
-**Planned; the pipeline is not written yet.** Intended flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
+**Status: `.github/workflows/deploy.yml` is written (issue #49) but has not been run yet.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Nothing in this section has been exercised until the first release PR is merged; the result will be recorded here.
 
-1. Issue → feature branch from `staging/sprint-N` → pull request into staging, reviewed by the teammate (not the author); CI must pass.
-2. Release pull request `staging/sprint-N` → `main`, reviewed; CI including `e2e` must pass.
-3. On merge to `main`, the deploy workflow builds the image tagged with the full commit SHA, pushes it, runs `prisma migrate deploy` as its own job, deploys to Cloud Run, then runs a smoke check (`/api/health`, login, one persisted read).
+Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
+
+1. Issue → feature branch from `staging/sprint-N` → pull request into staging, reviewed by the teammate (not the author); `test` and `docker-build` must pass (ruleset `protect-staging`).
+2. Release pull request `staging/sprint-N` → `main`, reviewed (1 approving review); `test`, `docker-build` and `e2e` must pass (ruleset `protect-main`).
+3. Merge to `main` triggers `deploy.yml` (also runnable by hand with `workflow_dispatch`, still only on `main`). Its job runs in the Environment `demo` and, in order:
+   1. checks the four GitHub variables and the Dockerfile;
+   2. signs in to Google Cloud through Workload Identity Federation (no key file);
+   3. builds and pushes two images to the team repository: the runtime image tagged with the full commit SHA (`:<SHA>`) and the migrate image from the Dockerfile target `migrate` (`:migrate-<SHA>`), because the runtime image has no Prisma CLI;
+   4. points the Cloud Run job `s27d6b925-migrate` at the migrate image and runs `pnpm run db:migrate` (`prisma migrate deploy`) and waits; if it fails the deploy does not happen;
+   5. deploys the runtime image to the Cloud Run service `s27d6b925` (`gcloud run deploy --image`, so the settings and secrets already on the service are expected to stay; not yet confirmed);
+   6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read;
+   7. writes commit, image, migrate image and URL to the run summary.
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
-5. Roll back by redeploying an earlier image tag, then roll forward.
+5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Planned for issue #50; not yet tried.
+
+Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that a first run from `main` succeeds; that `gcloud run deploy` keeps the environment variables and secrets set in §5.1.
 
 **Finding the commit that is running:** `GET /api/health` returns only `{"status":"ok"}` and does not report a commit. The intended answer is the image tag (the full commit SHA) of the active Cloud Run revision. Exact command (read-only):
 
