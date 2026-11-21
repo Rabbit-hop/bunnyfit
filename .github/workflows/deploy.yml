@@ -116,7 +116,7 @@ jobs:
           echo "URL=$URL" >> "$GITHUB_ENV"
           ok=0
           for i in 1 2 3 4 5 6; do
-            # no `curl | grep -q`: with pipefail an early-closing grep can make a good response look like a failure
+            # capture the body first, then test it (the default step shell is `bash -e`, without pipefail)
             body="$(curl -fsS "$URL/api/health" || true)"
             if printf '%s' "$body" | grep -q '"status":"ok"'; then ok=1; break; fi
             echo "health not ready (attempt $i), waiting"; sleep 10
