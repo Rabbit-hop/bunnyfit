@@ -91,7 +91,26 @@ What was checked so far (14 Nov 2026, local machine, image built from commit `be
 | Pull request into `staging/**` or `main` | `docker-build` | builds the runtime and migrate images (does not start them) |
 | Pull request into `main` only | `e2e` | migrate and seed the test database, install Chromium, run Playwright |
 
-Branch protection (a GitHub setting, not a file) is to require `test`, `docker-build` and, for `main`, `e2e`. **Not configured when this was written**; a check can only be selected after it has run once, which `test` and `docker-build` have (PR #42) and `e2e` has, via a manual `workflow_dispatch` run (no pull-request run into `main` has happened yet). The failing-check demonstration (C-02) uses a temporary branch and is **not yet done**.
+Branch protection is a GitHub setting, not a file. Read through `gh api` on 20 Nov 2026, two repository rulesets are `active`, with no bypass actors (`bypass_actors` empty, `current_user_can_bypass` = `never` for the checking account):
+
+| Ruleset | Target | Required status checks (GitHub Actions) | Other rules |
+| --- | --- | --- | --- |
+| `protect-main` | default branch | `test`, `docker-build`, `e2e` | 1 approving review; blocks deletion and non-fast-forward; "require branches to be up to date" is off |
+| `protect-staging` | `staging/**` | `test`, `docker-build` | 1 approving review; blocks deletion and non-fast-forward; "up to date" is off |
+
+The required names match the job names in `ci.yml` (`test`, `docker-build`, `e2e`). The course Student Guide names a single check `test-and-docker`; this repository splits it into `test` and `docker-build`. "Require branches to be up to date" is off in both rulesets at the time of writing (21 Nov 2026); no document records a reason for this setting.
+
+**Failing-check demonstration (C-02, issue #48).** Pull request [#60](https://github.com/Rabbit-hop/bunnyfit/pull/60) (`test/48-prove-gate` into `staging/sprint-1`, one commit adding a test that fails on purpose): `test` failed (run 44774204694), `docker-build` passed, `e2e` was skipped (base is staging), and GitHub reported the merge state as `BLOCKED`. The PR was closed without merging on 20 Nov 2026 (16:38 UTC) and its branch deleted. The screenshot is attached to the [issue #48 comment](https://github.com/Rabbit-hop/bunnyfit/issues/48#issuecomment-7045093845) and is not part of this repository. Limits: the demonstration is on `staging/sprint-1`, not `main` (`ci.yml` is not on `main` yet, so a PR into `main` would run no checks), so the `e2e` gate was not exercised; the PR also lacked an approving review. The screenshot (as read by the PR reviewer, 21 Nov 2026) shows the banner "Required checks failing" (1 required failing) and also "Approvals: 1 still required", so it shows that a required check is failing and flagged as blocking; it does not isolate the failing check as the only cause of the block, because the missing approval blocks the merge as well.
+
+### 4.1 GitHub to GCP sign-in (issue #48)
+
+Difference from the Student Guide (Episode 6): the team did not create the deployer service account or the Workload Identity Federation (WIF) pool itself. On 21 Nov 2026 the team account was denied `iam.serviceAccounts.list`, `iam.workloadIdentityPools.list` and `getIamPolicy` on the shared course project, and the Project Kit README says changing IAM or creating a service account is done by the TA or the portal. Instead:
+
+- The course portal lists the deployer service account `s27d6b925-deployer@cpe-se-course-2026.iam.gserviceaccount.com` (portal text before connecting: "not linked to GitHub Actions").
+- A team member used the portal tab "Lab 5 · Repository review" to connect `Rabbit-hop/bunnyfit` ("Connect GitHub Actions (WIF)"; the portal reported success). The portal then showed the GitHub variables below and a `deploy.yml` to download. Per the portal, it does not write to the repository.
+- GitHub Environment `demo`, created by the team and read back through `gh api` on 21 Nov 2026: deployment branches limited to the single rule `main`; four variables `GCP_PROJECT_ID` (`cpe-se-course-2026`), `GCP_REGION` (`asia-southeast1`), `WIF_PROVIDER` (`projects/670075229477/locations/global/workloadIdentityPools/s27d6b925-pool/providers/s27d6b925-provider`), `WIF_SERVICE_ACCOUNT` (the deployer above); no environment secrets; no required reviewers. The values equal those pasted from the portal's Team resources tab. None is a secret.
+
+Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; a sign-in from GitHub Actions has not been run (the `deploy.yml` workflow is not in the repository yet, it belongs to issue #49 and only works from `main`); the portal's own connection step was reported by the team member, not re-run.
 
 Actions are pinned to full commit SHAs.
 
