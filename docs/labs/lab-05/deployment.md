@@ -177,7 +177,7 @@ The tag after the last colon is the full commit SHA of the running image. For th
 
 ## 7. Persistence, rollback and roll forward (issue #50)
 
-**Status: procedure only. None of the checks below has been run yet; the result columns are empty on purpose.** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
+**Status: 7.1 was run on 22 Nov 2026 (result below, with its limits). 7.2 and 7.3 have not been run; their result cells are empty on purpose.** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
 
 ### 7.1 Data survives an instance restart (C-05)
 
@@ -190,11 +190,13 @@ The service has minimum instances 0 (§5.1), so an idle instance is shut down an
 
 | Item | Result |
 | --- | --- |
-| Entry added (value, date, time) | not run |
-| Revision and image tag before | not run |
-| New startup line after the "before" time | not run |
-| Entry visible after the restart | not run |
-| Revision and image tag after | not run |
+| Record used | Plan item "Jump Rope" (Cardio time, target 13:13, priority 4, 22 Nov to 30 Nov) on the seeded Participant account. A plan item, not a Daily Log entry. The team member states it was saved before the "before" screenshot; the screenshot itself shows an unsaved Add-exercise form (Bench Press), not the saved Jump Rope. |
+| Revision and image tag before | `s27d6b925-00002-xsz`, tag `6425e684d937bcb2613288b4f6580f2b95d17b4d` (`gcloud run services describe`, 22 Nov 2026) |
+| New startup line after the "before" time | Yes: `bunnyfit API listening on port 8080 (production)` at 2026-11-21T19:01:21Z (02:01:21 in Bangkok, 22 Nov), revision `s27d6b925-00002-xsz`. The previous startup line was at 18:24:23Z (01:24 Bangkok). The "before" screenshot file was saved at 01:40:49 and the "after" file at 02:02:13 (Bangkok), so the 19:01:21Z start lies between them. The times of the screenshots are the save times of the image files, not times shown in the images. |
+| Record visible after the restart | Yes: the "after" screenshot (My Plan, Sunday 22 November, "1 exercise planned") shows Jump Rope 13:13, priority 4, 22 Nov to 30 Nov. |
+| Revision and image tag after | Same revision and tag as before: the `gcloud` output of the first check was taken before the restart, and the latest `gcloud logging read` output (22 Nov, after 02:01) still lists only revision `s27d6b925-00002-xsz`. `describe` was not repeated after the restart. |
+
+Limits: the "before" screenshot does not show the saved record, so the "before" side rests on the team member's statement; the idle period before the restart was not timed; the screenshots are held by the team and not in this repository.
 
 ### 7.2 Data survives a redeploy
 
