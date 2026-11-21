@@ -174,3 +174,47 @@ gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(
 ```
 
 The tag after the last colon is the full commit SHA of the running image. For the 20 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 20 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
+
+## 7. Persistence, rollback and roll forward (issue #50)
+
+**Status: procedure only. None of the checks below has been run yet; the result columns are empty on purpose.** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
+
+### 7.1 Data survives an instance restart (C-05)
+
+The service has minimum instances 0 (§5.1), so an idle instance is shut down and the next request starts a new container. The check does not change any configuration or revision.
+
+1. Note the active revision and image tag (command in §6). Sign in on the public URL with a seeded Participant and add one entry with a distinctive value (write the value, the time and the date down). Screenshot "before": the entry visible, with the URL and the time.
+2. Do not call the URL for about 20 minutes.
+3. Read the startup lines of the service: `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="s27d6b925" AND textPayload:"bunnyfit API listening"' --freshness=2h --limit=10 --format='value(timestamp,resource.labels.revision_name,textPayload)'`. A line with a timestamp **after** the "before" screenshot proves a new container started. If there is none, the restart is not shown and must not be claimed.
+4. Sign in again in a new browser window and open the same day. Screenshot "after": the same entry. Re-run the command in §6: revision and tag must be unchanged.
+
+| Item | Result |
+| --- | --- |
+| Entry added (value, date, time) | not run |
+| Revision and image tag before | not run |
+| New startup line after the "before" time | not run |
+| Entry visible after the restart | not run |
+| Revision and image tag after | not run |
+
+### 7.2 Data survives a redeploy
+
+Done with the first run of `deploy.yml` from `main` (issue #49), which pushes a new image and creates a new revision. Before the run: note the entry from 7.1 and the revision. After the run: the revision and tag differ (§6 command) and the same entry is still returned. The smoke check in the workflow reads `GET /api/categories`; it does not prove this entry, so the entry is checked by hand.
+
+| Item | Result |
+| --- | --- |
+| Revision / tag before and after the run | not run |
+| Entry from 7.1 visible after the redeploy | not run |
+
+### 7.3 Rollback and roll forward by image tag
+
+Needs two tags in the registry (the first manual deployment tag `6425e684d937bcb2613288b4f6580f2b95d17b4d` and the tag deployed by the pipeline). Before rolling back, check that no migration was added between the two commits: on 22 Nov 2026 the repository has one migration, `0001_init` (`git ls-tree -r --name-only <commit> prisma/migrations`). If the newer commit added one, rolling back the image does not roll back the schema, and the rollback is not safe to run unchecked.
+
+1. List tags: `gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925 --include-tags --format='value(tags,version)'`.
+2. Roll back: `gcloud run deploy s27d6b925 --region asia-southeast1 --image asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:<earlier SHA>`. Check with the §6 command that the running tag is the earlier SHA, that `/api/health` is ok and that the entry from 7.1 is still visible.
+3. Roll forward: the same command with the newer SHA (or re-run the workflow with `workflow_dispatch`). Check the tag and the entry again.
+
+| Item | Result |
+| --- | --- |
+| Tags in the registry | not run |
+| Running tag after rollback; health; entry | not run |
+| Running tag after roll forward; health; entry | not run |
