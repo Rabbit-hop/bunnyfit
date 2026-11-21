@@ -163,7 +163,7 @@ Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
    6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Not verified: that the password is correct and that login and `GET /api/categories` pass; this is first shown by the run on `main`;
    7. writes commit, image, migrate image and URL to the run summary.
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
-5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Planned for issue #50; not yet tried.
+5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Procedure and results in §7 (issue #50); the rollback itself is not yet tried.
 
 Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that a first run from `main` succeeds; that `gcloud run deploy` keeps the environment variables and secrets set in §5.1.
 
