@@ -156,7 +156,8 @@ docs/              # srs.md, features.md, traceability.md, system-sds.md, sprint
 scripts/           # report/ builds the Deliverable 1 PDF evidence (see scripts/report/README.md)
 docker-compose.yml   # dev database (postgres:17); `--profile app` adds migrate + app
 Dockerfile  .dockerignore                  # multi-stage image (Lab 5)
-.github/workflows/ci.yml                   # PR checks (Lab 5); deploy workflow still planned
+.github/workflows/ci.yml                   # PR checks (Lab 5)
+.github/workflows/deploy.yml                # deploy to Cloud Run on push to main (Lab 5); written, not run yet
 .env.example
 ```
 
@@ -186,5 +187,7 @@ Foundation conventions worth knowing before touching the code:
 ## Pending (tracked by GitHub issues)
 
 - Lab 5 (issue #22): the Dockerfile, the compose `app` profile and `ci.yml` exist;
-  branch protection, the GCP deployment and the deploy workflow are still open.
+  branch protection (rulesets `protect-main`, `protect-staging`), the first manual
+  GCP deployment (20 Nov 2026) and `deploy.yml` are in place; `deploy.yml` has not
+  run yet (first run = merge of the release PR into `main`).
   Details and status: `docs/labs/lab-05/deployment.md`.

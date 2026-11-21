@@ -15,7 +15,7 @@
 | Image | Multi-stage `Dockerfile` (targets `build`, `migrate`, `prod-deps`, `runtime`; `runtime` is the default) | In the repository (commit `beebd91`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` | In the repository. Pull-request run on PR #42, head `005136a` (run 43706494746): `test` and `docker-build` passed, `e2e` skipped because the PR targets staging. Manual `workflow_dispatch` run on the same head (run 43706506031): `test` (27 files, 393 tests), `docker-build` and `e2e` (Playwright, 40 tests) all passed |
 | Registry, runtime, database, secrets (SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | Created by the course portal (see §5); first manual deployment done 20 Nov 2026 (§5.1) |
-| Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | **Planned, not written** |
+| Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | Written (issue #49, PR #62), **not run yet**; the first run is the merge of the release PR into `main` (§6) |
 
 Differences from the Student Guide reference stack: GCP access changed after the handout (course update, 20 Nov 2026). The team does not create its own GCP Free Trial project, billing account or budget (Guide Episode 1); the course portal provides a shared project and a team prefix, and creates the Cloud SQL instance, Artifact Registry repository, Cloud Run service, migration job and Secret Manager secrets. The team still builds, migrates and deploys the application itself. Record any further difference here when a choice differs.
 
@@ -108,9 +108,9 @@ Difference from the Student Guide (Episode 6): the team did not create the deplo
 
 - The course portal lists the deployer service account `s27d6b925-deployer@cpe-se-course-2026.iam.gserviceaccount.com` (portal text before connecting: "not linked to GitHub Actions").
 - A team member used the portal tab "Lab 5 · Repository review" to connect `Rabbit-hop/bunnyfit` ("Connect GitHub Actions (WIF)"; the portal reported success). The portal then showed the GitHub variables below and a `deploy.yml` to download. Per the portal, it does not write to the repository.
-- GitHub Environment `demo`, created by the team and read back through `gh api` on 21 Nov 2026: deployment branches limited to the single rule `main`; four variables `GCP_PROJECT_ID` (`cpe-se-course-2026`), `GCP_REGION` (`asia-southeast1`), `WIF_PROVIDER` (`projects/670075229477/locations/global/workloadIdentityPools/s27d6b925-pool/providers/s27d6b925-provider`), `WIF_SERVICE_ACCOUNT` (the deployer above); no environment secrets; no required reviewers. The values equal those pasted from the portal's Team resources tab. None is a secret.
+- GitHub Environment `demo`, created by the team and read back through `gh api` on 21 Nov 2026: deployment branches limited to the single rule `main`; four variables `GCP_PROJECT_ID` (`cpe-se-course-2026`), `GCP_REGION` (`asia-southeast1`), `WIF_PROVIDER` (`projects/670075229477/locations/global/workloadIdentityPools/s27d6b925-pool/providers/s27d6b925-provider`), `WIF_SERVICE_ACCOUNT` (the deployer above); no required reviewers. Added later and read back by name through `gh api` (values not read): the variable `SMOKE_EMAIL` and the secret `SMOKE_PASSWORD`, used by the smoke check in `deploy.yml` (§6). The values equal those pasted from the portal's Team resources tab. None is a secret.
 
-Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; a sign-in from GitHub Actions has not been run (the `deploy.yml` workflow is not in the repository yet, it belongs to issue #49 and only works from `main`); the portal's own connection step was reported by the team member, not re-run.
+Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; a sign-in from GitHub Actions has not been run (`deploy.yml` is in the repository since PR #62 but has not been run; it only works from `main`); the portal's own connection step was reported by the team member, not re-run.
 
 Actions are pinned to full commit SHAs.
 
@@ -174,3 +174,9 @@ gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(
 ```
 
 The tag after the last colon is the full commit SHA of the running image. For the 20 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 20 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
+
+## Revision history
+
+| Date | Change |
+| --- | --- |
+| 22 Nov 2026 | Corrected statements that were no longer true after PR #62: §1 row "Deploy pipeline" (written, not run), §4.1 (environment `demo` now has `SMOKE_EMAIL` and `SMOKE_PASSWORD`; `deploy.yml` is in the repository). Requested in the review of PR #63. |
