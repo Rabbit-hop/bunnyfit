@@ -194,7 +194,7 @@ The service has minimum instances 0 (§5.1), so an idle instance is shut down an
 | Revision and image tag before | `s27d6b925-00002-xsz`, tag `6425e684d937bcb2613288b4f6580f2b95d17b4d` (`gcloud run services describe`, 22 Nov 2026) |
 | New startup line after the "before" time | Yes: `bunnyfit API listening on port 8080 (production)` at 2026-11-21T19:01:21Z (02:01:21 in Bangkok, 22 Nov), revision `s27d6b925-00002-xsz`. The previous startup line was at 18:24:23Z (01:24 Bangkok). The "before" screenshot file was saved at 01:40:49 and the "after" file at 02:02:13 (Bangkok), so the 19:01:21Z start lies between them. The times of the screenshots are the save times of the image files, not times shown in the images. |
 | Record visible after the restart | Yes: the "after" screenshot (My Plan, Sunday 22 November, "1 exercise planned") shows Jump Rope 13:13, priority 4, 22 Nov to 30 Nov. |
-| Revision and image tag after | Same revision and tag as before: the `gcloud` output of the first check was taken before the restart, and the latest `gcloud logging read` output (22 Nov, after 02:01) still lists only revision `s27d6b925-00002-xsz`. `describe` was not repeated after the restart. |
+| Revision and image tag after | `gcloud run services describe` at 2026-11-21T19:17:23Z (`date -u` in Cloud Shell; 02:17 Bangkok, 22 Nov), after the 19:01:21Z start: revision `s27d6b925-00002-xsz`, tag `6425e684d937bcb2613288b4f6580f2b95d17b4d`, unchanged. |
 
 Limits: the "before" screenshot does not show the saved record, so the "before" side rests on the team member's statement; the idle period before the restart was not timed; the screenshots are held by the team and not in this repository.
 
