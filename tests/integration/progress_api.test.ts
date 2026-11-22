@@ -290,9 +290,9 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
     request(app).get(`/api/progress/monthly${query}`).set(auth);
   const dayStart = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
   /** A ledger row straight through Prisma (the API only accepts today as logDate). */
-  const ledger = (userId: string, userExerciseId: string, date: string, totalReps: number) =>
+  const ledger = (userId: string, userExerciseId: string, date: string, totalReps: number, sets = 1) =>
     prisma.ledgerEntry.create({
-      data: { userId, userExerciseId, logDate: dayStart(date), sets: 1, totalReps, kind: 'MANUAL' },
+      data: { userId, userExerciseId, logDate: dayStart(date), sets, totalReps, kind: 'MANUAL' },
     });
   /** Alice's Squat 4x10 (target 40 reps, weight 3), Mon-Fri unless told otherwise, from a past date. */
   const historicalSquat = async (effectiveFrom: string, repeatDays = [1, 2, 3, 4, 5]) => {
@@ -404,7 +404,7 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
     const auth = await aliceAuth();
     const squat = await historicalSquat('2026-11-09', [1, 3]); // Mon and Wed only
     await ledger(aliceId, squat.userExerciseId, '2026-11-09', 40); // Mon: 100%
-    await ledger(aliceId, squat.userExerciseId, '2026-11-10', 500); // Tue: Rest Day, large entry
+    await ledger(aliceId, squat.userExerciseId, '2026-11-10', 500, 10); // Tue: Rest Day, large entry (50 reps per set)
     await ledger(aliceId, squat.userExerciseId, '2026-11-11', 20); // Wed (today): 50%
 
     const res = await monthly(auth, '?month=2026-11');
