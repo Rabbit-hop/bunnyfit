@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Lab | CPE 334 Lab 5 (CI/CD, Docker, GCP), issue #22 |
-| Status of this file | **Draft, updated as Lab 5 steps land.** Each section says what exists in the repository now and what is still planned. Nothing below is claimed as done unless it says so. |
+| Status of this file | **Updated through issue #50 (22 Nov 2026).** Each section says what was run and what was not; nothing below is claimed as done unless it says so, and the limits of each check are stated next to its result. |
 | Contract sources | `docs/system-sds.md` §8 (configuration), §9 (delivery and deployment plan) |
 
 ## 1. Stack and differences from the reference
@@ -229,3 +229,4 @@ Limits: the screenshots do not show a revision; the revisions come from the comm
 | --- | --- |
 | 22 Nov 2026 | Corrected statements that were no longer true after PR #62: §1 row "Deploy pipeline" (written, not run), §4.1 (environment `demo` now has `SMOKE_EMAIL` and `SMOKE_PASSWORD`; `deploy.yml` is in the repository). Requested in the review of PR #63. |
 | 22 Nov 2026 | §6 status and "not verified" text rewritten to match the first `deploy.yml` run (run 45003687814); new §7 (restart, redeploy, rollback and roll forward, issue #50) with its results and limits; §1 row "Deploy pipeline" and §4.1 sign-in sentence updated because the workflow has now run (PR #98, review of fahsai-02). |
+| 22 Nov 2026 | Header status of this file changed from "Draft" to the final wording for the Lab 5 submission (issue #51). |
