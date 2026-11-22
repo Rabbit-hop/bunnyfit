@@ -9,8 +9,8 @@ import { createHistoricalPlanItem } from '../helpers/historicalPlan.js';
 // real PostgreSQL test database: TEST-06d-4, 06d-5, 06e-3, 06f-1, 06f-2. Clock fixed at Thu
 // 5 Nov 2026 10:00 Asia/Bangkok. Extras (NOT STS rows): R13 future/malformed date -> 400 with
 // R14 (no row written), and the `date` default (= today from the Clock, §4.1).
-// Out of scope here: TEST-06g-*, TEST-15-*, TEST-21a-* (Sprint 2) and the stage-2 policy
-// matrix TEST-22c / 12a / 12b for the F-06 route (issue #18).
+// Sprint 2 (issue #75, CHANGE-06 / CHANGE-08) adds TEST-06g-1..4 and TEST-15-3, 15-4, 15-6..15-9
+// (the monthly endpoint). Out of scope here: TEST-21a-* and the stage-2 policy matrix.
 if (!databaseUrl && process.env.CI === 'true') {
   throw new Error('DATABASE_URL_TEST is required in CI (AC-06 / TEST-06).');
 }
@@ -22,6 +22,7 @@ const TODAY = '2026-11-05';
 describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
   let prisma: PrismaClient;
   let app: ReturnType<typeof buildIntegrationApp>;
+  let clock: MutableClock;
   let aliceId: string;
   let bobId: string;
   const templateIds: Record<string, string> = {};
@@ -67,6 +68,7 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
   });
 
   afterEach(async () => {
+    clock.set(NOW);
     await prisma.ledgerEntry.deleteMany({ where: { userId: { in: [aliceId, bobId] } } });
     await prisma.weightLog.deleteMany({ where: { id: { in: createdWeightLogs } } });
     await prisma.planItem.deleteMany({ where: { id: { in: createdPlanItems } } });
@@ -78,7 +80,8 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
 
   beforeAll(async () => {
     prisma = newPrisma();
-    app = buildIntegrationApp(prisma, new MutableClock(NOW));
+    clock = new MutableClock(NOW);
+    app = buildIntegrationApp(prisma, clock);
     aliceId = (await prisma.user.findUniqueOrThrow({ where: { email: 'alice@exercise.test' } })).id;
     bobId = (await prisma.user.findUniqueOrThrow({ where: { email: 'bob@exercise.test' } })).id;
     for (const t of await prisma.exerciseTemplate.findMany()) templateIds[t.name] = t.id;
@@ -280,5 +283,229 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ isRestDay: true, items: [], overallPercent: null });
+  });
+  // ---- Sprint 2 (issue #75): AC-06g and AC-15 -------------------------------------------------
+
+  const monthly = (auth: Record<string, string>, query = '') =>
+    request(app).get(`/api/progress/monthly${query}`).set(auth);
+  const dayStart = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
+  /** A ledger row straight through Prisma (the API only accepts today as logDate). */
+  const ledger = (userId: string, userExerciseId: string, date: string, totalReps: number) =>
+    prisma.ledgerEntry.create({
+      data: { userId, userExerciseId, logDate: dayStart(date), sets: 1, totalReps, kind: 'MANUAL' },
+    });
+  /** Alice's Squat 4x10 (target 40 reps, weight 3), Mon-Fri unless told otherwise, from a past date. */
+  const historicalSquat = async (effectiveFrom: string, repeatDays = [1, 2, 3, 4, 5]) => {
+    const item = await createHistoricalPlanItem(prisma, {
+      userId: aliceId,
+      templateName: 'Barbell Squat',
+      effectiveFrom,
+      repeatDays,
+    });
+    createdPlanItems.push(item.id);
+    createdExercises.push(item.userExerciseId);
+    return item;
+  };
+  const moveClock = (iso: string) => clock.set(new Date(iso));
+
+  it('TEST-06g-1: Squat 4x10 with nothing logged is 0%; after Quick Complete the next GET /daily is 100%', async () => {
+    const auth = await aliceAuth();
+    const squat = await plan(auth, {
+      source: 'TEMPLATE',
+      templateId: templateIds['Barbell Squat'],
+      priorityWeight: 3,
+      targetSets: 4,
+      targetRepsPerSet: 10,
+      loadKg: 40,
+    });
+    const before = await daily(auth, `?date=${TODAY}`);
+    expect(before.body.overallPercent).toBe(0);
+
+    const qc = await request(app)
+      .post('/api/entries/quick-complete')
+      .set(auth)
+      .send({ userExerciseId: squat.userExercise.id });
+    expect(qc.status, JSON.stringify(qc.body)).toBe(201);
+    const after = await daily(auth, `?date=${TODAY}`);
+    expect(after.body.overallPercent).toBe(100);
+  });
+
+  it('TEST-06g-2: a free-form entry for an exercise not planned today is not in items and does not change overallPercent', async () => {
+    const auth = await aliceAuth();
+    const { squat } = await squatAndPlank(auth);
+    await entry(auth, { userExerciseId: squat.userExercise.id, sets: 2, totalReps: 20 });
+    const before = await daily(auth, `?date=${TODAY}`);
+
+    const stray = await prisma.userExercise.create({
+      data: {
+        userId: aliceId,
+        isCustom: true,
+        name: 'Unplanned Stretch',
+        targetBodyPart: 'Legs',
+        unit: 'seconds',
+        trackingMode: 'CARDIO_TIME',
+        metValue: 3.5,
+        rangeMin: 1,
+        rangeMax: 10800,
+      },
+    });
+    createdExercises.push(stray.id);
+    await entry(auth, { userExerciseId: stray.id, durationSec: 3600 });
+    const after = await daily(auth, `?date=${TODAY}`);
+
+    expect(after.body.items.map((i: { name: string }) => i.name)).not.toContain('Unplanned Stretch');
+    expect(after.body.overallPercent).toBe(before.body.overallPercent);
+    expect(after.body.items).toEqual(before.body.items);
+  });
+
+  it('TEST-06g-3: Bob has his own plan and entries; GET /daily as Alice shows only her items and percentages', async () => {
+    const alice = await aliceAuth();
+    const bob = await bobAuth();
+    const { squat } = await squatAndPlank(alice);
+    await entry(alice, { userExerciseId: squat.userExercise.id, sets: 2, totalReps: 20 });
+    const bobWalk = await plan(bob, {
+      source: 'CUSTOM',
+      exercise: { name: 'Bob Only Walk', targetBodyPart: 'Legs', trackingMode: 'CARDIO_TIME' },
+      priorityWeight: 5,
+      targetDurationSec: 600,
+    });
+    await entry(bob, { userExerciseId: bobWalk.userExercise.id, durationSec: 600 });
+
+    const res = await daily(alice, `?date=${TODAY}`);
+    expect(res.status).toBe(200);
+    expect((res.body.items as Array<{ name: string }>).map((i) => i.name).sort()).toEqual(['Barbell Squat', 'Plank']);
+    expect(res.body.totalWeight).toBe(5);
+    expect(res.body.overallPercent).toBe(30); // squat 20/40 x 3 = 1.5 of 5
+    const bobRes = await daily(bob, `?date=${TODAY}`);
+    expect(bobRes.body.overallPercent).toBe(100);
+  });
+
+  it('TEST-06g-4: future or malformed date on /daily and a future, malformed or day-level month on /monthly → 400 VALIDATION_ERROR; no rows written', async () => {
+    const auth = await aliceAuth();
+    await squatAndPlank(auth);
+    const before = await dbCounts();
+    const urls = [
+      '/api/progress/daily?date=2026-11-06',
+      '/api/progress/daily?date=2026-13-40',
+      '/api/progress/monthly?month=2026-12',
+      '/api/progress/monthly?month=2026-13',
+      '/api/progress/monthly?month=2026-11-05',
+    ];
+    for (const url of urls) {
+      const res = await request(app).get(url).set(auth);
+      expect(res.status, url).toBe(400);
+      expect(res.body.code, url).toBe('VALIDATION_ERROR');
+    }
+    expect(await dbCounts()).toEqual(before);
+  });
+
+  it('TEST-15-3: a Rest Day (Tue 2026-11-10) with a large free-form entry has no effect; targeted days 100 and 50 → average 75', async () => {
+    moveClock('2026-11-11T03:00:00.000Z'); // Wed 11 Nov 10:00 Bangkok
+    const auth = await aliceAuth();
+    const squat = await historicalSquat('2026-11-09', [1, 3]); // Mon and Wed only
+    await ledger(aliceId, squat.userExerciseId, '2026-11-09', 40); // Mon: 100%
+    await ledger(aliceId, squat.userExerciseId, '2026-11-10', 500); // Tue: Rest Day, large entry
+    await ledger(aliceId, squat.userExerciseId, '2026-11-11', 20); // Wed (today): 50%
+
+    const res = await monthly(auth, '?month=2026-11');
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({
+      month: '2026-11',
+      from: '2026-11-09',
+      to: '2026-11-11',
+      targetedDays: 2,
+      restDaysExcluded: 1,
+      averagePercent: 75,
+    });
+    expect(res.body.days).toEqual([
+      { date: '2026-11-09', isRestDay: false, overallPercent: 100 },
+      { date: '2026-11-10', isRestDay: true, overallPercent: null },
+      { date: '2026-11-11', isRestDay: false, overallPercent: 50 },
+    ]);
+  });
+
+  it('TEST-15-4: a Participant with no plan → 200, targetedDays 0, averagePercent null', async () => {
+    const bob = await bobAuth();
+    expect(await prisma.planItem.count({ where: { userId: bobId } }), 'fixture: Bob has no plan').toBe(0);
+
+    const res = await monthly(bob, '?month=2026-11');
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({ month: '2026-11', targetedDays: 0, averagePercent: null });
+  });
+
+  describe('TEST-15-6 / 15-7 Alice targeted Mon-Fri from 2026-11-02', () => {
+    const fixture = async () => {
+      const squat = await historicalSquat('2026-11-02');
+      await ledger(aliceId, squat.userExerciseId, '2026-11-02', 40); // 100%
+      await ledger(aliceId, squat.userExerciseId, '2026-11-03', 20); // 50%
+      // Wed 2026-11-04: no log -> 0%
+      await ledger(aliceId, squat.userExerciseId, '2026-11-05', 12); // Thu (today): 30%
+    };
+
+    it('TEST-15-6: today Thu with 30% → from 2026-11-02, to 2026-11-05, targetedDays 4, average (100+50+0+30)/4 = 45; future days absent', async () => {
+      await fixture();
+      const res = await monthly(await aliceAuth(), '?month=2026-11');
+
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expect(res.body).toMatchObject({
+        from: '2026-11-02',
+        to: '2026-11-05',
+        targetedDays: 4,
+        restDaysExcluded: 0,
+        averagePercent: 45,
+      });
+      expect(res.body.days.map((d: { date: string }) => d.date)).toEqual([
+        '2026-11-02',
+        '2026-11-03',
+        '2026-11-04',
+        '2026-11-05',
+      ]);
+    });
+
+    it('TEST-15-7: at 23:59 Thu is the last day; at 00:00 Fri it is a closed day with its final 30% and Fri is a new targeted day at 0%', async () => {
+      await fixture();
+      moveClock('2026-11-05T16:59:00.000Z'); // Thu 23:59 Bangkok
+      const late = await monthly(await aliceAuth(), '?month=2026-11');
+      expect(late.body).toMatchObject({ to: '2026-11-05', targetedDays: 4, averagePercent: 45 });
+
+      moveClock('2026-11-05T17:00:00.000Z'); // Fri 00:00 Bangkok
+      const next = await monthly(await aliceAuth(), '?month=2026-11');
+      expect(next.body).toMatchObject({ to: '2026-11-06', targetedDays: 5, averagePercent: 36 }); // (100+50+0+30+0)/5
+      expect(next.body.days).toContainEqual({ date: '2026-11-05', isRestDay: false, overallPercent: 30 });
+      expect(next.body.days).toContainEqual({ date: '2026-11-06', isRestDay: false, overallPercent: 0 });
+    });
+  });
+
+  it('TEST-15-8: first effectiveFrom 2026-11-04 → from 2026-11-04; Nov 1-3 are not counted', async () => {
+    const squat = await historicalSquat('2026-11-04');
+    await ledger(aliceId, squat.userExerciseId, '2026-11-03', 40); // before the plan: ignored
+    await ledger(aliceId, squat.userExerciseId, '2026-11-04', 40); // 100%
+
+    const res = await monthly(await aliceAuth(), '?month=2026-11');
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({ from: '2026-11-04', to: '2026-11-05', targetedDays: 2, averagePercent: 50 });
+    expect(res.body.days.map((d: { date: string }) => d.date)).toEqual(['2026-11-04', '2026-11-05']);
+  });
+
+  it('TEST-15-9: past month 2026-10 (31 days, Mon/Wed/Fri plan) → from 2026-10-01, to 2026-10-31, 13 targeted days and 18 Rest Days, average over the whole month', async () => {
+    const squat = await historicalSquat('2026-10-01', [1, 3, 5]);
+    await ledger(aliceId, squat.userExerciseId, '2026-10-02', 40); // Fri: 100%
+    await ledger(aliceId, squat.userExerciseId, '2026-10-05', 20); // Mon: 50%
+
+    const res = await monthly(await aliceAuth(), '?month=2026-10');
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({
+      month: '2026-10',
+      from: '2026-10-01',
+      to: '2026-10-31',
+      targetedDays: 13,
+      restDaysExcluded: 18,
+    });
+    expect(res.body.averagePercent).toBeCloseTo(150 / 13, 6);
+    expect(res.body.days).toHaveLength(31);
   });
 });
