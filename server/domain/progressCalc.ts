@@ -167,3 +167,32 @@ export function calcDaily(items: readonly ResolvedItem[], cumulative: readonly C
     overallPercent,
   };
 }
+
+export interface MonthlyResult {
+  targetedDays: number;
+  restDaysExcluded: number;
+  /** Unrounded arithmetic mean of the targeted days' percentages; `null` when there are none (R10). */
+  averagePercent: number | null;
+}
+
+/**
+ * R10 / BR-07: the monthly average over targeted days only. A day with `overallPercent` null is
+ * a Rest Day: it is counted in `restDaysExcluded` and never in the denominator; a targeted day
+ * with 0% counts as 0. Same exact arithmetic as `calcDaily` (R11). Pure; the caller decides
+ * which days are in range (future days are never passed in).
+ */
+export function calcMonthly(days: ReadonlyArray<Pick<DailyResult, 'overallPercent'>>): MonthlyResult {
+  let sum = ZERO;
+  let targetedDays = 0;
+  let restDaysExcluded = 0;
+  for (const day of days) {
+    if (day.overallPercent === null) {
+      restDaysExcluded += 1;
+    } else {
+      targetedDays += 1;
+      sum = add(sum, fromNumber(day.overallPercent));
+    }
+  }
+  const averagePercent = targetedDays === 0 ? null : toNumber(div(sum, { num: BigInt(targetedDays), den: 1n }));
+  return { targetedDays, restDaysExcluded, averagePercent };
+}
