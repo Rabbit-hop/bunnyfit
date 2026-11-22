@@ -163,7 +163,7 @@ Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
    6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Not verified: that the password is correct and that login and `GET /api/categories` pass; this is first shown by the run on `main`;
    7. writes commit, image, migrate image and URL to the run summary.
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
-5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Procedure and results in §7 (issue #50); the rollback itself is not yet tried.
+5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Procedure and results in §7 (issue #50); the rollback and roll forward were run on 22 Nov 2026, results in §7.3.
 
 Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that a first run from `main` succeeds; that `gcloud run deploy` keeps the environment variables and secrets set in §5.1.
 
@@ -217,6 +217,8 @@ Needs two tags in the registry (the first manual deployment tag `6425e684d937bcb
 
 | Item | Result |
 | --- | --- |
-| Tags in the registry | not run |
-| Running tag after rollback; health; entry | not run |
-| Running tag after roll forward; health; entry | not run |
+| Tags in the registry | `gcloud artifacts docker images list … --include-tags` (22 Nov 2026) shows `6425e684d937bcb2613288b4f6580f2b95d17b4d`, `migrate-6425e684…`, `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f` and `migrate-ed240087…`, plus untagged digests. |
+| Running tag after rollback; health; entry | Rollback by hand in Cloud Shell with the §7.3 command, no migration involved: new revision `s27d6b925-00004-4zf`, serving 100% of traffic, image tag `6425e684d937bcb2613288b4f6580f2b95d17b4d`; `curl /api/health` returned `{"status":"ok"}` at 2026-11-22T09:20:21Z (`date -u`). Today page screenshot at 16:20 Bangkok (taskbar clock; 09:20Z): "Jump Rope" and "Sun Salutation" both listed. |
+| Running tag after roll forward; health; entry | Same command with the newer tag: new revision `s27d6b925-00005-wz9` (a new revision, not a return to `-00003-kwf`), 100% of traffic, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`; `/api/health` `{"status":"ok"}` at 2026-11-22T09:21:52Z. Today page screenshot at 16:22 Bangkok: both items still listed. |
+
+Limits: the screenshots do not show a revision; the revisions come from the command output. The first lines of the roll-forward command were cut off in the pasted output, but the result shows the tag and revision above. The rollback was done by hand with `gcloud`, not through the workflow. Environment variables and secrets were not read after each deploy: health and a page with data are the only evidence that the service kept its configuration. Screenshots are held locally, not in the repository.
