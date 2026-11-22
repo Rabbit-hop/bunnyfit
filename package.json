@@ -26,6 +26,7 @@
     "db:seed": "prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
     "test:e2e": "playwright test"
   },
   "prisma": {
