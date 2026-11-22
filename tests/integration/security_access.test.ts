@@ -414,7 +414,8 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       expect(routes.map((p) => p.featureId).sort()).toEqual([
         ...Array(4).fill('F-04'),
         ...Array(5).fill('F-03'),
-        'F-06',
+        'F-06', // GET /api/progress/daily
+        'F-06', // GET /api/progress/monthly (Sprint 2, issue #75)
       ].sort());
       const token = await manager();
       const before = await snapshot();
@@ -430,7 +431,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-06']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-06', 'F-06']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
@@ -585,10 +586,29 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     });
 
     describe('F-06 routes', () => {
-      it('TEST-22c (F-06 routes): the registry holds GET /api/progress/daily as F-06 / PARTICIPANT / self-scoped, and only that one in Sprint 1', () => {
+      it('TEST-22c (F-06 routes): the registry holds GET /api/progress/daily and (Sprint 2, issue #75) GET /api/progress/monthly as F-06 / PARTICIPANT / self-scoped, and nothing else', () => {
         const f06 = activePolicies('test').filter((x) => x.featureId === 'F-06');
-        expect(f06).toHaveLength(1);
-        expect(f06[0]).toMatchObject({ method: 'GET', path: '/api/progress/daily', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' });
+        expect(f06).toHaveLength(2);
+        for (const path of ['/api/progress/daily', '/api/progress/monthly']) {
+          expect(f06.find((x) => x.path === path)).toMatchObject({ method: 'GET', path, auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' });
+        }
+      });
+
+      it('TEST-22c / 12a / 12b (F-06 monthly, Sprint 2): no token → 401; Manager → 403 envelope only (valid and invalid month); Alice with ?userId=<Bob> → 403 with no data; Bob own request → 200', async () => {
+        expect((await call('GET', '/api/progress/monthly')).status).toBe(401);
+        const token = bearer(await manager());
+        for (const query of ['', '?month=2026-11', '?month=garbage', '?month=2999-01']) {
+          const res = await call('GET', `/api/progress/monthly${query}`, token);
+          expect(res.status, query).toBe(403);
+          expect(res.body, query).toEqual(FORBIDDEN);
+        }
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const foreign = await call('GET', `/api/progress/monthly?userId=${bobId}`, aliceToken);
+        expect(foreign.status).toBe(403);
+        expect(foreign.body).toEqual(FORBIDDEN);
+        expect(JSON.stringify(foreign.body)).not.toContain(bobExerciseId);
+        const bobOwn = await call('GET', '/api/progress/monthly', await bearerOf('bob@exercise.test'));
+        expect(bobOwn.status).toBe(200);
       });
 
       it('TEST-22c / 12a (F-06 routes): no token → 401; Manager → 403 envelope only, with a valid and with an invalid date', async () => {
