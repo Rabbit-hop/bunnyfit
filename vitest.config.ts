@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/e2e/**', 'node_modules/**'],
+    exclude: ['tests/e2e/**', 'tests/performance/**', 'node_modules/**'], // performance: `pnpm run test:perf` (AC-21a)
     pool: 'forks',
     // The integration suites share one real PostgreSQL test database and some assert
     // "no database change" by counting rows, so test files must not run concurrently.

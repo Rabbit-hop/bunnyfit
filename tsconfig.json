@@ -14,5 +14,5 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["server/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "playwright.config.ts", "prisma/seed.ts"]
+  "include": ["server/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "vitest.perf.config.ts", "playwright.config.ts", "prisma/seed.ts"]
 }
