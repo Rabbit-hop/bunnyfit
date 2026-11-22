@@ -101,6 +101,35 @@ Needs `JWT_SECRET` (at least 32 bytes) and the two `SEED_*` passwords in `.env`;
 `docker compose up -d` without `--profile app` still starts only the database.
 Variables, CI and release steps: `docs/labs/lab-05/deployment.md`.
 
+## Deploy to Google Cloud (Lab 5)
+
+The team deploys to Cloud Run (project `cpe-se-course-2026`, region `asia-southeast1`,
+service `s27d6b925`, public URL `https://s27d6b925-4d7hbszvwq-as.a.run.app`). Resource
+names, variables and the evidence are in `docs/labs/lab-05/deployment.md`; the steps are:
+
+1. Work on a branch from `staging/sprint-1`; the pull request needs the checks `test`
+   and `docker-build` and one review from the teammate (ruleset `protect-staging`).
+2. Release: a reviewed pull request `staging/sprint-1` -> `main` (also needs `e2e`,
+   ruleset `protect-main`). Merging it triggers `.github/workflows/deploy.yml`, which
+   builds the runtime image (`:<commit SHA>`) and the migrate image (`:migrate-<SHA>`),
+   runs `pnpm run db:migrate` as a Cloud Run job, deploys the service and runs a smoke
+   check (`GET /api/health`; when the smoke account is configured in the environment `demo`, also a login and `GET /api/categories`). The workflow signs
+   in with Workload Identity Federation, so no key file or password is stored in the
+   repository.
+3. Find the running commit (read-only): the image tag is the commit SHA.
+   ```bash
+   gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)'
+   ```
+4. Roll back by deploying an earlier image tag, then roll forward the same way
+   (the registry keeps one tag per deployed commit; check first that no migration was added
+   between the two commits):
+   ```bash
+   gcloud run deploy s27d6b925 --region asia-southeast1 --image asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:<commit SHA>
+   ```
+
+What was run and what was not (restart, redeploy, rollback results and their limits):
+`docs/labs/lab-05/deployment.md` sections 6 and 7.
+
 ## Verify a local run
 
 ```bash
@@ -157,7 +186,7 @@ scripts/           # report/ builds the Deliverable 1 PDF evidence (see scripts/
 docker-compose.yml   # dev database (postgres:17); `--profile app` adds migrate + app
 Dockerfile  .dockerignore                  # multi-stage image (Lab 5)
 .github/workflows/ci.yml                   # PR checks (Lab 5)
-.github/workflows/deploy.yml                # deploy to Cloud Run on push to main (Lab 5); written, not run yet
+.github/workflows/deploy.yml                # deploy to Cloud Run on push to main (Lab 5); runs on every push to `main`; first run 22 Nov 2026, later runs are listed in the Actions tab (results and limits: `docs/labs/lab-05/deployment.md` §6)
 .env.example
 ```
 
@@ -188,6 +217,7 @@ Foundation conventions worth knowing before touching the code:
 
 - Lab 5 (issue #22): the Dockerfile, the compose `app` profile and `ci.yml` exist;
   branch protection (rulesets `protect-main`, `protect-staging`), the first manual
-  GCP deployment (20 Nov 2026) and `deploy.yml` are in place; `deploy.yml` has not
-  run yet (first run = merge of the release PR into `main`).
+  GCP deployment (20 Nov 2026) and `deploy.yml` are in place; `deploy.yml` first ran
+  from `main` on 22 Nov 2026 (run 45003687814, all steps `success`); later runs are in
+  the Actions tab.
   Details and status: `docs/labs/lab-05/deployment.md`.
