@@ -186,7 +186,7 @@ scripts/           # report/ builds the Deliverable 1 PDF evidence (see scripts/
 docker-compose.yml   # dev database (postgres:17); `--profile app` adds migrate + app
 Dockerfile  .dockerignore                  # multi-stage image (Lab 5)
 .github/workflows/ci.yml                   # PR checks (Lab 5)
-.github/workflows/deploy.yml                # deploy to Cloud Run on push to main (Lab 5); ran once from `main` on 22 Nov 2026 (see `docs/labs/lab-05/deployment.md` §6)
+.github/workflows/deploy.yml                # deploy to Cloud Run on push to main (Lab 5); runs on every push to `main`; first run 22 Nov 2026, later runs are listed in the Actions tab (results and limits: `docs/labs/lab-05/deployment.md` §6)
 .env.example
 ```
 
@@ -217,6 +217,7 @@ Foundation conventions worth knowing before touching the code:
 
 - Lab 5 (issue #22): the Dockerfile, the compose `app` profile and `ci.yml` exist;
   branch protection (rulesets `protect-main`, `protect-staging`), the first manual
-  GCP deployment (20 Nov 2026) and `deploy.yml` are in place; `deploy.yml` ran once
-  from `main` on 22 Nov 2026 (run 45003687814, all steps `success`).
+  GCP deployment (20 Nov 2026) and `deploy.yml` are in place; `deploy.yml` first ran
+  from `main` on 22 Nov 2026 (run 45003687814, all steps `success`); later runs are in
+  the Actions tab.
   Details and status: `docs/labs/lab-05/deployment.md`.
