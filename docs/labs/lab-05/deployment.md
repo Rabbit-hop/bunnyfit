@@ -148,7 +148,7 @@ Not done / known gaps: the deploy workflow (`deploy.yml`, issue #49) was not wri
 
 ## 6. Release procedure
 
-**Status: `.github/workflows/deploy.yml` (issue #49) ran for the first time on 22 Nov 2026 (run 45003687814, push to `main`, commit `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`): every step concluded `success` (sign-in, build and push, migration, deploy, smoke check; the smoke log shows `health: ok` and `login and persisted read: ok`), read with `gh run view`. Running image checked in Cloud Shell at 2026-11-22T08:47:26Z (`date -u`): revision `s27d6b925-00003-kwf`, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Nothing in this section has been exercised until the first release PR is merged; the result will be recorded here.
+**Status: `.github/workflows/deploy.yml` (issue #49) ran for the first time on 22 Nov 2026 (run 45003687814, push to `main`, commit `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`): every step concluded `success` (sign-in, build and push, migration, deploy, smoke check; the smoke log shows `health: ok` and `login and persisted read: ok`), read with `gh run view`. Running image checked in Cloud Shell at 2026-11-22T08:47:26Z (`date -u`): revision `s27d6b925-00003-kwf`, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Steps 1 to 7 of the flow below ran once, in the run above; the rollback and roll forward (step 5 of the flow) were run by hand and are recorded in §7.3.
 
 Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
 
@@ -159,13 +159,13 @@ Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
    2. signs in to Google Cloud through Workload Identity Federation (no key file);
    3. builds and pushes two images to the team repository: the runtime image tagged with the full commit SHA (`:<SHA>`) and the migrate image from the Dockerfile target `migrate` (`:migrate-<SHA>`), because the runtime image has no Prisma CLI;
    4. points the Cloud Run job `s27d6b925-migrate` at the migrate image and runs `pnpm run db:migrate` (`prisma migrate deploy`) and waits; if it fails the deploy does not happen;
-   5. deploys the runtime image to the Cloud Run service `s27d6b925` (`gcloud run deploy --image`, so the settings and secrets already on the service are expected to stay; not yet confirmed);
-   6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Not verified: that the password is correct and that login and `GET /api/categories` pass; this is first shown by the run on `main`;
+   5. deploys the runtime image to the Cloud Run service `s27d6b925` (`gcloud run deploy --image`, so the settings and secrets already on the service are expected to stay; after the first run the smoke login passed, which shows that the database connection and `JWT_SECRET` worked, but the other variables were not read back);
+   6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Result of the first run on `main` (22 Nov 2026): the smoke log shows `health: ok` and `login and persisted read: ok`, so the password was correct and login and the read passed;
    7. writes commit, image, migrate image and URL to the run summary.
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
 5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Procedure and results in §7 (issue #50); the rollback and roll forward were run on 22 Nov 2026, results in §7.3.
 
-Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that a first run from `main` succeeds; that `gcloud run deploy` keeps the environment variables and secrets set in §5.1.
+Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that `gcloud run deploy` keeps every environment variable and secret set in §5.1 (not read back after the first run, the rollback or the roll forward; only the smoke login and the health check passed).
 
 **Finding the commit that is running:** `GET /api/health` returns only `{"status":"ok"}` and does not report a commit. The intended answer is the image tag (the full commit SHA) of the active Cloud Run revision. Exact command (read-only):
 
@@ -177,7 +177,7 @@ The tag after the last colon is the full commit SHA of the running image. For th
 
 ## 7. Persistence, rollback and roll forward (issue #50)
 
-**Status: 7.1 was run on 22 Nov 2026 (result below, with its limits). 7.2 and 7.3 have not been run; their result cells are empty on purpose.** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
+**Status: 7.1, 7.2 and 7.3 were all run on 22 Nov 2026 (results below, each with its limits).** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
 
 ### 7.1 Data survives an instance restart (C-05)
 
