@@ -148,7 +148,7 @@ Not done / known gaps: the deploy workflow (`deploy.yml`, issue #49) was not wri
 
 ## 6. Release procedure
 
-**Status: `.github/workflows/deploy.yml` is written (issue #49) but has not been run yet.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Nothing in this section has been exercised until the first release PR is merged; the result will be recorded here.
+**Status: `.github/workflows/deploy.yml` (issue #49) ran for the first time on 22 Nov 2026 (run 45003687814, push to `main`, commit `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`): every step concluded `success` (sign-in, build and push, migration, deploy, smoke check; the smoke log shows `health: ok` and `login and persisted read: ok`), read with `gh run view`. Running image checked in Cloud Shell at 2026-11-22T08:47:26Z (`date -u`): revision `s27d6b925-00003-kwf`, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Nothing in this section has been exercised until the first release PR is merged; the result will be recorded here.
 
 Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
 
@@ -204,8 +204,8 @@ Done with the first run of `deploy.yml` from `main` (issue #49), which pushes a 
 
 | Item | Result |
 | --- | --- |
-| Revision / tag before and after the run | not run |
-| Entry from 7.1 visible after the redeploy | not run |
+| Revision / tag before and after the run | Before: `s27d6b925-00002-xsz`, tag `6425e684…` (§7.1). After: `s27d6b925-00003-kwf`, tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f` (`gcloud run services describe`, 2026-11-22T08:47:26Z). The registry holds both tags and both `migrate-` tags. No migration was added between the two commits (`git diff 6425e68 ed24008 -- prisma` is empty; only `0001_init` exists). |
+| Entry from 7.1 visible after the redeploy | Yes, by the team member's screenshot of the Today page on the public URL (22 Nov 2026, 16:16 Bangkok, taskbar clock): plan item "Jump Rope", Cardio time, target 13:13, P4, listed. That is about 29 minutes after the revision was read; the screenshot does not show a revision. A second plan item "Sun Salutation" (Yoga, target 12:54, P3, 22 Nov – 6 Dec) was added after the redeploy (form screenshot, 15:48 Bangkok) and is also listed; it serves as the marker for §7.3. The screenshots are held locally, not in the repository. |
 
 ### 7.3 Rollback and roll forward by image tag
 
