@@ -113,7 +113,7 @@ names, variables and the evidence are in `docs/labs/lab-05/deployment.md`; the s
    ruleset `protect-main`). Merging it triggers `.github/workflows/deploy.yml`, which
    builds the runtime image (`:<commit SHA>`) and the migrate image (`:migrate-<SHA>`),
    runs `pnpm run db:migrate` as a Cloud Run job, deploys the service and runs a smoke
-   check (`GET /api/health`, then a login and `GET /api/categories`). The workflow signs
+   check (`GET /api/health`; when the smoke account is configured in the environment `demo`, also a login and `GET /api/categories`). The workflow signs
    in with Workload Identity Federation, so no key file or password is stored in the
    repository.
 3. Find the running commit (read-only): the image tag is the commit SHA.
@@ -121,7 +121,7 @@ names, variables and the evidence are in `docs/labs/lab-05/deployment.md`; the s
    gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(spec.template.spec.containers[0].image)'
    ```
 4. Roll back by deploying an earlier image tag, then roll forward the same way
-   (the registry keeps one tag per commit; check first that no migration was added
+   (the registry keeps one tag per deployed commit; check first that no migration was added
    between the two commits):
    ```bash
    gcloud run deploy s27d6b925 --region asia-southeast1 --image asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:<commit SHA>
