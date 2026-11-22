@@ -15,7 +15,7 @@
 | Image | Multi-stage `Dockerfile` (targets `build`, `migrate`, `prod-deps`, `runtime`; `runtime` is the default) | In the repository (commit `beebd91`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` | In the repository. Pull-request run on PR #42, head `005136a` (run 43706494746): `test` and `docker-build` passed, `e2e` skipped because the PR targets staging. Manual `workflow_dispatch` run on the same head (run 43706506031): `test` (27 files, 393 tests), `docker-build` and `e2e` (Playwright, 40 tests) all passed |
 | Registry, runtime, database, secrets (SDS §9.4) | Artifact Registry, Cloud Run, Cloud SQL for PostgreSQL, Secret Manager | Created by the course portal (see §5); first manual deployment done 20 Nov 2026 (§5.1) |
-| Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | Written (issue #49, PR #62), **not run yet**; the first run is the merge of the release PR into `main` (§6) |
+| Deploy pipeline | `.github/workflows/deploy.yml` on push to `main` | Written (issue #49, PR #62), ran once on 22 Nov 2026 (run 45003687814, push to `main`, all steps `success`); results in §6 and §7 |
 
 Differences from the Student Guide reference stack: GCP access changed after the handout (course update, 20 Nov 2026). The team does not create its own GCP Free Trial project, billing account or budget (Guide Episode 1); the course portal provides a shared project and a team prefix, and creates the Cloud SQL instance, Artifact Registry repository, Cloud Run service, migration job and Secret Manager secrets. The team still builds, migrates and deploys the application itself. Record any further difference here when a choice differs.
 
@@ -110,7 +110,7 @@ Difference from the Student Guide (Episode 6): the team did not create the deplo
 - A team member used the portal tab "Lab 5 · Repository review" to connect `Rabbit-hop/bunnyfit` ("Connect GitHub Actions (WIF)"; the portal reported success). The portal then showed the GitHub variables below and a `deploy.yml` to download. Per the portal, it does not write to the repository.
 - GitHub Environment `demo`, created by the team and read back through `gh api` on 21 Nov 2026: deployment branches limited to the single rule `main`; four variables `GCP_PROJECT_ID` (`cpe-se-course-2026`), `GCP_REGION` (`asia-southeast1`), `WIF_PROVIDER` (`projects/670075229477/locations/global/workloadIdentityPools/s27d6b925-pool/providers/s27d6b925-provider`), `WIF_SERVICE_ACCOUNT` (the deployer above). The values of these four equal those pasted from the portal's Team resources tab; none of the four is a secret. No required reviewers. Added later and read back by name through `gh api` (values not read): the variable `SMOKE_EMAIL` and the secret `SMOKE_PASSWORD`, used by the smoke check in `deploy.yml` (§6).
 
-Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; a sign-in from GitHub Actions has not been run (`deploy.yml` is in the repository since PR #62 but has not been run; it only works from `main`); the portal's own connection step was reported by the team member, not re-run.
+Not verified: the roles the deployer service account actually holds and the attribute condition of the provider (the team account cannot read IAM), so this document does not claim least privilege; the sign-in from GitHub Actions was run by `deploy.yml` on 22 Nov 2026 (run 45003687814, step "Sign in to Google Cloud (no key file)" concluded `success`, read with `gh run view`); the workflow only works from `main`; the portal's own connection step was reported by the team member, not re-run.
 
 Actions are pinned to full commit SHAs.
 
@@ -148,7 +148,7 @@ Not done / known gaps: the deploy workflow (`deploy.yml`, issue #49) was not wri
 
 ## 6. Release procedure
 
-**Status: `.github/workflows/deploy.yml` is written (issue #49) but has not been run yet.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Nothing in this section has been exercised until the first release PR is merged; the result will be recorded here.
+**Status: `.github/workflows/deploy.yml` (issue #49) ran for the first time on 22 Nov 2026 (run 45003687814, push to `main`, commit `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`): every step concluded `success` (sign-in, build and push, migration, deploy, smoke check; the smoke log shows `health: ok` and `login and persisted read: ok`), read with `gh run view`. Running image checked in Cloud Shell at 2026-11-22T08:47:26Z (`date -u`): revision `s27d6b925-00003-kwf`, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`.** It only works from `main`: the portal's WIF rule is bound to the file name `deploy.yml` on `main` and to the GitHub Environment `demo` (§4.1). Steps 1 to 7 of the flow below ran once, in the run above; the rollback and roll forward (step 5 of the flow) were run by hand and are recorded in §7.3.
 
 Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
 
@@ -159,13 +159,13 @@ Flow (SDS §9.3, §9.5, Lab 5 R-07 and R-08):
    2. signs in to Google Cloud through Workload Identity Federation (no key file);
    3. builds and pushes two images to the team repository: the runtime image tagged with the full commit SHA (`:<SHA>`) and the migrate image from the Dockerfile target `migrate` (`:migrate-<SHA>`), because the runtime image has no Prisma CLI;
    4. points the Cloud Run job `s27d6b925-migrate` at the migrate image and runs `pnpm run db:migrate` (`prisma migrate deploy`) and waits; if it fails the deploy does not happen;
-   5. deploys the runtime image to the Cloud Run service `s27d6b925` (`gcloud run deploy --image`, so the settings and secrets already on the service are expected to stay; not yet confirmed);
-   6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Not verified: that the password is correct and that login and `GET /api/categories` pass; this is first shown by the run on `main`;
+   5. deploys the runtime image to the Cloud Run service `s27d6b925` (`gcloud run deploy --image`, so the settings and secrets already on the service are expected to stay; after the first run the smoke login passed, which shows that the database connection and `JWT_SECRET` worked, but the other variables were not read back);
+   6. smoke check: `GET /api/health` must return `{"status":"ok"}`; when the variable `SMOKE_EMAIL` and the environment secret `SMOKE_PASSWORD` are both set it also logs in and reads `GET /api/categories` (seeded data in the database), which must be a non-empty array. If neither is set the login and read part is skipped and the run log says so; the smoke check then proves only health, not a persisted read; The environment `demo` now has the variable `SMOKE_EMAIL` (the seeded Participant `alice@exercise.test`) and the secret `SMOKE_PASSWORD` (names read back with `gh api` on 21 Nov 2026; the secret value cannot be read). Result of the first run on `main` (22 Nov 2026): the smoke log shows `health: ok` and `login and persisted read: ok`, so the password was correct and login and the read passed;
    7. writes commit, image, migrate image and URL to the run summary.
 4. Tag the accepted release (for example `sprint1-v1.0.0`); a submitted tag is never moved.
-5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Planned for issue #50; not yet tried.
+5. Roll back by redeploying an earlier image tag (`gcloud run deploy s27d6b925 --region asia-southeast1 --image <earlier :SHA>`), then roll forward by merging the fix. Procedure and results in §7 (issue #50); the rollback and roll forward were run on 22 Nov 2026, results in §7.3.
 
-Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that a first run from `main` succeeds; that `gcloud run deploy` keeps the environment variables and secrets set in §5.1.
+Not verified: that the deployer service account holds every permission these steps need (its roles cannot be read, §4.1); that `gcloud run deploy` keeps every environment variable and secret set in §5.1 (not read back after the first run, the rollback or the roll forward; only the smoke login and the health check passed).
 
 **Finding the commit that is running:** `GET /api/health` returns only `{"status":"ok"}` and does not report a commit. The intended answer is the image tag (the full commit SHA) of the active Cloud Run revision. Exact command (read-only):
 
@@ -175,8 +175,57 @@ gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(
 
 The tag after the last colon is the full commit SHA of the running image. For the 20 Nov 2026 deployment it is `6425e684d937bcb2613288b4f6580f2b95d17b4d`. Confirmed with the command above on 20 Nov 2026: the active image is `asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:6425e684d937bcb2613288b4f6580f2b95d17b4d`.
 
+## 7. Persistence, rollback and roll forward (issue #50)
+
+**Status: 7.1, 7.2 and 7.3 were all run on 22 Nov 2026 (results below, each with its limits).** Run in Cloud Shell by the team member with the course account; screenshots are taken by a teammate in the browser. Only read-only `gcloud` commands are used, except the rollback and roll-forward deploys in 7.3.
+
+### 7.1 Data survives an instance restart (C-05)
+
+The service has minimum instances 0 (§5.1), so an idle instance is shut down and the next request starts a new container. The check does not change any configuration or revision.
+
+1. Note the active revision and image tag (command in §6). Sign in on the public URL with a seeded Participant and add one entry with a distinctive value (write the value, the time and the date down). Screenshot "before": the entry visible, with the URL and the time.
+2. Do not call the URL for about 20 minutes.
+3. Read the startup lines of the service: `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="s27d6b925" AND textPayload:"bunnyfit API listening"' --freshness=2h --limit=10 --format='value(timestamp,resource.labels.revision_name,textPayload)'`. A line with a timestamp **after** the "before" screenshot proves a new container started. If there is none, the restart is not shown and must not be claimed.
+4. Sign in again in a new browser window and open the same day. Screenshot "after": the same entry. Re-run the command in §6: revision and tag must be unchanged.
+
+| Item | Result |
+| --- | --- |
+| Record used | Plan item "Jump Rope" (Cardio time, target 13:13, priority 4, 22 Nov to 30 Nov) on the seeded Participant account. A plan item, not a Daily Log entry. The team member states it was saved before the "before" screenshot; the screenshot itself shows an unsaved Add-exercise form (Bench Press), not the saved Jump Rope. |
+| Revision and image tag before | `s27d6b925-00002-xsz`, tag `6425e684d937bcb2613288b4f6580f2b95d17b4d` (`gcloud run services describe`, 22 Nov 2026) |
+| New startup line after the "before" time | Yes: `bunnyfit API listening on port 8080 (production)` at 2026-11-21T19:01:21Z (02:01:21 in Bangkok, 22 Nov), revision `s27d6b925-00002-xsz`. The previous startup line was at 18:24:23Z (01:24 Bangkok). The "before" screenshot file was saved at 01:40:49 and the "after" file at 02:02:13 (Bangkok), so the 19:01:21Z start lies between them. The times of the screenshots are the save times of the image files, not times shown in the images. |
+| Record visible after the restart | Yes: the "after" screenshot (My Plan, Sunday 22 November, "1 exercise planned") shows Jump Rope 13:13, priority 4, 22 Nov to 30 Nov. |
+| Revision and image tag after | `gcloud run services describe` at 2026-11-21T19:17:23Z (`date -u` in Cloud Shell; 02:17 Bangkok, 22 Nov), after the 19:01:21Z start: revision `s27d6b925-00002-xsz`, tag `6425e684d937bcb2613288b4f6580f2b95d17b4d`, unchanged. |
+
+Limits: the "before" screenshot does not show the saved record, so the "before" side rests on the team member's statement; the idle period before the restart was not timed; the screenshots are held by the team and not in this repository.
+
+### 7.2 Data survives a redeploy
+
+Done with the first run of `deploy.yml` from `main` (issue #49), which pushes a new image and creates a new revision. Before the run: note the entry from 7.1 and the revision. After the run: the revision and tag differ (§6 command) and the same entry is still returned. The smoke check in the workflow reads `GET /api/categories`; it does not prove this entry, so the entry is checked by hand.
+
+| Item | Result |
+| --- | --- |
+| Revision / tag before and after the run | Before: `s27d6b925-00002-xsz`, tag `6425e684…` (§7.1). After: `s27d6b925-00003-kwf`, tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f` (`gcloud run services describe`, 2026-11-22T08:47:26Z). The registry holds both tags and both `migrate-` tags. No migration was added between the two commits (`git diff 6425e68 ed24008 -- prisma` is empty; only `0001_init` exists). |
+| Entry from 7.1 visible after the redeploy | Yes, by the team member's screenshot of the Today page on the public URL (22 Nov 2026, 16:16 Bangkok, taskbar clock): plan item "Jump Rope", Cardio time, target 13:13, P4, listed. That is about 29 minutes after the revision was read; the screenshot does not show a revision. A second plan item "Sun Salutation" (Yoga, target 12:54, P3, 22 Nov – 6 Dec) was added after the redeploy (form screenshot, 15:48 Bangkok) and is also listed; it serves as the marker for §7.3. The screenshots are held locally, not in the repository. |
+
+### 7.3 Rollback and roll forward by image tag
+
+Needs two tags in the registry (the first manual deployment tag `6425e684d937bcb2613288b4f6580f2b95d17b4d` and the tag deployed by the pipeline). Before rolling back, check that no migration was added between the two commits: on 22 Nov 2026 the repository has one migration, `0001_init` (`git ls-tree -r --name-only <commit> prisma/migrations`). If the newer commit added one, rolling back the image does not roll back the schema, and the rollback is not safe to run unchecked.
+
+1. List tags: `gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925 --include-tags --format='value(tags,version)'`.
+2. Roll back: `gcloud run deploy s27d6b925 --region asia-southeast1 --image asia-southeast1-docker.pkg.dev/cpe-se-course-2026/s27d6b925/s27d6b925:<earlier SHA>`. Check with the §6 command that the running tag is the earlier SHA, that `/api/health` is ok and that the entry from 7.1 is still visible.
+3. Roll forward: the same command with the newer SHA (or re-run the workflow with `workflow_dispatch`). Check the tag and the entry again.
+
+| Item | Result |
+| --- | --- |
+| Tags in the registry | `gcloud artifacts docker images list … --include-tags` (22 Nov 2026) shows `6425e684d937bcb2613288b4f6580f2b95d17b4d`, `migrate-6425e684…`, `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f` and `migrate-ed240087…`, plus untagged digests. |
+| Running tag after rollback; health; entry | Rollback by hand in Cloud Shell with the §7.3 command, no migration involved: new revision `s27d6b925-00004-4zf`, serving 100% of traffic, image tag `6425e684d937bcb2613288b4f6580f2b95d17b4d`; `curl /api/health` returned `{"status":"ok"}` at 2026-11-22T09:20:21Z (`date -u`). Today page screenshot at 16:20 Bangkok (taskbar clock; 09:20Z): "Jump Rope" and "Sun Salutation" both listed. |
+| Running tag after roll forward; health; entry | Same command with the newer tag: new revision `s27d6b925-00005-wz9` (a new revision, not a return to `-00003-kwf`), 100% of traffic, image tag `ed240087fdde9c97d4ad6c6b77a8e406ffd81c0f`; `/api/health` `{"status":"ok"}` at 2026-11-22T09:21:52Z. Today page screenshot at 16:22 Bangkok: both items still listed. |
+
+Limits: the screenshots do not show a revision; the revisions come from the command output. The first lines of the roll-forward command were cut off in the pasted output, but the result shows the tag and revision above. The rollback was done by hand with `gcloud`, not through the workflow. Environment variables and secrets were not read after each deploy: health and a page with data are the only evidence that the service kept its configuration. Screenshots are held locally, not in the repository.
+
 ## Revision history
 
 | Date | Change |
 | --- | --- |
 | 22 Nov 2026 | Corrected statements that were no longer true after PR #62: §1 row "Deploy pipeline" (written, not run), §4.1 (environment `demo` now has `SMOKE_EMAIL` and `SMOKE_PASSWORD`; `deploy.yml` is in the repository). Requested in the review of PR #63. |
+| 22 Nov 2026 | §6 status and "not verified" text rewritten to match the first `deploy.yml` run (run 45003687814); new §7 (restart, redeploy, rollback and roll forward, issue #50) with its results and limits; §1 row "Deploy pipeline" and §4.1 sign-in sentence updated because the workflow has now run (PR #98, review of fahsai-02). |
