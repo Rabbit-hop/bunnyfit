@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-11
 **Sprint:**  2 (CHANGE-02; all monthly kcal, including the monthly total, is F-10, Sprint 3)
-**Contract Version:**  0.1.1
+**Contract Version:**  0.1.2
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.10, System-Level SDS 1.1.1, Sprint Plan 1.2.0, F-04 contract 0.3.1, F-06 contract 0.3.1)
 **Date:**  23 November 2026
 **Status:**  Draft (review pending; implementation must not start before the reviewer approves)
@@ -16,8 +16,8 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 23 Nov 2026 | Initial contract (issue #66, Part 2): formula, `WeightLog` lookup, estimated minutes per `trackingMode`, calorie fields added to `GET /api/progress/daily` (and to `GET /api/progress/monthly` once it ships), Today UI, AC-20a–c and AC-28a–c with the STS and worked arithmetic, DoD and evidence list. No new route, no schema change, no new error code. Open questions are listed in §13 | Nakagamon | Draft |
-
 | **0.1.1** | 23 Nov 2026 | User decisions on the open questions of 0.1.0 (relayed by the lead, 23 Nov 2026): Q1 the daily total is the sum of the **unrounded** values rounded once (R6, TEST-28c-1 now 368.0, new TEST-20a-7); Q2 activity of exercises not planned on the date and free-form Rest Day entries **count** toward `totalCalories` and appear in a new top-level `otherActivity` array (R12, §4.1, TEST-28c-5 to 28c-7); Q3 monthly kcal is **not** part of F-11 and moves to F-10 (former §4.2, TEST-28a-6 and the monthly UI card removed); Q4, Q5, Q6 confirmed unchanged. No AC meaning, AC ID, test file path or schema change | Nakagamon | Draft |
+| **0.1.2** | 23 Nov 2026 | Changes after the review of Onsinee on `f27bd1c` (PR #105): table fixed; STS fixtures made self-contained (each test creates its own Participant, every day is a planned day unless stated, reps target given in TEST-28c-2); §9 now names the existing code and test that the change touches; §4.4 uses exact BigInt rational arithmetic like `progressCalc.ts` (no new dependency); "Set your body weight" wording aligned with `ui-spec.md`; AC-28c wording note; F-10 reuse stated; row order nits; limitation 6 on performance. Not taken: a DoD item to re-run `pnpm run test:perf`, and the F-11 cut decision (see §13). No AC ID, test file path or schema change | Nakagamon | Draft |
 
 *Rule: committed as a specification-only commit before any F-11 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -88,10 +88,10 @@ F-11 adds the **calorie estimate** to the progress result of F-06: for every pla
 | B5 | Two rows with the same `effectiveDate` (two updates on the same day) | The latest `createdAt` is used (R2) |
 | B6 | `date` in the future | Unchanged F-06 rule: `400 VALIDATION_ERROR` (SRS Q47); no calorie logic runs |
 | B7 | Rest Day, nothing logged | `items: []`, `otherActivity: []`; `totalCalories` 0 with a weight or `null` + error without (R10) |
-| B11 | Rest Day with free-form entries, or a day with an exercise that is not planned on it (e.g. *Walk* planned Mon/Wed/Fri, logged on Tuesday) | The exercise appears in `otherActivity` with its calories; `totalCalories` includes it; scores and `items` are unchanged (R12) |
 | B8 | Exercise with zero logged activity on a targeted day | `estimatedMinutes` 0, `calories` 0 (R7) |
 | B9 | Quick Complete entry with raised `sets` (F-04 R9/R12) | Minutes use the **stored** `sets`; see §13 limitation 2 |
 | B10 | Manager token; foreign `?userId=` | `403` (identity from the token only; unchanged F-06 policy) |
+| B11 | Rest Day with free-form entries, or a day with an exercise that is not planned on it (e.g. *Walk* planned Mon/Wed/Fri, logged on Tuesday) | The exercise appears in `otherActivity` with its calories; `totalCalories` includes it; scores and `items` are unchanged (R12) |
 
 ##### 3.4 Permissions (Access Matrix rows)
 F-11 adds **no route**. The only changed route keeps the F-06 policy, so no row is added to the registry; the Endpoint Access Matrix (AC-12c / AC-22c) row below stays valid and is the one re-run with the new fields.
@@ -182,12 +182,12 @@ No route is added or changed in the registry: `GET /api/progress/daily` keeps `f
 
 ##### 4.4 Internal interfaces (pure functions, no I/O; new module `server/domain/calorieCalc.ts`, name is a proposal)
 ```ts
-pickBodyWeight(rows: { weightKg, effectiveDate, createdAt }[], date: string): Decimal | null   // R2
-estimateMinutes(item: { trackingMode, cardioCategory, sets, durationSec, distanceKm }): Decimal  // R4
-calcCalories(metValue: Decimal, weightKg: Decimal, estimatedMinutes: Decimal): Decimal          // R1, unrounded; roundKcal() applies R5 (half up, 1 dp)
-withCalories(daily: DailyResult, planned: CalorieInput[], other: CalorieInput[], weightKg: Decimal | null): DailyResult   // R6-R10, R12: total = round once of the unrounded sum
+pickBodyWeight(rows: { weightKg, effectiveDate, createdAt }[], date: string): Exact | null   // R2
+estimateMinutes(item: { trackingMode, cardioCategory, sets, durationSec, distanceKm }): Exact  // R4
+calcCalories(metValue: Exact, weightKg: Exact, estimatedMinutes: Exact): Exact          // R1, unrounded; roundKcal() applies R5 (half up, 1 dp)
+withCalories(daily: DailyResult, planned: CalorieInput[], other: CalorieInput[], weightKg: Exact | null): DailyResult   // R6-R10, R12: total = round once of the unrounded sum
 ```
-The standard paces of R4 are constants of this module (SRS A.1); `progressService` loads data and passes it in. No function calls the Clock or the database.
+`Exact` is an exact decimal value implemented with BigInt rationals, the same approach as `server/domain/progressCalc.ts` (R5: no binary floating point); no decimal library is added, because `package.json` has none and a new dependency needs the user's approval (working rule 5). The standard paces of R4 are constants of this module (SRS A.1); `progressService` loads data and passes it in. No function calls the Clock or the database.
 
 --------------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@ UI behavior of screens is owned by `ui-spec.md` (Onsinee); the elements below ar
 | **Item card** (S-02) | When `calories` is a number: "≈ 18.4 kcal" (`item-kcal`), with the estimated minutes as secondary text ("4.5 min") |
 | **Daily total** (progress card) | "Calories today: ≈ 368.0 kcal" (`today-kcal`), shown whenever `totalCalories` is a number (also "0 kcal" on a day with no log); it includes unplanned and Rest Day activity |
 | **Other activity** | When `otherActivity` is not empty: a list "Not in today's plan" (`today-other-activity`) with name and kcal per exercise, labelled "not scored" (as F-04 UI); on a Rest Day this list is the only calorie content besides the total |
-| **"Set your body weight" prompt** | When `calorieError` is `"BODY_WEIGHT_REQUIRED"`: item cards show "—" instead of kcal, the progress card shows the notice "Set your body weight to see calories" with a link to S-07 Profile (`today-weight-prompt`); the prompt is informational, **not an error**, and does not block Quick Complete or logging |
+| **"Set your body weight" prompt** | When `calorieError` is `"BODY_WEIGHT_REQUIRED"`: item cards and the progress card show "Set your body weight" instead of a number (the wording of `ui-spec.md` S-02), with a link to S-07 Profile (`today-weight-prompt`); the prompt is informational, **not an error**, and does not block Quick Complete or logging |
 | Real time | The values refresh with the progress refetch after every entry (F-06 §6); after the Participant saves a weight in S-07 and returns to Today, the next fetch shows kcal |
 | Manager | No Today screen, no calories |
 
@@ -215,7 +215,7 @@ Rounding for display: kcal to 1 decimal half up as returned; minutes to 1 decima
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-20a–c and AC-28a–c use the IDs and wording of RTM 1.1.10 (Section 1, rows BR-12 / FR-08 / FR-05), refined only with the endpoints and fields above. No AC meaning or ID is changed.
+AC-20a–c and AC-28a–c use the IDs and wording of RTM 1.1.10 (Section 1, rows BR-12 / FR-08 / FR-05), refined only with the endpoints and fields above. No AC ID or test file path is changed. AC-28c says "per exercise"; this contract reads it to include exercises that are not in the plan on that date (R12), which is wider than the RTM wording, so the RTM revision that registers F-11 (P11-1) must say so.
 
 | AC | Observable outcome (RTM text) |
 | ------ | ------ |
@@ -231,7 +231,7 @@ AC-20a–c and AC-28a–c use the IDs and wording of RTM 1.1.10 (Section 1, rows
 --------------------------------------------------------------------------------
 
 #### 8. Software Test Specification (STS)
-Files: `tests/unit/calorie_calc.test.ts` (AC-20a–c), `tests/integration/calorie_weightlog.test.ts` (AC-28a–c). Fixtures: seeded Manager, Alice, Bob and a fresh Participant with no `WeightLog` row (the integration tests name it "Dana"); real PostgreSQL test database; injectable Clock fixed at **Thu 12 Nov 2026 10:00 Asia/Bangkok** unless stated; past dates are written through the historical helpers (`createHistoricalPlanItem`, `createHistoricalEntry`) and read with `GET /api/progress/daily?date=`. Dates and values are chosen so every expected result is exact; arithmetic is shown in the last column. "Dana" plan items apply on every weekday from 1 Nov 2026, so no day is a Rest Day unless stated.
+Files: `tests/unit/calorie_calc.test.ts` (AC-20a–c), `tests/integration/calorie_weightlog.test.ts` (AC-28a–c). Fixtures: seeded Manager, Alice, Bob and a fresh Participant with no `WeightLog` row (the integration tests name it "Dana"); real PostgreSQL test database; injectable Clock fixed at **Thu 12 Nov 2026 10:00 Asia/Bangkok** unless stated; past dates are written through the historical helpers (`createHistoricalPlanItem`, `createHistoricalEntry`) and read with `GET /api/progress/daily?date=`. Dates and values are chosen so every expected result is exact; arithmetic is shown in the last column. **Each integration test creates its own fresh Participant** (the table calls it "Dana" for readability) so that `WeightLog` rows and entries of one test cannot affect another. Plan items repeat on **every day of the week** from 1 Nov 2026 unless the test says otherwise, so no date is a Rest Day unless the test says it is (a Rest Day is a date on which no plan item of that Participant resolves).
 
 **Unit tests (`calorie_calc.test.ts`)**
 
@@ -267,13 +267,13 @@ Files: `tests/unit/calorie_calc.test.ts` (AC-20a–c), `tests/integration/calori
 | `TEST-28b-4` | AC-28b | API/DB Integration | Bob, no weight; a Rest Day fixture (no plan item on the date) | `GET` for that date | `200`; `isRestDay: true`, `items: []`, `overallPercent: null`, `totalCalories: null`, `calorieError: "BODY_WEIGHT_REQUIRED"` |
 | `TEST-28b-5` | AC-28b | API/DB Integration | Bob logs a first weight afterwards (row inserted for today) | `GET` today | `calories` now a number (value of the entry, e.g. 11.9 at 68 kg), `calorieError: null`; earlier dates without a row stay `null` |
 | `TEST-28c-1` | AC-28c | API/DB Integration | Dana: 70 kg effective 2026-11-01; Squat `WEIGHT` 3.5 METs (3 sets logged), Plank `BODYWEIGHT_TIME` 3.8 METs (90 s), Outdoor Run `CARDIO_DISTANCE` Running 9.8 METs (5 km), all planned for 2026-11-05 | `GET /api/progress/daily?date=2026-11-05` | `items[].calories` **18.4**, **6.7**, **343**; `estimatedMinutes` 4.5, 1.5, 30; `otherActivity` `[]`; `totalCalories` **368.0** (unrounded sum 18.375 + 6.65 + 343 = 368.025, rounded once; the rounded item values would add to 368.1, which is **not** the expected total, R6 / Q1) |
-| `TEST-28c-2` | AC-28c | API/DB Integration | Dana, today 2026-11-12, 68 kg; Squat planned, no entries; then Quick Complete for a 4-set target | `GET`, Quick Complete, `GET` | First: `estimatedMinutes` 0, `calories` 0, `totalCalories` 0; after Quick Complete the value is the new cumulative's (4 × 1.5 = 6 min → 3.5 × 68 × 0.1 = **23.8**) with no stale value |
+| `TEST-28c-2` | AC-28c | API/DB Integration | Dana, today 2026-11-12, 68 kg; Squat planned, no entries; then Quick Complete for a 4 sets × 10 reps target (40 reps, nothing logged) | `GET`, Quick Complete, `GET` | First: `estimatedMinutes` 0, `calories` 0, `totalCalories` 0; after Quick Complete the value is the new cumulative's (Quick Complete adds 4 sets / 40 reps: 4 × 1.5 = 6 min → 3.5 × 68 × 0.1 = **23.8**; `ceil(40 ÷ 200)` = 1 does not raise `sets`) with no stale value |
 | `TEST-28c-3` | AC-28c | API/DB Integration | Dana's data of 28c-1, then a second user with 40 kg and the same entries | `GET` for both | `itemScore`, `overallPercent` are **identical** for both (Decision 11, AC-06f); only calories differ |
-| `TEST-28c-5` | AC-28c | API/DB Integration | Dana, 70 kg effective 2026-11-01; Squat planned for 2026-11-05 with 3 sets logged; custom *Jump Rope* (`CARDIO_TIME`, 7.0 METs) has **no plan item**, entries 300 s and 240 s on that date | `GET /api/progress/daily?date=2026-11-05` | `items` has only Squat (calories 18.4); `otherActivity` has one element for *Jump Rope* (entries summed): `actual` 540, `estimatedMinutes` 9, `calories` **73.5** (7.0 × 70 × 9/60); `totalCalories` **91.9** (18.375 + 73.5 = 91.875 → 91.9); `totalScore`, `totalWeight`, `overallPercent` identical to the same day without the Jump Rope entries (unscored) |
-| `TEST-28c-6` | AC-28c | API/DB Integration | Dana, 70 kg; 2026-11-10 is a Rest Day (no plan item resolves); free-form entries Yoga 1,800 s (2.5 METs) and Walking 3 km (4.3 METs, no duration) | `GET` for 2026-11-10 | `isRestDay: true`, `items: []`, `overallPercent: null`; `otherActivity` ordered by name, Yoga **87.5** (30 min: 2.5 × 70 × 0.5), Walking **150.5** (3 × 10.0 = 30 min: 4.3 × 70 × 0.5); `totalCalories` **238** |
-| `TEST-28c-7` | AC-28c | API/DB Integration | Bob (no weight); an exercise not planned on the date with a manual entry | `GET` for that date | `200`; the `otherActivity` element has `calories: null` and `calorieError: "BODY_WEIGHT_REQUIRED"`; `totalCalories: null`, `calorieError: "BODY_WEIGHT_REQUIRED"`; the entry was accepted (not blocked) |
-| `TEST-28c-8` | AC-28c | API/DB Integration | Dana, 70 kg; *Walk* planned only Mon/Wed/Fri; 2026-11-10 (Tuesday) has other items planned (not a Rest Day) and a Walk entry of 3 km | `GET` for 2026-11-10 | *Walk* is in `otherActivity` (not in `items`), 150.5 kcal, counted in `totalCalories`; scores unchanged |
 | `TEST-28c-4` | AC-28c | API/DB Integration | Alice, Bob, Manager tokens | Manager `GET`; Alice with `?userId=<Bob>`; no token | Manager `403`; foreign `userId` `403` with no calorie data in the body; no token `401`; own request `200` |
+| `TEST-28c-5` | AC-28c | API/DB Integration | Dana, 70 kg effective 2026-11-01; Squat planned for 2026-11-05 with 3 sets logged; custom *Jump Rope* (`CARDIO_TIME`, 7.0 METs) has **no plan item**, entries 300 s and 240 s on that date | `GET /api/progress/daily?date=2026-11-05` | `items` has only Squat (calories 18.4); `otherActivity` has one element for *Jump Rope* (entries summed): `actual` 540, `estimatedMinutes` 9, `calories` **73.5** (7.0 × 70 × 9/60); `totalCalories` **91.9** (18.375 + 73.5 = 91.875 → 91.9); `totalScore`, `totalWeight`, `overallPercent` identical to the same day without the Jump Rope entries (unscored) |
+| `TEST-28c-6` | AC-28c | API/DB Integration | Own Participant with 70 kg whose plan items do not resolve on 2026-11-10 (a Tuesday), so it is a Rest Day; free-form entries Yoga 1,800 s (2.5 METs) and Walking 3 km (4.3 METs, no duration) | `GET` for 2026-11-10 | `isRestDay: true`, `items: []`, `overallPercent: null`; `otherActivity` ordered by name, Yoga **87.5** (30 min: 2.5 × 70 × 0.5), Walking **150.5** (3 × 10.0 = 30 min: 4.3 × 70 × 0.5); `totalCalories` **238** |
+| `TEST-28c-7` | AC-28c | API/DB Integration | Bob (no weight); an exercise not planned on the date with a manual entry | `GET` for that date | `200`; the `otherActivity` element has `calories: null` and `calorieError: "BODY_WEIGHT_REQUIRED"`; `totalCalories: null`, `calorieError: "BODY_WEIGHT_REQUIRED"`; the entry was accepted (not blocked) |
+| `TEST-28c-8` | AC-28c | API/DB Integration | Own Participant with 70 kg; *Walk* planned only Mon/Wed/Fri and another item planned every day, so 2026-11-10 (a Tuesday) is not a Rest Day; a Walk entry of 3 km on that date | `GET` for 2026-11-10 | *Walk* is in `otherActivity` (not in `items`), 150.5 kcal, counted in `totalCalories`; scores unchanged |
 
 --------------------------------------------------------------------------------
 
@@ -287,6 +287,8 @@ Files: `tests/unit/calorie_calc.test.ts` (AC-20a–c), `tests/integration/calori
 | 5 | `feat` (green) | `pickBodyWeight`, `progressService` extension, response fields of §4.1 | Passing run |
 | 6 | `test` / `feat` | Today UI (§6); Access Matrix re-run (TEST-12 / TEST-22c) | Passing run, screenshots |
 | 7 | PR | Reviewed by Onsinee into `staging/sprint-2` | Review comment with a specific check |
+
+**Existing code and tests this change touches (read in `staging/sprint-1`, 23 Nov 2026).** (a) `server/domain/progressService.ts` (`dailyProgress`, line 19) returns early on a Rest Day without reading entries; R10 and R12 need the entries of a Rest Day, so the early return must change. (b) `tests/integration/progress_api.test.ts` lines 180–188 compare the Rest Day body with `toEqual`; it fails once `otherActivity`, `totalCalories` and `calorieError` exist, so its expected body is updated in a visible commit whose reason is this contract (a contract-driven expectation change, not a weakened assertion). (c) `otherActivity` needs name, `trackingMode`, `unit`, `metValue` and `cardioCategory` of exercises that are not plan items on the date, so a new query (or an extension of the entry listing) is needed; the method name is left to the implementation. (d) Arithmetic follows §4.4: no new dependency.
 
 --------------------------------------------------------------------------------
 
@@ -317,7 +319,7 @@ Files: `tests/unit/calorie_calc.test.ts` (AC-20a–c), `tests/integration/calori
 | `LedgerEntry`, `cumulativeFor` | Needed from F-04 | Source of `sets`, `durationSec`, `distanceKm` |
 | `GET/PUT /api/profile`, `WeightLog` writes, S-07 | Needed from F-04 (CHANGE-04, AC-17a–d) | **Dependency only**; F-11 tests insert `WeightLog` rows directly so they do not wait for it, but the user-visible flow needs it |
 | Registry, `requireRole`, error envelope, Clock | Needed from F-01 | No new policy |
-| Per-day kcal functions | Provided to F-10 (monthly total kcal, per-exercise totals) | Same pure functions are reused, including `otherActivity` rules (R12) |
+| Per-day kcal functions | Provided to F-10 (monthly total kcal, per-exercise totals) | F-10 reuses `calcCalories` (unrounded), `roundKcal`, `pickBodyWeight` and `estimateMinutes`, including the `otherActivity` rules (R12); the unrounded per-exercise value is what F-10 needs for its own totals |
 | `GET /api/progress/monthly` kcal fields | Moved to F-10 (Sprint 3) | Not part of F-11 (§4.2) |
 | Entry edit / delete | F-05 | Calories follow edited entries automatically (computed on read) |
 
@@ -330,8 +332,8 @@ Items for the lead / reviewer; none changes an AC, a test ID or a scope statemen
 | ------ | ------ | ------ | ------ |
 | P11-1 | Register rows AC-20a–c, AC-28a–c in RTM §3.1 (Implemented / Result / Commit) after implementation; a contract-approval-register row for this contract | `docs/traceability.md`, `docs/sprints/sprint-1/contract-approval-register.md` | To do (lead) |
 | P11-2 | Add the §4.1 fields to the daily progress response and the calorie notes to S-02 | `docs/sprints/sprint-1/api-spec.md` (Onsinee), `docs/sprints/sprint-1/ui-spec.md` (Onsinee) | To do; both are Sprint 1 specs whose scope line says Sprint 2 items are "documented for completeness" |
-| P11-4 | F-10 must specify the monthly kcal fields (and decide how `otherActivity` and days without weight enter the month total); F-06 §4.2 stays unchanged | `docs/sprints/sprint-3/` F-10 contract (to be written) | To do (lead) |
 | P11-3 | `docs/srs.md` Appendix A.5 lists `BODY_WEIGHT_REQUIRED` with HTTP 200 as a `calorieError`; no baseline change is needed | none | Resolved (read in SRS A.5 and api-spec §1.1) |
+| P11-4 | F-10 must specify the monthly kcal fields (and decide how `otherActivity` and days without weight enter the month total); F-06 §4.2 stays unchanged | `docs/sprints/sprint-3/` F-10 contract (to be written) | To do (lead) |
 
 --------------------------------------------------------------------------------
 
@@ -356,3 +358,4 @@ Items for the lead / reviewer; none changes an AC, a test ID or a scope statemen
 | 3 | A past day's kcal can change if its entries are edited (F-05, same-day only) | By design (computed on read). A weight row cannot be backfilled through the API because `PUT /api/profile` always uses today as `effectiveDate` (F-04 R16); tests insert dated rows directly |
 | 4 | There is no UI/E2E acceptance criterion for the calorie display in the RTM; the display is verified manually | Disclosed (DoD 7) |
 | 5 | F-11 is a Sprint 2 cut candidate (plan §5.3 names F-08 and F-11 as the features that may slip); the cut line is decided by both team members, not by this contract | Open, outside this document |
+| 6 | `GET /api/progress/daily` does more work after F-11 and this contract adds no performance criterion. The reviewer cites latency runs recorded in RTM 1.1.14 for AC-21a (p95 437 and 328 ms against 500 ms, from the unmerged `feature/75-deferred-ac`); I did not re-run or re-read them. Latency is re-measured in Sprint 3 by SYS-01 AC-21b, whose contract does not name this endpoint (checked with a text search only) | Disclosed; not made a DoD item of F-11 (reason in the PR reply) |
