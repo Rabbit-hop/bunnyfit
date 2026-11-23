@@ -312,3 +312,48 @@ test('TEST-23-8 (AC-23, edit form): an entry of 4 sets / 799 reps opens with Set
   const rows = await entriesOf(page, headers, exerciseId)
   expect(rows.map((r) => [r.sets, r.totalReps])).toEqual([[4, 799]])
 })
+
+test('F-05 R11 (UI): on a real Rest Day card the unscored entry has edit and delete buttons that work', async ({ page }) => {
+  // Same Bob / far-future plan item setup as TEST-23-3 (today is a Rest Day for Bob). R11 is covered at API
+  // level by TEST-05a-6; this checks the buttons on the Rest Day card itself.
+  const headers = await loginAs(page, OTHER_PARTICIPANT)
+  const today: string = (await (await page.request.get('/api/plan', { headers })).json()).date
+  const next = new Date(`${today}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + 365)
+  const startsLater = next.toISOString().slice(0, 10)
+  const name = uniqueName('E2E RestEdit')
+  const created = await page.request.post('/api/plan-items', {
+    headers,
+    data: {
+      source: 'CUSTOM',
+      exercise: { name, targetBodyPart: 'Legs', trackingMode: 'CARDIO_DISTANCE', cardioCategory: 'WALKING' },
+      priorityWeight: 2,
+      targetDistanceKm: 2,
+      effectiveFrom: startsLater,
+      endDate: startsLater,
+    },
+  })
+  expect(created.status()).toBe(201)
+  const exerciseId = ((await created.json()) as { userExercise: { id: string } }).userExercise.id
+  const posted = await page.request.post('/api/entries', { headers, data: { userExerciseId: exerciseId, distanceKm: 1 } })
+  expect(posted.status()).toBe(201)
+  await page.reload()
+  await expect(page.getByTestId('rest-day-banner')).toBeVisible()
+
+  const card = page.getByTestId(`rest-${exerciseId}`)
+  await card.getByTestId('rest-day-entries-toggle').click()
+  await expect(card.getByTestId('entry-edit')).toHaveCount(1)
+  await expect(card.getByTestId('entry-delete')).toHaveCount(1)
+
+  await card.getByTestId('entry-edit').click()
+  await expect(page.getByTestId('log-distance')).toHaveValue('1')
+  await page.getByTestId('log-distance').fill('1.5')
+  await page.getByTestId('log-save').click()
+  await expect(page.getByTestId('entry-edit-form')).toHaveCount(0)
+  expect((await entriesOf(page, headers, exerciseId)).map((r) => (r as unknown as { distanceKm: number }).distanceKm)).toEqual([1.5])
+
+  await card.getByTestId('entry-delete').click()
+  await page.getByTestId('entry-delete-confirm').click()
+  await expect(card.getByTestId('entry-delete')).toHaveCount(0)
+  expect(await entriesOf(page, headers, exerciseId)).toHaveLength(0)
+})
