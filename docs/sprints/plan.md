@@ -2,7 +2,7 @@
 
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.2.0
+**Document Version:**  1.3.0 (Draft, review-pending; 1.2.0 remains the last approved version)
 **SRS Baseline Version:**  1.1.0
 **Date:**  9 November 2026
 **Status:**  Approved Baseline (content approved by the reviewer in PR #25, approval at `1190d6b` on 9 Nov 2026; the status-record commit and any later commit have not been re-reviewed)
@@ -17,6 +17,7 @@
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Clarified FR-03 allocation across Sprint 1 (F-03: initial goal setting) and Sprint 2 (F-07: mid-month reconfiguration & plan versioning). Aligned RTM AC coverage, error codes, and persisted `ReminderSetting` scope with SRS 1.0.0 and SDS 1.0.0. | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 | **1.1.0** | 6 Nov 2026 | Scope checkpoint executed (Section 4.7): no Tier A test had been written yet, so **all 14 Tier B AC** moved to Sprint 2 and were recorded as CHANGE-03 … CHANGE-08 in RTM 1.1.0 — Sprint 1 47 → **38** atomic AC, Sprint 2 20 → **34**. Added the 5 AC proposed by the Sprint 1 contracts (AC-01f Tier A; AC-02d, AC-03d, AC-04d, AC-06g Tier B), raising the RTM total from 75 to **80** atomic AC. Updated Sections 1, 2, 3, 4.3, 4.7, 5.2, 7 and 11 to match RTM 1.1.0. Review-fix pass before merge: SRS Baseline Version header 1.1.0 (SRS and Feature Inventory also 1.1.0); Section 4.2 / 4.3 / 4.5 no longer list profile (FR-08), AC-15, AC-17 or AC-21a as Sprint 1 work; Section 7 BR-03 → Sprint 1, 2 and FR-04 notes its deferred F-04 AC. Review-fix pass (PR #13): §4.7 AC-21a is Sprint 2 and the four added AC are no longer called "proposed"; NFR-03 target 1, 2, 3; §8 ownership updated — Nakagamon authored the F-03, F-04 and F-06 contracts and Onsinee reviews (the earlier proposal had them reversed). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 | **1.2.0** | 9 Nov 2026 | Deliverable 1 due date moved from Sun 8 Nov to **Sun 15 Nov 2026** (same day as Lab 5); the team sets **development freeze Thu 12 Nov**, release PR and tag `sprint1-v1.0.0` on Fri 13 Nov, submission Sun 15 Nov before 20:00 (hard limit 23:59). This supersedes the Thu 12 Nov due date still written in issues #12, #21 and #22, which are edited to match. Updated Sections 2, 3, 4 (title, 4.5 schedule rewritten from actual state on 9 Nov, 4.6, 4.7 second checkpoint and cut line), 5 (Sprint 2 window and 5.3), 9 (Lab 5) and 11 (R1–R3). Sprint 2 and Sprint 3 deadlines (29 Nov, 13 Dec) are unchanged, so Sprint 2 loses about one week of build time. **No AC, feature or sprint allocation changed**; the cut line in 4.7 is conditional, a cut that moves an AC to another sprint is recorded as CHANGE-09 … in RTM Section 4, and a cut that only lowers an AC's evidence is a same-day update of the RTM Section 3.1 register (4.7). The 15 Nov 23:59 closing time was confirmed by Nakagamon on 9 Nov 2026 (not independently checked against LEB2). Section 1 now cites RTM and SDS 1.1.1. Review-fix pass after approval (review note 2, non-blocking): the freeze row in Section 2 now states that the freeze does not block the release PR and tag `sprint1-v1.0.0` on Fri 13 Nov; this line is post-approval and not yet re-reviewed. Status record: the content of this version was approved by the reviewer (Onsinee, account `justfepwx12`) in PR #25 — review state APPROVED at commit `1190d6b`, 9 Nov 2026 14:34 UTC. Commits after that approval (`f29b5e9`, Lab 6 sessions unchanged and R2 reworded on Nakagamon's confirmation, and this status-record commit) have not been re-reviewed; the reviewer asked for a re-check once this flip is pushed. | Nakagamon (67070501064) | **Approved Baseline** (at `1190d6b`) |
+| **1.3.0** | 23 Nov 2026 | Sprint 2 re-baseline (issue #65). **Schedule only; no AC, feature or sprint allocation changes, so no CHANGE entry is raised by this row** (a cut executed under Section 5.5 would raise CHANGE-09 if it moves an AC). (1) New Section 5.5: day-by-day Sprint 2 schedule taken from the target dates now written in issues #65–#96 (22–23 Nov), replacing the schedule of Section 5.3 for the dates from 23 Nov; Section 5.3 is kept as written and marked superseded. (2) The Sprint 2 release `sprint2-v1.0.0` moves from Wed 25 Nov to **Sat 28 Nov** (issue #80); the cost is stated in 5.5: one day between the release and the Deliverable 2 deadline (Sun 29 Nov) and no buffer for a failed deploy. (3) Lab 6 is due **Sun 29 Nov 23:59** per issue #56 (the handout PDF still says 22 Nov; the 29 Nov date is the course-portal date quoted in the issue and was **not independently checked against LEB2** by the author of this row); Section 2 rows updated. (4) Ordered Sprint 2 **cut line** proposed in 5.5 (the 16 Nov decision of 5.3 was never written down). (5) Lab 6 and Lab 7 overlap: where Lab 6 fixes and the Lab 7 change land (5.5). **Not yet agreed:** the second member has not reviewed this row; until she approves it, the dates and cut line below are the author's proposal, not a decision of the team | Nakagamon (67070501064) | Draft (review-pending) |
 
 --------------------------------------------------------------------------------
 
@@ -39,8 +40,8 @@ This plan allocates every baseline requirement to one of three sprints and state
 | **Sun 15 Nov** | **Deliverable 1 due (80 points)** — submit before 20:00 | Same day as Lab 5; evidence kept separate |
 | Sun 15 Nov | Lab 5 due (Docker, CI/CD, GCP) — same day as Deliverable 1 | Sprint 1 release (tag of 13 Nov) deployed through the pipeline; Lab 5 work is done Fri 13 – Sat 14 Nov, not left to the last day |
 | Tue 17, Thu 19 Nov | Lab 7 sessions (maintenance, metrics, readiness) | One bounded change with regression evidence |
-| Sun 22 Nov | Lab 6 due | UAT report, defect register |
-| Tue 24, Thu 26 Nov | Final exam review; Deliverable 2 discussion | Sprint 2 release candidate frozen by Wed 25 Nov |
+| ~~Sun 22 Nov~~ | ~~Lab 6 due~~ — **Sun 29 Nov 23:59** per issue #56 (course portal; the handout still says 22 Nov; not independently checked, v1.3.0) | UAT report, defect register |
+| Tue 24, Thu 26 Nov | Final exam review; Deliverable 2 discussion | ~~Sprint 2 release candidate frozen by Wed 25 Nov~~ — release is Sat 28 Nov (v1.3.0, Section 5.5) |
 | **Sun 29 Nov** | **Deliverable 2 due (70 points); Lab 7 due** | Sprint 2 complete; Sprint 3 contracts and one working Sprint 3 workflow |
 | 1 – 11 Dec | Final examination period | Reduced capacity: bounded completion tasks only |
 | **Sun 13 Dec** | **Final Delivery due (100 points)** | Release tagged by Fri 11 Dec; video and PDF on 12 Dec |
@@ -131,7 +132,7 @@ Complete the core expansion under engineering contracts: same-day goal reconfigu
 
 F-07 comes first because F-08 and F-09 depend on plan versions. 34 atomic AC in total (20 originally planned + 14 deferred from Sprint 1 by CHANGE-03 … CHANGE-08).
 
-##### 5.3 Schedule (overlapping Labs 5, 6 and 7)
+##### 5.3 Schedule (overlapping Labs 5, 6 and 7) — superseded from 23 Nov by Section 5.5 (v1.3.0); kept as written
 | Dates | Work |
 | ------ | ------ |
 | 13 – 15 Nov | Sprint 1 release and submission (4.5); **Lab 5:** Docker, CI, GCP, deploying the Sprint 1 tag. Start writing the Sprint 2 contracts as time allows |
@@ -144,6 +145,31 @@ F-07 comes first because F-08 and F-09 depend on plan versions. 34 atomic AC in 
 - All four features complete, reviewed, integrated and verified against their contracts; none moved to Sprint 3 without an approved change.
 - Sprint 1 journey (AC-25) still passes; Access Matrix extended to all new routes (AC-12c, AC-22c).
 - Original Sprint 2 release identifiable by tag even if later commits exist; deployed on GCP through the pipeline.
+
+##### 5.5 Re-baselined schedule, cut line and lab overlap (v1.3.0, draft)
+Dates are the target dates written in the issues on 22–23 Nov (#65–#96); this section is the author's proposal until the second member approves the 1.3.0 row. Status of each item is read from GitHub, not from this table.
+
+| Date (2026) | Work | Issues |
+| ------ | ------ | ------ |
+| Mon 23 Nov | `staging/sprint-2` open; Sprint 2 contracts F-07, F-11, F-05, F-08 as spec-only commits; Lab 7 change request and approval request | #65, #66, #89 |
+| Tue 24 Nov | Contracts reviewed and approved by the second member; Lab 7 impact analysis and revised contract (only after the instructor/TA approval) | #66, #89 |
+| Wed 25 Nov | F-07 implementation; F-04/F-11 profile and calories; Lab 7 red test on the recorded pre-change commit | #70, #71, #91 |
+| Thu 26 Nov | F-05 implementation; deferred Sprint 1 AC (monthly progress, AC-02d, AC-04c/d, AC-10c); Lab 7 implementation and regression | #73, #75, #91 |
+| Fri 27 Nov | F-08 implementation; integration: access matrix for new routes, AC-25 continuity, latency AC-21a; Sprint 3 contracts F-10 and SYS-01 | #74, #75, #78, #82 |
+| Sat 28 Nov | Release PR to `main`, tag `sprint2-v1.0.0`, GCP deploy, post-deployment checks (including the Lab 7 change); Lab 7 metrics snapshot and readiness | #80, #91, #94 |
+| Sun 29 Nov | Deliverable 2 PDF (before 20:00); Lab 6 PDF and Lab 7 PDF (23:59, course portal) | #85–#87, #56, #96 |
+
+**Cost of the move (stated, not hidden):** the release is one day before the Deliverable 2 deadline. A failed deploy on Sat 28 Nov leaves no buffer; the fallback is the release candidate identified by commit and the continuity evidence of 5.4, disclosed as such. This raises R3 of Section 11; it is not a new risk.
+
+**Ordered cut line (proposed).** Apply in this order only if the checkpoint at the end of **Thu 26 Nov** shows F-08 not started on `staging/sprint-2`. A cut that only lowers the evidence of an AC is a same-day update of the RTM Section 3.1 register; a cut that moves an AC to another sprint is CHANGE-09 in RTM Section 4 with both members' approval (Section 13).
+1. AC-08b (Playwright, History page shows the same Streak as the API): written as a manual check with a stated gap.
+2. F-08 History screen and streak badge (UI): the API and AC-08a, AC-19a–d stay in scope.
+3. UI part of the deferred monthly progress item (#75): the API and AC-15 stay.
+Not on the cut line: F-07, F-11, F-05, the F-08 API, and the Lab 7 change. Issue #75 refers to a "cut-line item 2"; no numbered Sprint 2 cut line existed in this repository before this row, so that reference cannot be matched to this list and #75 needs to be re-read once the row is approved.
+
+**Lab overlap.**
+- Lab 6 fixes: branches start from `staging/sprint-1`, ship in their own reviewed release to `main` with a new tag, then `main` is merged into `staging/sprint-2` (the partner re-test must happen before the Sprint 2 release). The ruleset of `staging/sprint-2` must not block that merge-back.
+- Lab 7 change: its own branch and PR into `staging/sprint-2`, labelled so it can be separated from Sprint 2 and Sprint 3 work; it rides the Sprint 2 release (#80). If that release slips, the decision with the instructor is recorded in issue #91 and the gap is stated in the Lab 7 PDF.
 
 --------------------------------------------------------------------------------
 
