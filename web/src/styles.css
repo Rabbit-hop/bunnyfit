@@ -1951,3 +1951,26 @@ button.bottom-nav-item {
 .today-panel .item-card {
   background: rgba(255, 255, 255, 0.65);
 }
+
+/* F-05: edit and delete buttons on today's entries */
+.entry-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.entry-action {
+  min-height: 32px;
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--color-text);
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.entry-action-danger {
+  color: var(--color-danger, #b42318);
+}

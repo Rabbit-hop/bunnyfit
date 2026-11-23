@@ -26,6 +26,7 @@ const CODE_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: 'Please sign in again.',
   FORBIDDEN: 'You do not have permission to do this.',
   LOG_DATE_MISMATCH: 'This entry is not for today. Please reload the page.',
+  ENTRY_NOT_EDITABLE: "Only today's entries can be edited or deleted; this entry is not from today.",
   QUICK_COMPLETE_NOT_AVAILABLE: 'Quick Complete is not available for this exercise today.',
   CATEGORY_HAS_TEMPLATES: 'This category still has templates. Delete or move them first.',
   NOT_FOUND: 'That item no longer exists.',
