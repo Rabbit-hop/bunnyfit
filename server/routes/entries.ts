@@ -19,6 +19,9 @@ const VALUE_KEYS = ['sets', 'totalReps', 'durationSec', 'distanceKm'] as const;
 /** Everything a manual-entry body may contain; any other key is rejected (R2, §4.2). */
 const BODY_KEYS: ReadonlySet<string> = new Set(['userExerciseId', 'logDate', ...VALUE_KEYS]);
 
+/** F-05 R6: fields a PUT body must never carry, not even with an unchanged value. */
+const IMMUTABLE_KEYS: ReadonlySet<string> = new Set(['id', 'userId', 'userExerciseId', 'logDate', 'kind', 'createdAt']);
+
 /** Everything a Quick Complete body may contain (R2, §4.3). */
 const QUICK_COMPLETE_KEYS: ReadonlySet<string> = new Set(['userExerciseId', 'logDate']);
 
@@ -229,6 +232,81 @@ export function registerEntryRoutes(
         return deps.entries.findEntryOwner(id);
       },
     },
+  );
+  // F-05 PUT/DELETE: the registry policy (resource-owner) runs first, so the order of
+  // R2 holds: 401, role 403, malformed id 400, unknown id 404, foreign owner 403. The
+  // handlers then validate the body (PUT), and inside the row lock re-read the entry (R8),
+  // check "created today" (R3, 409) and the cumulative limits (R5).
+  const ownerLookup = async (id: string): Promise<string | null> => {
+    if (!UUID.test(id)) throw validationError([{ field: 'id', limit: 'must be a UUID' }]);
+    return deps.entries.findEntryOwner(id);
+  };
+  const notEditable = () =>
+    appError('ENTRY_NOT_EDITABLE', 'Only entries dated today can be edited or deleted.');
+  const gone = () => appError('NOT_FOUND', 'Entry not found.');
+
+  registrar.register(
+    policy('PUT', '/api/entries/:id'),
+    asyncHandler(async (req, res) => {
+      if (!req.auth) throw appError('UNAUTHENTICATED', 'Authentication required.');
+      const id = String(req.params['id'] ?? '');
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // R6: the immutable fields are named in the rejection; any other extra key is unknown (R4).
+      for (const key of Object.keys(body)) {
+        if (IMMUTABLE_KEYS.has(key)) throw validationError([{ field: key, limit: 'cannot be changed' }]);
+        if (!VALUE_KEYS.some((k) => k === key)) throw validationError([{ field: key, limit: 'unknown field' }]);
+      }
+
+      const entry = await deps.entries.findEntry(id);
+      if (!entry) throw gone();
+      const exercise = await deps.plans.findUserExerciseContext(entry.userExerciseId);
+      if (!exercise) throw gone();
+
+      // R2: body validation precedes the editable check. Field-level rules (R4, R5) do not
+      // depend on the day's sums, so they run here with empty totals; the cumulative rule runs
+      // under the lock below.
+      const fieldCheck = validateEntry(body, exercise.trackingMode, {}, exercise.rangeMax);
+      if ('fields' in fieldCheck) throw validationError(fieldCheck.fields);
+
+      const outcome = await deps.entries.withExerciseLock(entry.userExerciseId, async (scope) => {
+        const current = await scope.findEntry(id); // R8: re-read inside the lock
+        if (!current) throw gone();
+        if (current.logDate !== deps.clock.today()) throw notEditable(); // R3
+        const others = (await scope.listDayEntries(req.auth!.userId, current.logDate)).filter(
+          (e) => e.id !== id,
+        );
+        // R5: the sum of the day's OTHER entries; the old values of this entry are replaced.
+        const totals = cumulativeFor(others, current.userExerciseId, current.logDate);
+        const validated = validateEntry(body, exercise.trackingMode, totals, exercise.rangeMax);
+        if ('fields' in validated) throw validationError(validated.fields);
+        const updated = await scope.updateValues(id, validated.value);
+        return {
+          entry: updated,
+          cumulative: cumulativeFor([...others, updated], updated.userExerciseId, updated.logDate),
+        };
+      });
+      res.status(200).json(outcome);
+    }),
+    { ownerLookup },
+  );
+
+  registrar.register(
+    policy('DELETE', '/api/entries/:id'),
+    asyncHandler(async (req, res) => {
+      if (!req.auth) throw appError('UNAUTHENTICATED', 'Authentication required.');
+      const id = String(req.params['id'] ?? '');
+      const entry = await deps.entries.findEntry(id);
+      if (!entry) throw gone();
+      await deps.entries.withExerciseLock(entry.userExerciseId, async (scope) => {
+        const current = await scope.findEntry(id); // R8
+        if (!current) throw gone();
+        if (current.logDate !== deps.clock.today()) throw notEditable(); // R3
+        await scope.remove(id);
+      });
+      res.status(204).end();
+    }),
+    { ownerLookup },
   );
 }
 
