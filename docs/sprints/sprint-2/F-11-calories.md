@@ -336,15 +336,15 @@ Items for the lead / reviewer; none changes an AC, a test ID or a scope statemen
 --------------------------------------------------------------------------------
 
 #### 13. Known Limitations and Open Questions
-**Decided questions (the open questions of 0.1.0; decided by the user and relayed by the lead on 23 Nov 2026)**
+**Decided questions (the open questions of 0.1.0, decided on 23 Nov 2026: Q1 and Q2 by the user; Q3 to Q6 by the lead, to whom the user delegated the decision. The Onsinee review of this contract can still change any of them)**
 | # | Question | Decision | Where applied |
 | ------ | ------ | ------ | ------ |
 | Q1 | Daily total: sum of rounded item values, or sum of unrounded values rounded once? | **Decided (user):** sum of the unrounded values, rounded once, half up | R6, TEST-20a-7, TEST-28c-1 |
 | Q2 | Do calories of unplanned exercises and free-form Rest Day entries count? | **Decided (user):** yes, they count toward `totalCalories`; they stay unscored. Shape chosen by the author for review: additive top-level `otherActivity` array | R12, §4.1, TEST-28c-5 to 28c-8 |
-| Q3 | Monthly route fields and monthly kcal | **Decided (lead):** not F-11; moves to F-10 (Sprint 3) | §4.2, §11, P11-4 |
-| Q4 | Tie-break for two `WeightLog` rows with the same `effectiveDate` | **Decided (user):** latest `createdAt` | R2, TEST-28a-4 |
-| Q5 | `estimatedMinutes` in the response | **Decided (user):** keep, unrounded | R5, §4.1 |
-| Q6 | `totalCalories` when no weight (including a Rest Day) | **Decided (user):** `null` with `calorieError` | R8, R10, TEST-28b-4 |
+| Q3 | Monthly route fields and monthly kcal | **Decided (lead, delegated by the user):** not F-11; moves to F-10 (Sprint 3) | §4.2, §11, P11-4 |
+| Q4 | Tie-break for two `WeightLog` rows with the same `effectiveDate` | **Decided (lead, delegated by the user):** latest `createdAt` | R2, TEST-28a-4 |
+| Q5 | `estimatedMinutes` in the response | **Decided (lead, delegated by the user):** keep, unrounded | R5, §4.1 |
+| Q6 | `totalCalories` when no weight (including a Rest Day) | **Decided (lead, delegated by the user):** `null` with `calorieError` | R8, R10, TEST-28b-4 |
 
 **Open for review:** the `otherActivity` shape (name, fields, ordering by name) is the author's proposal inside decision Q2 and is open for the reviewer's comment.
 
