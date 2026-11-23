@@ -1,13 +1,14 @@
 ### Sprint 1 User Acceptance Test (UAT) Cases
 
 **Project:** BunnyFit, Habit and Activity Tracking (Exercise Domain) | **Course:** CPE 334, Lab 6 Part A
-**Document version:** 0.2.0 (draft, review pending) | **Authors:** Nakagamon (`fahsai-02`) | **Reviewer:** Onsinee (`justfepwx12`)
+**Document version:** 0.2.1 (draft, review pending) | **Authors:** Nakagamon (`fahsai-02`) | **Reviewer:** Onsinee (`justfepwx12`)
 **Issue:** #53 | **Scope:** Sprint 1 only (F-01, F-02, F-03, F-04, F-06). Sprint 2 and 3 features are not accepted here.
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1.0 | 17 Nov 2026 | First draft of the handoff and nine cases. Not yet run against a deployed release; not yet reviewed. |
 | 0.2.0 | 23 Nov 2026 | Handoff table filled (tag object versus tag commit, URL, revision, deployed-versus-tag row, run status, reset note). After the review of PR #102: "History" now means the "History (N)" button on Today; UAT-S1-03 no longer assumes a clean template list after 01; same-date rule for dependent cases; UAT-S1-05 no longer depends on 04; field names and sample bodies for the API-tool steps; deployed revision row updated for the second `deploy.yml` run. |
+| 0.2.1 | 23 Nov 2026 | Re-review of PR #102 at `c3ffa37`: UAT-S1-04 step 4 now says "Record" instead of "Log" (`ui-spec.md` 0.8.0 line 208), and open item 2 lists the button wording on the Rest Day rows as not seen in the running app. No other change. |
 
 --------------------------------------------------------------------------------
 
@@ -123,7 +124,7 @@
 | 1 | Sign in as Bob, open Today | "Add an exercise to your plan first" with a link to My Plan. |
 | 2 | Add the Jump Rope plan item with the inputs above | Saved. In My Plan, select today: "Rest Day: nothing is planned for this date." |
 | 3 | Open Today | Banner "Rest day: log anything you did". The overall card shows "Rest day: no goal today", not "0%". |
-| 4 | Look at the Jump Rope row in the Rest Day list | Quick Complete is disabled with the text "Quick Complete is not available for this exercise today". The "Log" action is enabled. |
+| 4 | Look at the Jump Rope row in the Rest Day list | Quick Complete is disabled with the text "Quick Complete is not available for this exercise today". The "Record" action is enabled. |
 | 5 | **[API tool]** As Bob, `GET /api/user-exercises` (a list of snapshots with `id`, `name`, `trackingMode`, ...), copy the `id` of the item whose `name` is "Jump Rope", then `POST /api/entries/quick-complete` with `{ "userExerciseId": "<id>" }` | 400 with code `QUICK_COMPLETE_NOT_AVAILABLE`. |
 | 6 | **[API tool]** `GET /api/entries` as Bob | `entries` is empty: the rejected request stored nothing. |
 
@@ -231,5 +232,5 @@
 #### 4. Open items before handoff
 
 1. Record the reset command for the deployed database, and confirm the live revision on the day of the run (the URL and revision above come from `deployment.md`, not from a check of the running service).
-2. Reviewer check by Onsinee: run every case once on the deployed release and correct the expected text where the real UI wording differs. Wording quoted from `ui-spec.md` 0.8.0 and not seen in the running app: the empty Today state when everything is completed, "Add an exercise to your plan first", the 400 field messages, the History button label, and the label "Today's progress" (`ui-spec.md` 0.8.0 names it in its version row; the "Reps per set" label and My Plan wording were not checked either).
+2. Reviewer check by Onsinee: run every case once on the deployed release and correct the expected text where the real UI wording differs. Wording quoted from `ui-spec.md` 0.8.0 and not seen in the running app: the empty Today state when everything is completed, "Add an exercise to your plan first", the 400 field messages, the History button label, the "Record" button on the Rest Day rows (`ui-spec.md` 0.8.0 line 208 renames the button from "Log" to "Record" for `item-log` and `rest-day-log`, while line 206 of the same file still says "Log" for the Rest Day picker row; UAT-S1-04 step 4 uses "Record"), and the label "Today's progress" (`ui-spec.md` 0.8.0 names it in its version row; the "Reps per set" label and My Plan wording were not checked either).
 3. Confirm that Quick Complete after a 15-rep entry creates one 15-rep entry (the contract fixes the amount, not how it is split into sets).
