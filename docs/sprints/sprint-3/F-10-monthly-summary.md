@@ -16,6 +16,7 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 23 Nov 2026 | Initial concise contract (issue #82): endpoint and response shape, rules, AC-26a–c, STS, Access Matrix rows, DoD, assumptions on F-06, F-08 and F-11, open items | Nakagamon | Draft |
+| **0.1.1** | 23 Nov 2026 | Decisions by the user (issue #82): (1) entries of exercises not planned on the day and free-form Rest Day entries count toward kcal and per-exercise totals (still unscored for percentages); (2) the monthly kcal is the sum of the days' unrounded kcal values rounded once at the end; (3) monthly kcal fields belong to F-10 (Sprint 3), not F-11; (4) field `restDays` renamed `restDaysExcluded` to agree with F-06 §4.2. Open items 3 and 6 closed; new open items 8–9 (conflict with F-11 R6 and F-11 §4.2) | Nakagamon | Draft |
 
 *Rule: later changes are new versions with a reason, never silent rewrites.*
 
@@ -43,7 +44,7 @@ F-10 is a **read-only report** for one Participant and one calendar month. It ad
 
 **Assumptions (to be checked against the F-08 and F-11 contracts; listed again in §13):**
 - Assumes F-08 exposes a pure function or service returning the current Streak for a user at the Clock's today, using the same unrounded `≥ 0.70` comparison (SRS A.4), and that `GET /api/streak` returns the same number.
-- Assumes F-11 exposes a per-entry kcal value (rounded to 1 decimal, half up, SRS A.4) computed from the `WeightLog` weight effective on the entry date, and that entries of exercises without a calorie value (if any) contribute 0 or are flagged by F-11.
+- Assumes F-11 exposes pure calorie functions (`calcCalories`, F-11 §4 internal interfaces) that give an **unrounded** decimal kcal per entry from the `WeightLog` weight effective on the entry date (F-11 contract 0.1.0, `docs/sprints/sprint-2/F-11-calories.md`, read from a sibling worktree on 23 Nov, not yet merged). F-11 itself rounds each item value once to 1 decimal (A.4); F-10 needs the unrounded value (R7), see open item 8. F-11 returns `calories: null` with `calorieError: "BODY_WEIGHT_REQUIRED"` when no weight exists; how F-10 reports that is open item 9.
 - Assumes F-06 `calcMonthly` returns `targetedDays`, `restDaysExcluded` and `averagePercent` as in F-06 §4.2 and that the F-06 `from`/`to` window rule (R10) is the one F-10 reuses.
 
 --------------------------------------------------------------------------------
@@ -54,12 +55,12 @@ F-10 is a **read-only report** for one Participant and one calendar month. It ad
 | ------ | ------ |
 | R1 | Only role `PARTICIPANT` may call the route; authorization is checked before validation (as F-06 R1) |
 | R2 | The summary covers the same window as F-06 R10: `from = max(first day of month, first effectiveFrom of the user)`, `to` = today for the current month, month end for a past month |
-| R3 | `targetedDays` = days in `[from, to]` on which at least one plan item occurs; `restDays` = the other days in `[from, to]` |
+| R3 | `targetedDays` = days in `[from, to]` on which at least one plan item occurs; `restDaysExcluded` = the other days in `[from, to]` (same name and meaning as F-06 §4.2, so both routes agree) |
 | R4 | `daysAtOrAbove70` = number of targeted days whose **unrounded** Daily Overall % is `≥ 70` (SRS A.4; no rounding before comparing) |
 | R5 | `averagePercent` is the F-06 monthly average and **must equal** `GET /api/progress/monthly` for the same month and Clock (AC-26b); `null` when `targetedDays` is 0. F-10 calls the same domain function, it does not recompute with a second formula |
 | R6 | `currentStreak` is the F-08 Streak at today (not "the streak inside the month"), see open item 1 |
-| R7 | `totalKcal` = sum of F-11 per-entry kcal for entries dated in `[from, to]`, rounded to 1 decimal, half up |
-| R8 | `exercises[]` has one row per exercise with at least one entry in `[from, to]`: the summed tracked value in that exercise's unit (reps, seconds or km) and its kcal; sorted by name, then id |
+| R7 | `totalKcal` = sum of the **unrounded** kcal of every entry dated in `[from, to]` (summed per day, then over the days), **rounded once at the end** to 1 decimal, half up (SRS A.4; decimal arithmetic). **All entries count**, including entries of exercises not planned on that day and free-form Rest Day entries (user decision, 23 Nov 2026): they stay unscored for percentages (F-06) but are counted for kcal. Monthly kcal fields belong to F-10 (Sprint 3), not to F-11 |
+| R8 | `exercises[]` has one row per exercise with at least one entry in `[from, to]` (planned or not, Rest Day or not): the summed tracked value in that exercise's unit (reps, seconds or km) and its kcal (unrounded sum, rounded once); sorted by name, then id. `totalKcal` is the unrounded sum over all entries rounded once, so the rounded `exercises[].kcal` values may differ from `totalKcal` by rounding (0.1) |
 | R9 | `month` defaults to the current month; a malformed value or a month after the current month → 400 `VALIDATION_ERROR` (as F-06 R13) |
 | R10 | Read-only: no request changes any row; past months are computed from the plan versions and entries that existed for each date (BR-11) |
 
@@ -72,7 +73,7 @@ F-10 is a **read-only report** for one Participant and one calendar month. It ad
 | `month=2026-13`, `2026-11-05`, `abc`, or a future month | 400 `VALIDATION_ERROR` naming `month` |
 | Month before the user's first `effectiveFrom`, or a user without a plan | 200; counts 0, `averagePercent` null, `exercises` empty, `totalKcal` 0 |
 | Month with only Rest Days so far | 200; `targetedDays` 0, `averagePercent` null |
-| Free-form entry on a Rest Day or of an unplanned exercise | Never scored (F-06 Q24/Q48); see open item 3 for totals and kcal |
+| Free-form entry on a Rest Day or of an unplanned exercise | Never scored (F-06 Q24/Q48); **counted** in `exercises[]` and `totalKcal` (R7, R8) |
 | Any 4xx | Envelope `{code, message, fields}`; invalid input never gives 5xx (AC-26c) |
 
 ##### 3.3 Permissions (Access Matrix rows, for AC-12c / AC-22c)
@@ -95,7 +96,7 @@ Success `200 OK` (illustrative shape; field names are fixed, exact decimals foll
   "from": "2026-11-02",
   "to": "2026-11-09",
   "targetedDays": 6,
-  "restDays": 2,
+  "restDaysExcluded": 2,
   "daysAtOrAbove70": 3,
   "averagePercent": 50,
   "currentStreak": 0,
@@ -105,7 +106,7 @@ Success `200 OK` (illustrative shape; field names are fixed, exact decimals foll
   ]
 }
 ```
-`currentStreak` and `totalKcal` above are placeholders: their values come from F-08 and F-11. Errors: 400, 401, 403.
+`currentStreak`, `totalKcal` and the kcal values above are placeholders: their values come from F-08 and F-11. Errors: 400, 401, 403.
 
 ##### 4.2 Internal interface
 ```ts
@@ -130,7 +131,7 @@ The service loads the plan, the month's entries and the weight logs once (same t
 | 2026-11-07, 08 | Sat, Sun | null (a 600 s free-form Plank entry on Sat is stored) | Rest Days |
 | 2026-11-09 | Mon (today) | 0 (no log yet) | targeted |
 
-Expected: `from` 2026-11-02, `to` 2026-11-09, `targetedDays` 6, `restDays` 2, `daysAtOrAbove70` 3, `averagePercent` 50 (= 300 / 6; the Rest Day entry has no effect), Nov 1 not counted (before first `effectiveFrom`). `currentStreak` must equal `GET /api/streak` at the same Clock; `totalKcal` must equal the sum of the F-11 per-entry values of the seeded entries; per-exercise `total` is the sum of seeded reps and seconds. Their concrete numbers are fixed in the STS once the F-08 and F-11 contracts are approved (open item 5).
+Expected: `from` 2026-11-02, `to` 2026-11-09, `targetedDays` 6, `restDaysExcluded` 2, `daysAtOrAbove70` 3, `averagePercent` 50 (= 300 / 6; the Saturday Rest Day entry has no effect on the percentage), Nov 1 not counted (before first `effectiveFrom`). `currentStreak` must equal `GET /api/streak` at the same Clock. **kcal counting:** the 600 s free-form Plank entry on Saturday **is counted** in `totalKcal` and in the Plank row of `exercises[]` (it is unscored but not excluded from kcal); `totalKcal` = the unrounded sum of every seeded entry's kcal, rounded once. Per-exercise `total` is the sum of all seeded reps and seconds including that entry (Plank seconds include the 600 s). Their concrete numbers are fixed in the STS once the F-08 and F-11 contracts are approved (open item 5).
 
 --------------------------------------------------------------------------------
 
@@ -163,8 +164,10 @@ File: `tests/system/monthly_summary.test.ts` (RTM §2 and §3.1, Level: System, 
 
 | Test ID | AC | Level | Precondition / Input | Action | Expected result |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| `TEST-26a-1` | AC-26a | System | Seed month of §5, Alice token | `GET /api/summary?month=2026-11` | 200; `from` 2026-11-02, `to` 2026-11-09, `targetedDays` 6, `restDays` 2, `daysAtOrAbove70` 3, `averagePercent` 50 |
-| `TEST-26a-2` | AC-26a | System | Same | Same | `currentStreak` equals `GET /api/streak`; `totalKcal` equals the sum of the seeded entries' F-11 kcal; each `exercises[].total` equals the seeded sum (numbers fixed after F-08/F-11 approval) |
+| `TEST-26a-1` | AC-26a | System | Seed month of §5, Alice token | `GET /api/summary?month=2026-11` | 200; `from` 2026-11-02, `to` 2026-11-09, `targetedDays` 6, `restDaysExcluded` 2, `daysAtOrAbove70` 3, `averagePercent` 50 |
+| `TEST-26a-2` | AC-26a | System | Same | Same | `currentStreak` equals `GET /api/streak`; `totalKcal` equals the unrounded sum of all seeded entries' kcal rounded once; each `exercises[].total` equals the seeded sum including the Saturday entry (numbers fixed after F-08/F-11 approval) |
+| `TEST-26a-5` | AC-26a | System | Seed month plus an entry of an exercise that is not planned on a targeted day | Same | The entry is counted in `totalKcal` and `exercises[]` and does not change `averagePercent` |
+| `TEST-26a-6` | AC-26a | System | Two entries whose item kcal are 18.375 and 5.25 on different days (decimal-exact) | Same | `totalKcal` = round(23.625) = 23.6, not 18.4 + 5.3 = 23.7 (round once) |
 | `TEST-26a-3` | AC-26a | System | Fri 2026-11-06 stored as exactly 70% | Same | Fri counted in `daysAtOrAbove70` (no rounding drift); a variant with 69.99… is not counted |
 | `TEST-26a-4` | AC-26a | System | New Participant with no plan; and Alice for `month=2026-10` (before her first `effectiveFrom`) | Same | 200; counts 0, `averagePercent` null, `exercises` empty, `totalKcal` 0 |
 | `TEST-26b-1` | AC-26b | System | Seed month | `GET /api/summary?month=2026-11` and `GET /api/progress/monthly?month=2026-11` | `averagePercent` values are equal |
@@ -175,7 +178,7 @@ File: `tests/system/monthly_summary.test.ts` (RTM §2 and §3.1, Level: System, 
 | `TEST-26c-3` | AC-26c | System | Alice | `month=2026-13`, `2026-11-05`, `abc`, `2026-12` (future) | 400 `VALIDATION_ERROR` each, `fields` names `month`; never 5xx; no rows written |
 | `TEST-22c (F-10 route)` | AC-22c | Security | Registry contains `GET /api/summary` | No token; Manager token | 401; 403 (run in the SYS-01 matrix test) |
 
-**Coverage check.** Each AC has at least one test (AC-26a: 4, AC-26b: 3, AC-26c: 3). The test IDs `TEST-26a-n` are children of RTM `TEST-26a` (same suffix, same file).
+**Coverage check.** Each AC has at least one test (AC-26a: 6, AC-26b: 3, AC-26c: 3). The test IDs `TEST-26a-n` are children of RTM `TEST-26a` (same suffix, same file).
 
 --------------------------------------------------------------------------------
 
@@ -224,9 +227,11 @@ None identified: SRS FR-05/FR-06, BR-07, A.3, A.4, SDS §5 (`GET /api/summary?mo
 | # | Item | Position |
 | ------ | ------ | ------ |
 | 1 | Is `currentStreak` the Streak at today, or the Streak as of the end of the requested past month? SRS/RTM say "current Streak" without defining it for past months | Open; this draft assumes "at today" (R6). Needs the F-08 contract and a decision by both members |
-| 2 | Names and shapes of the F-08 Streak and F-11 kcal functions | Open until their contracts are approved (§2 assumptions) |
-| 3 | Do free-form entries on Rest Days and entries of unplanned exercises count in `exercises[]` totals and `totalKcal`? SRS Q24/Q48 only say they are not scored | Open; draft R7/R8 sum all entries in `[from, to]`, which includes them. Needs a decision |
+| 2 | Names and shapes of the F-08 Streak function (F-08 contract not read) and of the F-11 kcal functions (F-11 0.1.0 read; names to be confirmed at approval) | Open until the contracts are approved (§2 assumptions) |
+| 3 | ~~Do free-form Rest Day entries and unplanned-exercise entries count in totals and kcal?~~ | **Closed in 0.1.1** by the user decision: they count (R7, R8) |
 | 4 | Days before `from` (before the first `effectiveFrom`) with entries: counted in totals or not | Open; draft excludes them (window `[from, to]`) |
-| 5 | Concrete expected numbers for streak, kcal and per-exercise totals in TEST-26a-2 | Fixed after F-08 and F-11 are approved |
-| 6 | `restDays` here counts days inside `[from, to]` and is called `restDaysExcluded` in F-06 §4.2 | Naming difference to settle; values must agree |
+| 5 | Concrete expected numbers for streak, kcal and per-exercise totals in TEST-26a-2 | Fixed after F-08 and F-11 are approved (F-11 0.1.0 has its own worked kcal examples that can be reused) |
+| 6 | ~~`restDays` vs `restDaysExcluded`~~ | **Closed in 0.1.1**: F-10 uses `restDaysExcluded` as F-06 does |
 | 7 | Latency of this route (more reads than progress) | Measured in SYS-01 (AC-21b); no caching unless it fails |
+| 8 | **Conflict with F-11 0.1.0 R6 / Q1:** F-11 sums the **rounded** item values for its daily `totalCalories` (open for its reviewer), while the decision for F-10 is unrounded values rounded once. The two differ by up to 0.1 (F-11 cites 368.1 vs 368.0 in TEST-28c-1). F-10 `totalKcal` may then differ from the sum of F-11 daily totals | Open; F-11 Q1 and F-10 R7 should be settled together, and F-11 must expose an unrounded value to F-10 |
+| 9 | **F-11 §4.2 adds** `totalCalories`, `days[].totalCalories` and `calorieError` to `GET /api/progress/monthly` (its Q3), but the decision is that monthly kcal fields belong to F-10 | Open; F-11 Q3 needs to drop or mark those monthly fields as F-10's. Also open: how F-10 reports days without a body weight (F-11 returns `calories: null`, `calorieError: "BODY_WEIGHT_REQUIRED"`); this draft does not specify it |
