@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-10
 **Sprint:**  3 (implementation after F-08 and F-11 are merged; plan §6.3)
-**Contract Version:**  0.1.0
+**Contract Version:**  0.1.2
 **SRS Baseline Version:**  1.1.0 (Feature Inventory, RTM and System-Level SDS as on `staging/sprint-2`)
 **Date:**  23 November 2026
 **Status:**  Draft: concise contract for Deliverable 2 Part C ("enough detail to control implementation, not a frozen final design"). No implementation is claimed
