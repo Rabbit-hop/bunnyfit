@@ -12,6 +12,8 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 300_000,
     hookTimeout: 300_000,
+    // Same pool size as the Docker runtime image (Dockerfile ENV), so the benchmark measures what is deployed.
+    env: { UV_THREADPOOL_SIZE: '8' },
     globalSetup: ['./tests/globalSetup.ts'],
   },
 })
