@@ -5,6 +5,7 @@ import { LogEntryDialog } from '../components/LogEntryDialog'
 import { ModeTile } from '../components/ModeTile'
 import { messageForCode } from '../lib/api'
 import { WeekRow } from '../components/WeekRow'
+import { WeightChip } from '../components/WeightChip'
 import {
   KIND_LABEL,
   MODE_LABEL,
@@ -288,6 +289,7 @@ export function TodayPage() {
         <p className="today-date" data-testid="today-date" data-date={daily.date}>
           {formatLongDate(daily.date)}
         </p>
+        {!isMockToday && <WeightChip />}
         {isMockToday && <p className="mock-banner" data-testid="mock-banner">Showing mock data (not connected to the API).</p>}
         {toast && (
           <p className="toast" role="status" data-testid="today-toast">

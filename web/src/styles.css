@@ -1974,3 +1974,30 @@ button.bottom-nav-item {
 .entry-action-danger {
   color: var(--color-danger, #b42318);
 }
+
+/* S-07 Profile and the body-weight chip on Today (issue #71). */
+.profile-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.profile-details dt {
+  font-weight: 600;
+}
+
+.profile-details dd {
+  margin: 0;
+}
+
+.weight-chip {
+  display: inline-block;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: #e1e8ff;
+  color: inherit;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
