@@ -7,6 +7,7 @@ import { createPrismaAuthRepository } from './repositories/authRepository.js';
 import { createPrismaLibraryRepository } from './repositories/libraryRepository.js';
 import { createPrismaEntryRepository } from './repositories/entryRepository.js';
 import { createPrismaPlanRepository } from './repositories/planRepository.js';
+import { createPrismaProfileRepository } from './repositories/profileRepository.js';
 
 const secret = requireJwtSecret();
 
@@ -24,6 +25,7 @@ const app = createApp({
   library: createPrismaLibraryRepository(prisma),
   plans: createPrismaPlanRepository(prisma),
   entries: createPrismaEntryRepository(prisma),
+  profiles: createPrismaProfileRepository(prisma),
   clock,
   authService: createAuthService({ repo, clock, secret, expiresInSeconds: env.jwtExpiresInSeconds, bcryptCost: env.bcryptCost }),
 });

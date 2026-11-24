@@ -412,7 +412,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
       const routes = realPolicies().filter((p) => p.roles.length === 1 && p.roles[0] === 'PARTICIPANT');
       expect(routes.map((p) => p.featureId).sort()).toEqual([
-        ...Array(4).fill('F-04'),
+        ...Array(6).fill('F-04'),
         ...Array(5).fill('F-03'),
         'F-06',
       ].sort());
@@ -430,7 +430,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-06']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
@@ -519,9 +519,11 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ['POST', '/api/entries/quick-complete'],
         ['GET', '/api/entries'],
         ['GET', '/api/entries/:id'],
+        ['GET', '/api/profile'],
+        ['PUT', '/api/profile'],
       ];
 
-      it('TEST-22c (F-04 routes): the registry holds the 4 Sprint 1 routes as F-04 / PARTICIPANT, resource-owner only on :id', () => {
+      it('TEST-22c (F-04 routes): the registry holds the 4 Sprint 1 routes and the 2 profile routes (Sprint 2) as F-04 / PARTICIPANT, resource-owner only on :id', () => {
         const policies = activePolicies('test');
         for (const [method, path] of F04) {
           const p = policies.find((x) => x.method === method && x.path === path);
@@ -531,7 +533,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
           expect(p?.roles).toEqual(['PARTICIPANT']);
           expect(p?.ownership).toBe(path === '/api/entries/:id' ? 'resource-owner' : 'self-scoped');
         }
-        expect(policies.filter((x) => x.featureId === 'F-04')).toHaveLength(4);
+        expect(policies.filter((x) => x.featureId === 'F-04')).toHaveLength(6);
       });
 
       it('TEST-22c / 12a (F-04 routes): no token → 401; Manager → 403 envelope only on every route, even with an invalid body; nothing stored', async () => {
