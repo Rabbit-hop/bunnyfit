@@ -4,7 +4,7 @@
 **Feature ID:**  F-02
 **Sprint:**  1
 **Contract Version:**  0.4.0
-**SRS Baseline Version:**  1.1.0, with the Draft revision 1.1.1 for the Lab 7 change (Feature Inventory 1.1.0, RTM 1.1.0 and the Draft 1.1.11, System-Level SDS 1.1.0, F-01 contract 0.3.0)
+**SRS Baseline Version:**  1.1.0, with the Draft revision 1.1.1 for the Lab 7 change (Feature Inventory 1.1.0, RTM 1.1.0 and the Draft 1.1.12, System-Level SDS 1.1.0, F-01 contract 0.3.0)
 **Date:**  24 November 2026 (0.4.0; 0.3.0: 6 November 2026)
 **Status:**  v0.3.0 Approved by the reviewer's reply on PR #24 (9 Nov 2026); v0.4.0 (Lab 7 change) Draft, review-pending
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
@@ -249,15 +249,15 @@ UI behavior is verified through the journey (AC-25: Manager creates a template, 
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-02a–d are identical to RTM 1.1.0 (**AC-02e** is new in v0.4.0 and is added to the RTM by revision 1.1.11) (AC-02d added to the RTM on 6 Nov 2026). **AC-02d is deferred to Sprint 2** (CHANGE-08, Tier B): it is specified and its tests are written below, but it is not part of the 38 Sprint 1 atomic AC, and the Sprint 1 DoD does not require it.
+AC-02a–d are identical to RTM 1.1.0 (AC-02d was added to the RTM on 6 Nov 2026). **AC-02e is new in v0.4.0** (Lab 7) and is added to the RTM by revision 1.1.12. **AC-02d is deferred to Sprint 2** (CHANGE-08, Tier B): it is specified and its tests are written below, but it is not part of the 38 Sprint 1 atomic AC, and the Sprint 1 DoD does not require it.
 
 | AC | Observable outcome |
 | ------ | ------ |
 | **AC-02a** | Manager creates categories and base exercises for all 6 `trackingMode` values → 201 and persisted (`CARDIO_DISTANCE` requires `cardioCategory`) |
 | **AC-02b** | Manager updates and deletes categories and base exercises → 200 / 204 |
 | **AC-02c** | Participant `GET /api/templates` → 200; Participant POST / PUT / DELETE on templates or categories → 403 and the database is unchanged |
-| **AC-02e** *(Lab 7, Sprint 2, new in v0.4.0)* | A category name is trimmed and 1–30 characters. Creating or renaming a category with a name of 31 or more characters, including 50 characters (accepted before this change), → 400 `VALIDATION_ERROR` naming `name` and nothing is stored; a name of 30 characters, also with surrounding spaces that are trimmed, is accepted (201 / 200); an empty or whitespace-only name → 400; a Participant → 403 and the database is unchanged; categories already stored with more than 30 characters stay readable |
 | **AC-02d** *(deferred → Sprint 2, CHANGE-08)* | Conflicting or invalid library data is rejected and nothing is stored: duplicate category name or duplicate template name within a category → 400 `VALIDATION_ERROR` naming `name`; deleting a category that still has templates → 409 `CATEGORY_HAS_TEMPLATES`; invalid template fields (name/body-part length, `unit` not matching `trackingMode`, `metValue` outside (0, 25] or with more than 1 decimal, Valid Range outside the central limits or `rangeMin` > `rangeMax`, `cardioCategory` inconsistent with `trackingMode`, change of `trackingMode`) → 400 `VALIDATION_ERROR` naming the field |
+| **AC-02e** *(Lab 7, Sprint 2, new in v0.4.0)* | A category name is trimmed and 1–30 characters. Creating or renaming a category with a name of 31 or more characters, including 50 characters (accepted before this change), → 400 `VALIDATION_ERROR` naming `name` and nothing is stored; a name of 30 characters, also with surrounding spaces that are trimmed, is accepted (201 / 200); an empty or whitespace-only name → 400; a Participant → 403 and the database is unchanged; categories already stored with more than 30 characters stay readable |
 
 **Shared AC with other features.** AC-11 (boundary table, `boundary_validation.test.ts`): F-02 contributes the template Valid Range cases. AC-12c / AC-22c (Endpoint Access Matrix): the F-02 routes are covered in stage 2; F-02 has no owner-scoped route, so AC-12c is satisfied for F-02 by asserting that every F-02 policy is `ownership: 'none'`. AC-27 (snapshot isolation) is owned by F-03 and uses the F-02 update and delete endpoints. AC-25 (journey) uses F-02 to create the template.
 
@@ -360,7 +360,7 @@ Status after the 6 Nov 2026 baseline pass (RTM / SDS / plan / SRS / Feature Inve
 | P7 | Duplicate category / template name answered with 400 `VALIDATION_ERROR`; SRS Appendix A.5 defines no duplicate-name code, and a dedicated 409 code would require an approved A.5 addition first (v0.2.0 deliberately uses only approved codes) | SRS Appendix A.5 | **Resolved, no baseline change needed** — SRS Appendix A.5 left unchanged by design (RTM 1.1.0 D4); the contract uses `VALIDATION_ERROR` only |
 | P8 | Wording fix in the F-01 contract: "F-02 to F-06" should read "F-02, F-03, F-04 and F-06" (F-05 is Sprint 2) | F-01 contract | **Applied** — F-01 contract 0.3.0 now reads "F-02, F-03, F-04 and F-06" |
 | P9 | SRS Q30: category name 1–30 characters (Lab 7, issue #89) | SRS | **Drafted** in SRS 1.1.1 (this PR), review-pending |
-| P10 | RTM: AC-02e in FR-02, §3 counts, §3.1 register row (PLANNED, Sprint 2); no test result is recorded before the tests run | RTM | **Drafted** in RTM 1.1.11 (this PR), review-pending |
+| P10 | RTM: AC-02e in FR-02, §3 counts, §3.1 register row (PLANNED, Sprint 2); no test result is recorded before the tests run | RTM | **Drafted** in RTM 1.1.12 (this PR), review-pending |
 | P11 | api-spec §4.1 rule line and traceability row for AC-02e | api-spec | **Drafted** in api-spec 0.6.4 (this PR), review-pending |
 
 --------------------------------------------------------------------------------

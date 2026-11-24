@@ -33,8 +33,10 @@ RUN pnpm prune --prod
 
 # ---- runtime (default target): slim, non-root ----
 FROM base AS runtime
+# libuv pool: native bcrypt runs on it; the default of 4 threads queues concurrent logins (issue #108, NFR-01)
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=8080 \
+    UV_THREADPOOL_SIZE=8
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
