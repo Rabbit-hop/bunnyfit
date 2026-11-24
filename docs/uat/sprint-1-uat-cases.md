@@ -1,14 +1,15 @@
 ### Sprint 1 User Acceptance Test (UAT) Cases
 
 **Project:** BunnyFit, Habit and Activity Tracking (Exercise Domain) | **Course:** CPE 334, Lab 6 Part A
-**Document version:** 0.2.1 (draft, review pending) | **Authors:** Nakagamon (`fahsai-02`) | **Reviewer:** Onsinee (`justfepwx12`)
-**Issue:** #53 | **Scope:** Sprint 1 only (F-01, F-02, F-03, F-04, F-06). Sprint 2 and 3 features are not accepted here.
+**Document version:** 0.3.0 (draft, review pending) | **Authors:** Nakagamon (`fahsai-02`) | **Reviewer:** Onsinee (`justfepwx12`)
+**Issues:** #53, #54 | **Scope:** Sprint 1 only (F-01, F-02, F-03, F-04, F-06). Sprint 2 and 3 features are not accepted here.
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1.0 | 17 Nov 2026 | First draft of the handoff and nine cases. Not yet run against a deployed release; not yet reviewed. |
 | 0.2.0 | 23 Nov 2026 | Handoff table filled (tag object versus tag commit, URL, revision, deployed-versus-tag row, run status, reset note). After the review of PR #102: "History" now means the "History (N)" button on Today; UAT-S1-03 no longer assumes a clean template list after 01; same-date rule for dependent cases; UAT-S1-05 no longer depends on 04; field names and sample bodies for the API-tool steps; deployed revision row updated for the second `deploy.yml` run. |
 | 0.2.1 | 23 Nov 2026 | Re-review of PR #102 at `c3ffa37`: UAT-S1-04 step 4 now says "Record" instead of "Log" (`ui-spec.md` 0.8.0 line 208), and open item 2 lists the button wording on the Rest Day rows as not seen in the running app. No other change. |
+| 0.3.0 | 24 Nov 2026 | Handoff facts re-checked (issue #54): the live Cloud Run revision and image tag are recorded (read in Cloud Shell on 24 Nov), and the reset command for the deployed database is recorded with the Cloud Run job log of one run. Open item 1 is updated; no case text changed. |
 
 --------------------------------------------------------------------------------
 
@@ -20,7 +21,7 @@
 | Release tag | `sprint1-v1.0.0` (annotated tag object `b42f8d1`, pointing to commit `bf57652`, the merge of PR #43) |
 | Repository | https://github.com/Rabbit-hop/bunnyfit |
 | Deployed URL | `https://s27d6b925-4d7hbszvwq-as.a.run.app` (from `docs/labs/lab-05/deployment.md` §5) |
-| Deployed revision | Two `deploy.yml` runs have succeeded on `main` (`gh run view`, every step `success`): run 45003687814 for commit `ed24008` (revision `s27d6b925-00005-wz9` after the roll forward, `docs/labs/lab-05/deployment.md` §7.3) and run 45022388063 for commit `b0bb75f38e0799bba8fbf01d3eaaca03ca4749bd` (merge of PR #101, 22 Nov 2026), which is the latest run. The Cloud Run revision name and image tag of that second run are **not recorded in the repository**; read them with the command in `deployment.md` §6 and write them next to every result. |
+| Deployed revision | Read in Cloud Shell on 24 Nov 2026 with `gcloud run services describe s27d6b925 --region asia-southeast1 --format='value(status.latestReadyRevisionName,spec.template.spec.containers[0].image)'`: revision `s27d6b925-00006-wgx`, image tag `b0bb75f38e0799bba8fbf01d3eaaca03ca4749bd`. That is the commit of `deploy.yml` run 45022388063 (merge of PR #101, 22 Nov 2026), whose log also prints this revision as serving 100 percent of traffic. Confirm again on the day of each session; a later deploy changes it. |
 | Deployed commit versus the tag | `b0bb75f` is 53 commits after the tag commit `bf57652` (`git rev-list --count`). `git diff --stat bf57652 b0bb75f` lists 8 changed files, all Lab 5 material (Dockerfile, CI and deploy workflows, `README.md`, `docker-compose.yml`, `deployment.md`, a report script); `git diff --stat` limited to `server/`, `web/` and `prisma/` is empty. Application code is therefore the tagged Sprint 1 code if `b0bb75f` is what is live; confirm the live tag on the day of the run. Code equivalence was not checked by running tests on `b0bb75f`. |
 | Run status | **No case has been run yet.** The results of the partner's run are recorded in the Lab 6 PDF, not in this file. |
 | Contracts the cases are checked against | `docs/sprints/sprint-1/F-01..F-04, F-06`, `ui-spec.md` 0.8.0, `api-spec.md`; AC IDs follow `docs/traceability.md` |
@@ -59,7 +60,15 @@
 | UAT-S1-08 | 01 | nothing |
 | UAT-S1-09 | 01 | Template "UAT Sit-up" deleted |
 
-**Reset (Product Team action, before the UAT run).** Empty the application database and apply migrations and the seed so that only the seeded data exists (1 Manager, Alice, Bob, 4 categories, 8 templates: Barbell Squat, Bench Press, Push-up, Plank, Sun Salutation, Jump Rope, Outdoor Run, Road Cycling). Re-running the seed alone is not enough, because it does not remove participants' plans or entries (README). The exact reset command for the deployed database is **not recorded**: `docs/labs/lab-05/deployment.md` documents only the migration/seed job `s27d6b925-migrate` (run once at first deployment), not a full reset. The Product Team must agree and record the command before the run. The UAT team does not need database access.
+**Reset (Product Team action, before the UAT run).** Empty the application database and apply migrations and the seed so that only the seeded data exists (1 Manager, Alice, Bob, 4 categories, 8 templates: Barbell Squat, Bench Press, Push-up, Plank, Sun Salutation, Jump Rope, Outdoor Run, Road Cycling). Re-running the seed alone is not enough, because it does not remove participants' plans or entries (README). The Product Team runs this in Cloud Shell through the existing Cloud Run job `s27d6b925-migrate` (it deletes **all** data in the deployed database and resets the seeded passwords to the `SEED_*` secret values):
+
+```
+gcloud run jobs update s27d6b925-migrate --region asia-southeast1 --command pnpm --args exec,prisma,migrate,reset,--force,--skip-generate
+gcloud run jobs execute s27d6b925-migrate --region asia-southeast1 --wait
+gcloud run jobs update s27d6b925-migrate --region asia-southeast1 --command pnpm --args run,db:migrate
+```
+
+Run once on 24 Nov 2026 (execution `s27d6b925-migrate-56759`, Cloud Run reported it completed). Its job log (`gcloud logging read`) shows "Database reset successful", "Applying migration `0001_init`", "Seed complete: 3 users, 4 categories, 8 templates, 4 weight logs" and "Container called exit(0)". The 4 weight logs belong to Sprint 2 and are outside the tested scope. Not checked after that run: a sign-in in the browser and a read of the job definition after the last command. The UAT team does not need database access.
 
 --------------------------------------------------------------------------------
 
@@ -231,6 +240,6 @@
 
 #### 4. Open items before handoff
 
-1. Record the reset command for the deployed database, and confirm the live revision on the day of the run (the URL and revision above come from `deployment.md`, not from a check of the running service).
+1. ~~Record the reset command and confirm the live revision~~ Done on 24 Nov 2026 (see the handoff table and Reset above). Still to do on the day of each session: confirm the live revision again, run the reset before the session, and sign in as Alice to see the seeded state (not yet checked after the 24 Nov run).
 2. Reviewer check by Onsinee: run every case once on the deployed release and correct the expected text where the real UI wording differs. Wording quoted from `ui-spec.md` 0.8.0 and not seen in the running app: the empty Today state when everything is completed, "Add an exercise to your plan first", the 400 field messages, the History button label, the "Record" button on the Rest Day rows (`ui-spec.md` 0.8.0 line 208 renames the button from "Log" to "Record" for `item-log` and `rest-day-log`, while line 206 of the same file still says "Log" for the Rest Day picker row; UAT-S1-04 step 4 uses "Record"), and the label "Today's progress" (`ui-spec.md` 0.8.0 names it in its version row; the "Reps per set" label and My Plan wording were not checked either).
 3. Confirm that Quick Complete after a 15-rep entry creates one 15-rep entry (the contract fixes the amount, not how it is split into sets).
