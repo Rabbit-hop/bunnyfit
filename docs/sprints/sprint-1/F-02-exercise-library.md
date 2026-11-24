@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-02
 **Sprint:**  1
-**Contract Version:**  0.3.0
-**SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0)
-**Date:**  6 November 2026
-**Status:**  Approved: v0.3.0 by the reviewer's reply on PR #24 (9 Nov 2026)
+**Contract Version:**  0.4.0
+**SRS Baseline Version:**  1.1.0, with the Draft revision 1.1.1 for the Lab 7 change (Feature Inventory 1.1.0, RTM 1.1.0 and the Draft 1.1.11, System-Level SDS 1.1.0, F-01 contract 0.3.0)
+**Date:**  24 November 2026 (0.4.0; 0.3.0: 6 November 2026)
+**Status:**  v0.3.0 Approved by the reviewer's reply on PR #24 (9 Nov 2026); v0.4.0 (Lab 7 change) Draft, review-pending
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-02-exercise-library.md`
 
@@ -20,6 +20,7 @@
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0); AC-02d is now an RTM 1.1.0 criterion (no longer *proposed*) and is marked **deferred to Sprint 2** (CHANGE-08, Tier B) in §7, §8, §10 and §12 — its STS rows are kept; §12 pending items given a status column; all applied to baseline 1.1.0 (SRS Q30–Q49) or resolved | Nakagamon | Draft |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer (Onsinee) approved this contract in a private chat message to the author on 9 Nov 2026 ("F-01/F-02/F-03/F-04 = approved"). The message does not name a version; it was sent after the files were last changed. Not yet repeated on PR #24 in the register's five-line format (register §3) | Nakagamon | Approved |
 | **0.3.0** | 9 Nov 2026 | Status only, no content change: the reviewer's five-line reply on PR #24 (issuecomment-6741224888, 9 Nov 2026 13:27 UTC) records `F-02 v0.3.0: approved`. This replaces the earlier private-chat relay (previous row) as the evidence | Nakagamon | Approved |
+| **0.4.0** | 24 Nov 2026 | Lab 7 change (issue #89): the maximum length of a category name goes from 50 to 30 characters (Lab 7, issue #89; spec-only revision, no code or test in this commit). **Old R2:** "Category name: trimmed, 1–50 characters, unique case-insensitively". **New R2:** "Category name: trimmed, 1–30 characters, unique case-insensitively". (1) §3.2 R2 and §3.3 failure rows for 29 / 30 / 31 / 50 / 51 characters and the trim case; (2) §6 category name input limit; (3) new criterion **AC-02e** (§7) and tests TEST-02e-1 … 02e-6 (§8) in the same file as AC-02 (`tests/integration/manager_template.test.ts`); (4) §12 P9–P11 and §13 item on existing longer names. Unchanged and not touched: template name 1–80, `targetBodyPart` 1–50, case-insensitive uniqueness (AC-02d, still deferred to Sprint 2), every other rule and test. Needs review by Onsinee before the first implementation commit (Lab 7 rule) | Nakagamon (67070501064) | Draft (review-pending) |
 
 *Rule: committed as a specification-only commit before any F-02 implementation; later changes are new versions with a reason.*
 
@@ -62,7 +63,7 @@ F-02 is the **Manager side of the Sprint 1 journey**: the Program Manager mainta
 | ID | Rule | Status |
 | ------ | ------ | ------ |
 | R1 | Only role `MANAGER` may create, update or delete categories and templates; `PARTICIPANT` is read-only (403 on writes). Authorization is checked before validation | Baseline (FR-02) |
-| R2 | Category name: trimmed, 1–50 characters, unique case-insensitively | Baseline (SRS Q30) |
+| R2 | Category name: trimmed, **1–30 characters** (v0.4.0, Lab 7; was 1–50 in v0.3.0), unique case-insensitively. The new limit applies when a category is created or renamed; a category already stored with more than 30 characters stays valid and is returned unchanged by `GET /api/categories` | Baseline (SRS Q30, revision 1.1.1) |
 | R3 | A category with at least one template cannot be deleted → 409 `CATEGORY_HAS_TEMPLATES` | Baseline (SRS Appendix A.5) |
 | R4 | Template name: trimmed, 1–80 characters, unique within its category (case-insensitive) | Baseline (SRS Q30) |
 | R5 | `trackingMode` is one of `WEIGHT`, `BODYWEIGHT_REPS`, `BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`, `CARDIO_DISTANCE` and **cannot be changed after creation** | Baseline B1 (values) + SRS Q32 (immutability) |
@@ -84,6 +85,10 @@ F-02 is the **Manager side of the Sprint 1 journey**: the Program Manager mainta
 | `rangeMax` 4,000 reps / 4,001; 10,800 s / 10,801; 100 km / 100.01 | Accepted / 400 |
 | `rangeMin` greater than `rangeMax`; `rangeMin` = `rangeMax` | 400 / accepted |
 | `CARDIO_DISTANCE` without `cardioCategory`; `WEIGHT` with `cardioCategory` | 400 `VALIDATION_ERROR` naming `cardioCategory` |
+| **Category** name of 1, 29, 30 characters (v0.4.0) | Accepted (201 on create, 200 on rename) |
+| **Category** name of 31, 50, 51, 100 characters (50 was accepted before v0.4.0) | 400 `VALIDATION_ERROR` naming `name`, limit `1-30 characters`; nothing stored; applies to `POST` and `PUT /api/categories/:id` |
+| **Category** name of 30 characters with leading and trailing spaces / 31 characters with spaces / empty / whitespace only | Accepted after trimming (stored trimmed) / 400 / 400 / 400 |
+| Participant sends a 30- or 31-character category name | 403 `FORBIDDEN` before validation; database unchanged |
 | Name equal to an existing one differing only by case | 400 `VALIDATION_ERROR` naming `name` (SRS A.5 has no duplicate-name code, §12 P7) |
 | Same template name in a different category | Accepted |
 | Delete a category that still has templates | 409 `CATEGORY_HAS_TEMPLATES`; nothing deleted |
@@ -232,7 +237,7 @@ Together they cover the 4 domains and all 6 tracking modes (SRS Appendix A.6).
 | Element | Behavior |
 | ------ | ------ |
 | **Exercise Library** (Manager only) | Two areas: category list and template table grouped by category, with filters by category and tracking mode |
-| Category actions | Add (name), rename (inline), delete with a confirmation dialog; delete of a non-empty category shows "This category still has templates. Delete or move them first" |
+| Category actions | Add (name, at most 30 characters: the input has `maxLength` 30, a convenience only; the server rule R2 decides), rename (inline, same limit), delete with a confirmation dialog; delete of a non-empty category shows "This category still has templates. Delete or move them first" |
 | Template form | Fields: category, name, target body part, tracking mode, `metValue`, Valid Range min and max. The unit label follows the tracking mode and is read-only; the cardio category selector appears **only** for `CARDIO_DISTANCE`; tracking mode is disabled when editing |
 | Defaults | Range fields are pre-filled with the default minimum and central limit; `metValue` has no default |
 | States | Loading indicator; empty state ("No exercises yet. Add the first one"); saving state disabling the button; success notice; list refreshed after every change |
@@ -244,13 +249,14 @@ UI behavior is verified through the journey (AC-25: Manager creates a template, 
 --------------------------------------------------------------------------------
 
 #### 7. Acceptance Criteria
-AC-02a–d are identical to RTM 1.1.0 (AC-02d added to the RTM on 6 Nov 2026). **AC-02d is deferred to Sprint 2** (CHANGE-08, Tier B): it is specified and its tests are written below, but it is not part of the 38 Sprint 1 atomic AC, and the Sprint 1 DoD does not require it.
+AC-02a–d are identical to RTM 1.1.0 (**AC-02e** is new in v0.4.0 and is added to the RTM by revision 1.1.11) (AC-02d added to the RTM on 6 Nov 2026). **AC-02d is deferred to Sprint 2** (CHANGE-08, Tier B): it is specified and its tests are written below, but it is not part of the 38 Sprint 1 atomic AC, and the Sprint 1 DoD does not require it.
 
 | AC | Observable outcome |
 | ------ | ------ |
 | **AC-02a** | Manager creates categories and base exercises for all 6 `trackingMode` values → 201 and persisted (`CARDIO_DISTANCE` requires `cardioCategory`) |
 | **AC-02b** | Manager updates and deletes categories and base exercises → 200 / 204 |
 | **AC-02c** | Participant `GET /api/templates` → 200; Participant POST / PUT / DELETE on templates or categories → 403 and the database is unchanged |
+| **AC-02e** *(Lab 7, Sprint 2, new in v0.4.0)* | A category name is trimmed and 1–30 characters. Creating or renaming a category with a name of 31 or more characters, including 50 characters (accepted before this change), → 400 `VALIDATION_ERROR` naming `name` and nothing is stored; a name of 30 characters, also with surrounding spaces that are trimmed, is accepted (201 / 200); an empty or whitespace-only name → 400; a Participant → 403 and the database is unchanged; categories already stored with more than 30 characters stay readable |
 | **AC-02d** *(deferred → Sprint 2, CHANGE-08)* | Conflicting or invalid library data is rejected and nothing is stored: duplicate category name or duplicate template name within a category → 400 `VALIDATION_ERROR` naming `name`; deleting a category that still has templates → 409 `CATEGORY_HAS_TEMPLATES`; invalid template fields (name/body-part length, `unit` not matching `trackingMode`, `metValue` outside (0, 25] or with more than 1 decimal, Valid Range outside the central limits or `rangeMin` > `rangeMax`, `cardioCategory` inconsistent with `trackingMode`, change of `trackingMode`) → 400 `VALIDATION_ERROR` naming the field |
 
 **Shared AC with other features.** AC-11 (boundary table, `boundary_validation.test.ts`): F-02 contributes the template Valid Range cases. AC-12c / AC-22c (Endpoint Access Matrix): the F-02 routes are covered in stage 2; F-02 has no owner-scoped route, so AC-12c is satisfied for F-02 by asserting that every F-02 policy is `ownership: 'none'`. AC-27 (snapshot isolation) is owned by F-03 and uses the F-02 update and delete endpoints. AC-25 (journey) uses F-02 to create the template.
@@ -275,6 +281,13 @@ File: `tests/integration/manager_template.test.ts` (AC-02). Fixtures: seeded Man
 | **TEST-02c-1** | AC-02c | API/DB Integration | Alice logged in; seeded library | `GET /api/templates`, `GET /api/categories`, `GET /api/templates/:id` | 200 each; the list contains the 8 seeded templates; no `createdById` in any response |
 | TEST-02c-2 | AC-02c | API/DB Integration | Alice logged in; DB snapshot taken | `POST`, `PUT`, `DELETE` on `/api/templates` and on `/api/categories` (6 requests, including one with an invalid body) | 403 `FORBIDDEN` for all; database unchanged |
 | TEST-02c-3 | AC-02c | API/DB Integration | No token | `GET /api/templates` | 401 `UNAUTHENTICATED` |
+| **TEST-02e-1** | AC-02e | API/DB Integration | Manager logged in | `POST /api/categories` with names of 1, 29 and 30 characters (distinct, e.g. `"a"`, 29 × `"b"`, 30 × `"c"`) | 201 each; `name` returned and stored exactly; three new rows |
+| TEST-02e-2 | AC-02e | API/DB Integration | Manager logged in; row count recorded | `POST /api/categories` with 31, 50, 51 and 100 characters | 400 `VALIDATION_ERROR` each, `fields` names `name` with limit `1-30 characters`; row count unchanged (the 50-character case was accepted before v0.4.0) |
+| TEST-02e-3 | AC-02e | API/DB Integration | Category "Mobility" exists | `PUT /api/categories/:id` with a 30-character name; then with 31 and 50 characters | 200 with the new name and the row updated; then 400 naming `name` twice and the row still holds the 30-character name |
+| TEST-02e-4 | AC-02e | API/DB Integration | Manager logged in | `POST` with 30 characters wrapped in leading and trailing spaces; 31 characters wrapped in spaces; `""`; `"   "`; body with a non-string `name` | 201 with the trimmed 30-character name stored; 400; 400; 400; 400 (each 400 names `name` and stores nothing) |
+| TEST-02e-5 | AC-02e | API/DB Integration | Alice (Participant) logged in; DB snapshot taken | `POST /api/categories` with 30 and with 31 characters; `PUT` and `DELETE` on an existing category | 403 `FORBIDDEN` each (not 400 for the 31-character body); database equals the snapshot |
+| TEST-02e-6 | AC-02e | API/DB Integration | A category whose name has 40 characters inserted directly with Prisma (the old rule allowed it) | Alice `GET /api/categories`; Manager `PUT` renaming it to another 40-character name, then to a 30-character name | The 40-character name is listed unchanged (200); the first `PUT` is 400 naming `name` and the row is unchanged; the second is 200 (existing data is not migrated, the new limit applies when a name is written) |
+| *SUP-02e-7 (supplementary, `tests/e2e/library_ui.spec.ts`, not an RTM test)* | AC-02e | UI E2E | Manager on the Exercise Library | Type 35 characters into `category-add-name` and into the rename input | The field keeps 30 characters (`maxLength`); the server rule is still tested by TEST-02e-2 | 
 | **TEST-02d-1** | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Seeded category "Weight Training" | `POST` category `"weight training"`; `PUT` another category to that name | 400 `VALIDATION_ERROR` naming `name` for both; database unchanged |
 | TEST-02d-2 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Template "Push-up" in "Bodyweight" | `POST` `"push-UP"` in "Bodyweight"; then `"Push-up"` in "Yoga" | 400 `VALIDATION_ERROR`; then 201 (different category) |
 | TEST-02d-3 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | Category with templates | `DELETE /api/categories/:id`; then delete its templates and retry | 409 `CATEGORY_HAS_TEMPLATES` with everything intact; then 204 |
@@ -287,7 +300,7 @@ File: `tests/integration/manager_template.test.ts` (AC-02). Fixtures: seeded Man
 | **TEST-12c (F-02 routes)** | AC-12c | Security | Registry | Assert every F-02 policy has `ownership: 'none'` | True for all 9 routes |
 | TEST-02d-8 | AC-02d *(deferred → Sprint 2)* | API/DB Integration | A well-formed UUID `categoryId` that does not exist | `POST /api/templates` with that `categoryId` | 404 `NOT_FOUND`; database unchanged |
 
-**Coverage check.** AC-02a, 02b, 02c and 02d (deferred to Sprint 2) each have at least one test; negative, boundary and role cases are included (80/81-character names, `metValue` 25/25.1, range limits 4,000/4,001, 10,800/10,801, 100/100.01). The Manager-creates-template step of AC-25 and the AC-27 snapshot test are verified in their own contracts.
+**Coverage check.** AC-02a, 02b, 02c, 02e and 02d (deferred to Sprint 2) each have at least one test; negative, boundary and role cases are included (29/30/31, 50/51-character category names, 80/81-character template names, `metValue` 25/25.1, range limits 4,000/4,001, 10,800/10,801, 100/100.01). The Manager-creates-template step of AC-25 and the AC-27 snapshot test are verified in their own contracts.
 
 --------------------------------------------------------------------------------
 
@@ -346,6 +359,9 @@ Status after the 6 Nov 2026 baseline pass (RTM / SDS / plan / SRS / Feature Inve
 | P6 | `trackingMode` immutable after creation | SRS (new Q) | **Applied** — RTM 1.1.0 (AC-02d) and SRS 1.1.0 Q32 |
 | P7 | Duplicate category / template name answered with 400 `VALIDATION_ERROR`; SRS Appendix A.5 defines no duplicate-name code, and a dedicated 409 code would require an approved A.5 addition first (v0.2.0 deliberately uses only approved codes) | SRS Appendix A.5 | **Resolved, no baseline change needed** — SRS Appendix A.5 left unchanged by design (RTM 1.1.0 D4); the contract uses `VALIDATION_ERROR` only |
 | P8 | Wording fix in the F-01 contract: "F-02 to F-06" should read "F-02, F-03, F-04 and F-06" (F-05 is Sprint 2) | F-01 contract | **Applied** — F-01 contract 0.3.0 now reads "F-02, F-03, F-04 and F-06" |
+| P9 | SRS Q30: category name 1–30 characters (Lab 7, issue #89) | SRS | **Drafted** in SRS 1.1.1 (this PR), review-pending |
+| P10 | RTM: AC-02e in FR-02, §3 counts, §3.1 register row (PLANNED, Sprint 2); no test result is recorded before the tests run | RTM | **Drafted** in RTM 1.1.11 (this PR), review-pending |
+| P11 | api-spec §4.1 rule line and traceability row for AC-02e | api-spec | **Drafted** in api-spec 0.6.4 (this PR), review-pending |
 
 --------------------------------------------------------------------------------
 
@@ -357,3 +373,4 @@ Status after the 6 Nov 2026 baseline pass (RTM / SDS / plan / SRS / Feature Inve
 | 3 | METs in the seed are planning defaults pending verification against the Compendium of Physical Activities (SRS Appendix A.1) | Check before Sprint 2 (F-11); update seed and AC-16a, AC-20, AC-28 together |
 | 4 | Decimal serialization as JSON numbers can lose precision for unusual values | Limited to 2 decimals for ranges and 1 for `metValue`; acceptable |
 | 5 | No pagination or search of the catalog | Small data set; revisit only if the catalog grows |
+| 6 | Lab 7 (v0.4.0): categories stored with more than 30 characters before the change stay valid; they can be read, deleted, and used by templates, but renaming one needs a name of at most 30 characters. I did not check the deployed database or the seed for such names (the seed names have at most 15 characters, `prisma/seed.ts`; the deployed data was not read) | Accepted for Lab 7; no data migration. If the deployed database holds a longer name, record it in issue #89 before the release |

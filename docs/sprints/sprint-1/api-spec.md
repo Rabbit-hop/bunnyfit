@@ -2,10 +2,10 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.6.3
+**Document Version:** 0.6.4
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
-**Date:** 10 November 2026
-**Status:** Draft: v0.6.1 and v0.6.3 need re-review by Onsinee (v0.6.0 was Approved)
+**Date:** 24 November 2026
+**Status:** Draft: v0.6.1, v0.6.3 and v0.6.4 need re-review by Onsinee (v0.6.0 was Approved)
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
@@ -40,6 +40,7 @@ A version cell records which revision the citation points at; it does not by its
 | **0.6.1** | 7 Nov 2026 | Login `password` limit stated as 1-72 UTF-8 bytes (was "characters"), following F-01 contract 0.3.2; ASCII behaviour unchanged. No other content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 | **0.6.2** | 8 Nov 2026 | Header Status/Date corrected to Draft / 8 Nov to match the v0.6.1 revision row (PR #19 re-review minor). No specification, baseline or contract content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 | **0.6.3** | 10 Nov 2026 | Source-baseline table corrected to the contract versions that now exist: F-01 0.3.7 and F-06 0.3.1 (both already in `staging/sprint-1`, cells still read 0.3.0 here), F-03 0.3.1 (PR #27 review fixes B1/B2; the cell says which branch it is on); the source-of-truth rule now points at that table instead of repeating "0.3.0". No request/response shape, rule or traceability row changed; this document's own specification content is untouched. Needs re-review by Onsinee. | Nakagamon | Draft |
+| **0.6.4** | 24 Nov 2026 | Lab 7 change (issue #89), following F-02 0.4.0 and SRS 1.1.1: §4.1 rule line **old:** "name trimmed, 1-50 characters, unique case-insensitively" **new:** "name trimmed, 1-30 characters, unique case-insensitively", and the error example for a too-long name; traceability row F-02 lists AC-02e. No route, status code or response shape changed. Needs re-review by Onsinee | Nakagamon (67070501064) | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
@@ -362,7 +363,7 @@ Success `204 No Content`; inserts `{ jti, userId, expiresAt }` into `RevokedToke
 | `PUT /api/categories/:id` | `{ "name": "Mobility & Stretch" }` | `200 { id, name }` |
 | `DELETE /api/categories/:id` | - | `204` |
 
-Rules: name trimmed, 1-50 characters, unique case-insensitively; a duplicate name returns `400 VALIDATION_ERROR` naming `name`. Manager only for writes; Participant writes return 403. Deleting a category with templates returns `409 CATEGORY_HAS_TEMPLATES`. A well-formed missing `:id` returns 404; a malformed `:id` returns 400.
+Rules: name trimmed, 1-30 characters (v0.6.4, Lab 7; was 1-50), unique case-insensitively; a name of 31 or more characters returns `400 VALIDATION_ERROR` naming `name` with limit `1-30 characters`; a duplicate name returns `400 VALIDATION_ERROR` naming `name`. Manager only for writes; Participant writes return 403. Deleting a category with templates returns `409 CATEGORY_HAS_TEMPLATES`. A well-formed missing `:id` returns 404; a malformed `:id` returns 400.
 
 ##### 4.2 Templates
 
@@ -624,7 +625,7 @@ Success `200`:
 | Feature | Endpoints | AC | Target tests |
 | --- | --- | --- | --- |
 | F-01 | `/api/auth/login`, `/api/auth/me`, `/api/auth/logout` | AC-01a-f, AC-22a-c, AC-12a-c | `tests/integration/auth.test.ts`, `tests/integration/security_access.test.ts` |
-| F-02 | `/api/categories`, `/api/templates` | AC-02a-c, AC-02d *(Sprint 2)*, AC-11 (F-02 cases), AC-12c, AC-22c | `tests/integration/manager_template.test.ts`, `tests/unit/boundary_validation.test.ts` |
+| F-02 | `/api/categories`, `/api/templates` | AC-02a-c, AC-02d *(Sprint 2)*, AC-02e *(Sprint 2, Lab 7)*, AC-11 (F-02 cases), AC-12c, AC-22c | `tests/integration/manager_template.test.ts`, `tests/unit/boundary_validation.test.ts` |
 | F-03 | `/api/plan-items`, `/api/user-exercises`, `/api/plan` | AC-03a-c, AC-03d *(Sprint 2)*, AC-16a-b *(Sprint 2)*, AC-27, AC-11 (F-03 cases), AC-12a-c, AC-22c | `tests/integration/goal_config.test.ts`, `tests/integration/template_snapshot.test.ts`, `tests/unit/boundary_validation.test.ts` |
 | F-04 | `/api/entries`, `/api/entries/quick-complete`, `/api/profile` *(Sprint 2)* | AC-04a-b, AC-04c-d *(Sprint 2)*, AC-10a-b, AC-10c *(Sprint 2)*, AC-13a-c, AC-14a-b, AC-17a-d *(Sprint 2)*, AC-23 (owners F-04/F-05/SYS-01), AC-24a, AC-11 (F-04 cases), AC-12a, AC-22c | `tests/integration/daily_logging.test.ts`, `tests/integration/quick_complete.test.ts`, `tests/integration/profile.test.ts` *(Sprint 2)*, `tests/unit/progress_calc.test.ts`, `tests/unit/boundary_validation.test.ts`, `tests/integration/persistence.test.ts`, `tests/e2e/validation_feedback.spec.ts` |
 | F-06 | `/api/progress/daily`, `/api/progress/monthly` *(Sprint 2)* | AC-06a-f, AC-06g *(Sprint 2)*, AC-15 *(Sprint 2)*, AC-21a *(Sprint 2)*, AC-12a, AC-22c | `tests/unit/progress_calc.test.ts`, `tests/integration/progress_api.test.ts`, `tests/performance/latency.test.ts` *(Sprint 2)* |
