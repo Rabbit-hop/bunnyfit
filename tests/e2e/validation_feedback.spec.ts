@@ -190,43 +190,49 @@ async function weightRows(page: Page, headers: Record<string, string>) {
   return (await (await page.request.get('/api/profile', { headers })).json()) as { currentWeightKg: number | null; weightEffectiveDate: string | null }
 }
 
-test('TEST-23-4 (AC-23): 900 kg on the Profile screen shows an error naming weightKg and the 1-800 limit, keeps the value and saves nothing', async ({ page }) => {
-  await withWeightCleanup(PARTICIPANT.email, async (userId) => {
-    const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_TEST } } })
-    try {
-      const headers = await loginAs(page, PARTICIPANT)
-      const before = await weightRows(page, headers)
-      const countBefore = await prisma.weightLog.count({ where: { userId } })
-      await page.goto('/profile')
-      await expect(page.getByTestId('profile-page')).toBeVisible()
-      await page.getByTestId('profile-weight-input').fill('900')
-      await page.getByTestId('profile-save').click()
-      await expect(page.getByTestId('field-error-weightKg')).toContainText(/weightKg.*1.*800/i)
-      await expect(page.getByTestId('profile-weight-input')).toHaveValue('900')
-      await expect(page.getByTestId('profile-toast')).toHaveCount(0)
-      expect(await weightRows(page, headers)).toEqual(before)
-      expect(await prisma.weightLog.count({ where: { userId } })).toBe(countBefore)
-    } finally {
-      await prisma.$disconnect()
-    }
-  })
-})
+// Both profile tests change or read Alice's weight, so they run one after the other (the file otherwise runs in parallel).
+test.describe('Profile (S-07)', () => {
+  test.describe.configure({ mode: 'serial' })
 
-test('S-07 (UI): a valid weight is saved, shown as the current weight with a toast; a Participant without weight sees the empty state', async ({ page }) => {
-  await withWeightCleanup(PARTICIPANT.email, async () => {
-    const headers = await loginAs(page, PARTICIPANT)
-    await page.goto('/profile')
-    await expect(page.getByTestId('profile-email')).toHaveText(PARTICIPANT.email)
-    await expect(page.getByTestId('profile-current-weight')).toBeVisible()
-    await page.getByTestId('profile-weight-input').fill('68.5')
-    await page.getByTestId('profile-save').click()
-    await expect(page.getByTestId('profile-toast')).toBeVisible()
-    await expect(page.getByTestId('profile-current-weight')).toContainText('68.5')
-    expect((await weightRows(page, headers)).currentWeightKg).toBe(68.5)
+  test('TEST-23-4 (AC-23): 900 kg on the Profile screen shows an error naming weightKg and the 1-800 limit, keeps the value and saves nothing', async ({ page }) => {
+    await withWeightCleanup(PARTICIPANT.email, async (userId) => {
+      const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_TEST } } })
+      try {
+        const headers = await loginAs(page, PARTICIPANT)
+        const before = await weightRows(page, headers)
+        const countBefore = await prisma.weightLog.count({ where: { userId } })
+        await page.goto('/profile')
+        await expect(page.getByTestId('profile-page')).toBeVisible()
+        await page.getByTestId('profile-weight-input').fill('900')
+        await page.getByTestId('profile-save').click()
+        await expect(page.getByTestId('field-error-weightKg')).toContainText(/weightKg.*1.*800/i)
+        await expect(page.getByTestId('profile-weight-input')).toHaveValue('900')
+        await expect(page.getByTestId('profile-toast')).toHaveCount(0)
+        expect(await weightRows(page, headers)).toEqual(before)
+        expect(await prisma.weightLog.count({ where: { userId } })).toBe(countBefore)
+      } finally {
+        await prisma.$disconnect()
+      }
+    })
   })
-  // Bob has no WeightLog row in the seed: nothing is saved here, so nothing needs cleaning up.
-  await loginAs(page, OTHER_PARTICIPANT)
-  await page.goto('/profile')
-  await expect(page.getByTestId('profile-no-weight')).toContainText('No weight set')
-  await expect(page.getByTestId('profile-no-weight')).toContainText('Needed to estimate calories')
+
+  test('S-07 (UI): a valid weight is saved, shown as the current weight with a toast; a Participant without weight sees the empty state', async ({ page }) => {
+    await withWeightCleanup(PARTICIPANT.email, async () => {
+      const headers = await loginAs(page, PARTICIPANT)
+      await page.goto('/profile')
+      await expect(page.getByTestId('profile-email')).toHaveText(PARTICIPANT.email)
+      await expect(page.getByTestId('profile-current-weight')).toBeVisible()
+      await page.getByTestId('profile-weight-input').fill('68.5')
+      await page.getByTestId('profile-save').click()
+      await expect(page.getByTestId('profile-toast')).toBeVisible()
+      await expect(page.getByTestId('profile-current-weight')).toContainText('68.5')
+      expect((await weightRows(page, headers)).currentWeightKg).toBe(68.5)
+    })
+    // Bob has no WeightLog row in the seed: nothing is saved here, so nothing needs cleaning up.
+    await page.evaluate(() => sessionStorage.clear()) // drop Alice's session so the login page is shown
+    await loginAs(page, OTHER_PARTICIPANT)
+    await page.goto('/profile')
+    await expect(page.getByTestId('profile-no-weight')).toContainText('No weight set')
+    await expect(page.getByTestId('profile-no-weight')).toContainText('Needed to estimate calories')
+  })
 })
