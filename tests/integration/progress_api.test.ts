@@ -435,6 +435,16 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
     expect(res.body).toMatchObject({ month: '2026-11', targetedDays: 0, averagePercent: null });
   });
 
+  it('extra (not an STS row; PR #119 review): a Participant with no plan has no days at all, so nothing counts as an excluded Rest Day', async () => {
+    const bob = await bobAuth();
+    expect(await prisma.planItem.count({ where: { userId: bobId } }), 'fixture: Bob has no plan').toBe(0);
+
+    const res = await monthly(bob, '?month=2026-11');
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toMatchObject({ month: '2026-11', targetedDays: 0, restDaysExcluded: 0, averagePercent: null, days: [] });
+  });
+
   describe('TEST-15-6 / 15-7 Alice targeted Mon-Fri from 2026-11-02', () => {
     const fixture = async () => {
       const squat = await historicalSquat('2026-11-02');
