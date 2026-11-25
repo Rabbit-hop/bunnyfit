@@ -71,7 +71,9 @@ export async function monthlyProgress(
     null,
   );
   const from = firstEffective !== null && firstEffective > monthStart ? firstEffective : monthStart;
-  const dates = datesBetween(from, to);
+  // With no plan item there is no first effectiveFrom: every day is "before the plan" (AC-15), not a Rest Day,
+  // so no day is returned and nothing counts as an excluded Rest Day (PR #119 review).
+  const dates = firstEffective === null ? [] : datesBetween(from, to);
   const entries = dates.length === 0 ? [] : await deps.entries.listEntriesBetween(userId, from, to);
 
   const results = dates.map((date) => {
