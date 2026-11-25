@@ -2,10 +2,10 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.6.3
+**Document Version:** 0.7.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
-**Date:** 10 November 2026
-**Status:** Draft: v0.6.1 and v0.6.3 need re-review by Onsinee (v0.6.0 was Approved)
+**Date:** 26 November 2026
+**Status:** Draft: v0.6.1, v0.6.3 and v0.7.0 need re-review (v0.6.0 was Approved)
 **Primary Author:** Onsinee | **Reviewer:** Nakagamon
 **Repository Path:** `docs/sprints/sprint-1/api-spec.md`
 **Scope:** Sprint 1 API for F-01, F-02, F-03 and the Sprint 1 subset of F-04/F-06. Profile (`GET/PUT /api/profile`), monthly progress (`GET /api/progress/monthly`) and the deferred AC are Sprint 2 (CHANGE-04/06); they are documented for completeness only.
@@ -40,6 +40,7 @@ A version cell records which revision the citation points at; it does not by its
 | **0.6.1** | 7 Nov 2026 | Login `password` limit stated as 1-72 UTF-8 bytes (was "characters"), following F-01 contract 0.3.2; ASCII behaviour unchanged. No other content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 | **0.6.2** | 8 Nov 2026 | Header Status/Date corrected to Draft / 8 Nov to match the v0.6.1 revision row (PR #19 re-review minor). No specification, baseline or contract content changed. Needs re-review by Onsinee. | Nakagamon | Draft |
 | **0.6.3** | 10 Nov 2026 | Source-baseline table corrected to the contract versions that now exist: F-01 0.3.7 and F-06 0.3.1 (both already in `staging/sprint-1`, cells still read 0.3.0 here), F-03 0.3.1 (PR #27 review fixes B1/B2; the cell says which branch it is on); the source-of-truth rule now points at that table instead of repeating "0.3.0". No request/response shape, rule or traceability row changed; this document's own specification content is untouched. Needs re-review by Onsinee. | Nakagamon | Draft |
+| **0.7.0** | 26 Nov 2026 | §7.1 mirrors F-11 contract 0.1.2 §4.1 (issue #71 Part 2, P11-2): the daily progress response gains `estimatedMinutes`, `calories` and `calorieError` per item and top-level `otherActivity`, `totalCalories` and `calorieError`; Rest Day example updated. Every F-06 field is unchanged; no route, policy or error code added. F-11 contract precedes this text on conflict | Onsinee | Draft |
 
 **Reconciled changes from the v0.2.0 draft**
 
@@ -582,9 +583,22 @@ Success `200`:
 }
 ```
 
-Rest Day: `{ "date": "...", "isRestDay": true, "items": [], "totalScore": 0, "totalWeight": 0, "overallPercent": null }`.
+Rest Day: `{ "date": "...", "isRestDay": true, "items": [], "totalScore": 0, "totalWeight": 0, "overallPercent": null, "otherActivity": [], "totalCalories": 0, "calorieError": null }` (with a body weight on the date; without one `totalCalories` is `null` and `calorieError` is `"BODY_WEIGHT_REQUIRED"`).
 
 Rules: `ratio = min(1.0, actual / target)`; `itemScore = ratio * priorityWeight`; `overallPercent = (sum(itemScore) / sum(priorityWeight)) * 100` over items that occur. A targeted day without entries is 0%; a Rest Day is `null`. `loadKg`, body weight and entry `kind` do not affect scores. Use decimal arithmetic and return unrounded values.
+
+**Calorie fields (Sprint 2, F-11 contract 0.1.2 §4.1; the contract is authoritative).** Added to the same response; every field above keeps its name, type and value.
+
+| Where | Field | Type | Meaning |
+| --- | --- | --- | --- |
+| each `items[]` element | `estimatedMinutes` | number | Sets × 1.5 (`WEIGHT`, `BODYWEIGHT_REPS`); seconds ÷ 60 (`BODYWEIGHT_TIME`, `YOGA`, `CARDIO_TIME`); km × standard pace (`CARDIO_DISTANCE`: Running 6.0, Walking 10.0, Cycling 3.0, Swimming 20.0 min/km). Unrounded; 0 when nothing is logged |
+| each `items[]` element | `calories` | number or `null` | `metValue × bodyWeightKg × estimatedMinutes ÷ 60`, rounded to 1 decimal half up; `null` when no body weight applies |
+| each `items[]` element | `calorieError` | `null` or `"BODY_WEIGHT_REQUIRED"` | Set exactly when `calories` is `null` |
+| top level | `otherActivity` | array | Exercises logged on the date that are not in `items` (not planned that day, or any exercise on a Rest Day): `userExerciseId`, `name`, `trackingMode`, `unit`, `actual`, `estimatedMinutes`, `calories`, `calorieError`; ordered by `name`; `[]` when none. Unscored |
+| top level | `totalCalories` | number or `null` | Sum of the **unrounded** calories of `items` and `otherActivity`, rounded once to 1 decimal half up; `null` when no body weight applies |
+| top level | `calorieError` | `null` or `"BODY_WEIGHT_REQUIRED"` | Same value for the whole date |
+
+The body weight is the `WeightLog` row with the latest `effectiveDate` on or before `date` (ties: latest `createdAt`). With no such row the status is still `200`; logging is never blocked.
 
 ##### 7.2 `GET /api/progress/monthly?month=YYYY-MM` *(Sprint 2, CHANGE-06)*
 
@@ -628,6 +642,7 @@ Success `200`:
 | F-03 | `/api/plan-items`, `/api/user-exercises`, `/api/plan` | AC-03a-c, AC-03d *(Sprint 2)*, AC-16a-b *(Sprint 2)*, AC-27, AC-11 (F-03 cases), AC-12a-c, AC-22c | `tests/integration/goal_config.test.ts`, `tests/integration/template_snapshot.test.ts`, `tests/unit/boundary_validation.test.ts` |
 | F-04 | `/api/entries`, `/api/entries/quick-complete`, `/api/profile` *(Sprint 2)* | AC-04a-b, AC-04c-d *(Sprint 2)*, AC-10a-b, AC-10c *(Sprint 2)*, AC-13a-c, AC-14a-b, AC-17a-d *(Sprint 2)*, AC-23 (owners F-04/F-05/SYS-01), AC-24a, AC-11 (F-04 cases), AC-12a, AC-22c | `tests/integration/daily_logging.test.ts`, `tests/integration/quick_complete.test.ts`, `tests/integration/profile.test.ts` *(Sprint 2)*, `tests/unit/progress_calc.test.ts`, `tests/unit/boundary_validation.test.ts`, `tests/integration/persistence.test.ts`, `tests/e2e/validation_feedback.spec.ts` |
 | F-06 | `/api/progress/daily`, `/api/progress/monthly` *(Sprint 2)* | AC-06a-f, AC-06g *(Sprint 2)*, AC-15 *(Sprint 2)*, AC-21a *(Sprint 2)*, AC-12a, AC-22c | `tests/unit/progress_calc.test.ts`, `tests/integration/progress_api.test.ts`, `tests/performance/latency.test.ts` *(Sprint 2)* |
+| F-11 *(Sprint 2)* | `/api/progress/daily` (calorie fields, §7.1) | AC-20a-c, AC-28a-c | `tests/unit/calorie_calc.test.ts`, `tests/integration/calorie_weightlog.test.ts` |
 | F-01–F-06 journey | All Sprint 1 routes | AC-25 | `tests/e2e/main_journey.spec.ts` |
 
 --------------------------------------------------------------------------------
