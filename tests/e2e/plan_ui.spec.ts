@@ -64,7 +64,6 @@ test('S-04 (UI): add from the library, target fields follow the mode', async ({ 
   if ((await page.getByTestId(`day-${tomorrowIso}`).count()) === 0) await page.getByTestId('cal-next').click()
   await page.getByTestId(`day-${tomorrowIso}`).click()
   await expect(page.getByTestId('plan-loading')).toHaveCount(0)
-  const before = await page.locator('[data-testid^="plan-item-"]').count()
 
   await page.getByTestId('plan-add').click()
   // The list keeps showing the unfiltered templates until the filtered response arrives, so wait for it;
@@ -86,10 +85,15 @@ test('S-04 (UI): add from the library, target fields follow the mode', async ({ 
   await setTomorrow(page)
   await expect(page.getByTestId('plan-summary')).toContainText('2 × 5 reps')
 
+  const created = page.waitForResponse((r) => r.request().method() === 'POST' && /\/api\/plan-items$/.test(r.url()))
   await page.getByTestId('plan-save').click()
+  const response = await created
+  expect(response.status()).toBe(201)
+  const { planItem } = (await response.json()) as { planItem: { id: string } }
   await expect(page.getByTestId('plan-toast')).toBeVisible()
-  // Tests run in parallel and the other one also adds an item for tomorrow, so "grew" rather than "+1".
-  await expect.poll(() => page.locator('[data-testid^="plan-item-"]').count()).toBeGreaterThan(before)
+  // Look for the new card by its id, not by counting cards: other specs share Alice and add or end
+  // her plan items in parallel (plan_edit_ui.spec.ts ends one), so a count can shrink while this runs.
+  await expect(page.getByTestId(`plan-item-${planItem.id}`)).toBeVisible()
 })
 
 test('AC-03b/AC-11 (UI): an out-of-range duration shows an inline error and keeps the dialog open', async ({ page }) => {
