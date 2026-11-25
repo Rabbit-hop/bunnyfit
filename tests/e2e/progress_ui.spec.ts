@@ -183,3 +183,13 @@ test('S-06: a day drawer closed while it is still loading stays closed when the 
   await page.waitForTimeout(300)
   await expect(page.getByTestId('day-drawer')).toHaveCount(0)
 })
+
+test('S-06 (real API): Progress shows the F-08 Streak badge (F-08 §6) and links to History', async ({ page }) => {
+  await login(page)
+  await page.goto('/progress')
+  await expect(page.getByTestId('month-card')).toBeVisible()
+  await expect(page.getByTestId('streak-badge')).toBeVisible()
+  await expect(page.getByTestId('streak-value')).toHaveAttribute('data-streak', /^\d+$/)
+  await page.getByTestId('progress-history-link').click()
+  await expect(page).toHaveURL(/\/history$/)
+})
