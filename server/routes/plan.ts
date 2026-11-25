@@ -2,6 +2,7 @@ import type { Clock } from '../domain/clock.js';
 import { appError } from '../domain/errors.js';
 import { resolvePlan } from '../domain/planResolution.js';
 import { isCalendarDate, validatePlanRequest, validateTarget } from '../domain/planValidation.js';
+import { buildNextVersion } from '../domain/planVersion.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validationError } from '../middleware/errorHandler.js';
 import type { LibraryRepository } from '../repositories/libraryRepository.js';
@@ -78,6 +79,34 @@ export function registerPlanRoutes(
       const found = await deps.plans.findPlanItem(String(req.params['id'] ?? ''));
       if (!found) throw appError('NOT_FOUND', 'Plan item not found.');
       res.status(200).json(found);
+    }),
+    {
+      ownerLookup: async (id) => {
+        if (!UUID.test(id)) throw validationError([{ field: 'id', limit: 'must be a UUID' }]);
+        return deps.plans.findPlanItemOwner(id);
+      },
+    },
+  );
+
+  // F-07: change or end a plan item by inserting a new version (R1-R14); the owner check is the same as for GET.
+  registrar.register(
+    policy('PUT', '/api/plan-items/:id'),
+    asyncHandler(async (req, res) => {
+      if (!req.auth) throw appError('UNAUTHENTICATED', 'Authentication required.');
+      const found = await deps.plans.findPlanItem(String(req.params['id'] ?? ''));
+      if (!found) throw appError('NOT_FOUND', 'Plan item not found.');
+      const today = deps.clock.today();
+      const result = await deps.plans.insertNextVersion(
+        req.auth.userId,
+        found.planItem.userExerciseId,
+        found.planItem.planKey,
+        (latest, exercise) => {
+          const next = buildNextVersion(latest, exercise, req.body, today);
+          if ('fields' in next) throw validationError(next.fields);
+          return next.value;
+        },
+      );
+      res.status(200).json(result);
     }),
     {
       ownerLookup: async (id) => {
