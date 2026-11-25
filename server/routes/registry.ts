@@ -69,6 +69,9 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/entries/quick-complete', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/entries', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/entries/:id', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
+  // F-05 same-day entry modification (Sprint 2, CHANGE-01) - Participant, owner only.
+  { method: 'PUT', path: '/api/entries/:id', featureId: 'F-05', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
+  { method: 'DELETE', path: '/api/entries/:id', featureId: 'F-05', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
   // F-04 profile and body weight (Sprint 2, CHANGE-04) - Participant only, own profile from the token.
   { method: 'GET', path: '/api/profile', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'PUT', path: '/api/profile', featureId: 'F-04', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },

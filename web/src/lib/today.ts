@@ -92,12 +92,19 @@ export type EntryInput = {
 
 export type EntryResult = { entry: LedgerEntry | null; cumulative: Cumulative }
 
+/** F-05 R4: the measured fields of the entry's mode only (a PUT replaces them). */
+export type EntryValuesInput = { sets?: number; totalReps?: number; durationSec?: number; distanceKm?: number }
+
 export type TodayApi = {
   getDaily(): Promise<DailyProgress>
   getEntries(date: string): Promise<DayEntries>
   listUserExercises(): Promise<UserExercise[]>
   createEntry(input: EntryInput): Promise<EntryResult>
   quickComplete(userExerciseId: string, logDate: string): Promise<EntryResult>
+  /** F-05 `PUT /api/entries/:id`: replace the values of an entry created today. */
+  updateEntry(id: string, values: EntryValuesInput): Promise<EntryResult>
+  /** F-05 `DELETE /api/entries/:id` (204): remove an entry created today. */
+  deleteEntry(id: string): Promise<void>
 }
 
 // ---------------------------------------------------------------- formatting
@@ -194,6 +201,11 @@ const realApi: TodayApi = {
       method: 'POST',
       body: JSON.stringify({ userExerciseId, logDate }),
     }))!,
+  updateEntry: async (id, values) =>
+    (await apiFetch<EntryResult>(`/api/entries/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(values) }))!,
+  deleteEntry: async (id) => {
+    await apiFetch<null>(`/api/entries/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
 }
 
 // ---------------------------------------------------------------- mock API (phase 1)
@@ -363,6 +375,32 @@ const mockApi: TodayApi = {
     await delay(null)
     if (input.logDate && input.logDate !== MOCK_DATE) throw new ApiError(400, 'LOG_DATE_MISMATCH', 'Date mismatch')
     return mockAddEntry(input, 'MANUAL')
+  },
+  updateEntry: async (id, values) => {
+    await delay(null)
+    const store = mockStore()
+    const index = store.entries.findIndex((e) => e.id === id)
+    if (index < 0) throw new ApiError(404, 'NOT_FOUND', 'Not found')
+    const old = store.entries[index]
+    if (old.logDate !== MOCK_DATE) throw new ApiError(409, 'ENTRY_NOT_EDITABLE', 'Not editable')
+    store.entries.splice(index, 1)
+    try {
+      const result = mockAddEntry({ userExerciseId: old.userExerciseId, ...values }, old.kind)
+      const saved = { ...result.entry!, id: old.id, createdAt: old.createdAt }
+      store.entries[store.entries.length - 1] = saved
+      return { entry: saved, cumulative: mockCumulative(old.userExerciseId) }
+    } catch (error) {
+      store.entries.splice(index, 0, old)
+      throw error
+    }
+  },
+  deleteEntry: async (id) => {
+    await delay(null)
+    const store = mockStore()
+    const index = store.entries.findIndex((e) => e.id === id)
+    if (index < 0) throw new ApiError(404, 'NOT_FOUND', 'Not found')
+    if (store.entries[index].logDate !== MOCK_DATE) throw new ApiError(409, 'ENTRY_NOT_EDITABLE', 'Not editable')
+    store.entries.splice(index, 1)
   },
   quickComplete: async (userExerciseId, logDate) => {
     await delay(null)
