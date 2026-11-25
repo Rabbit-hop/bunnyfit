@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildCustomExercise } from '../../server/domain/customExercise.js';
 import { validateEntry, validateWeight } from '../../server/domain/entryValidation.js';
+import { buildNextVersion } from '../../server/domain/planVersion.js';
 import { validateTarget } from '../../server/domain/planValidation.js';
+import type { PlanItemRecord, UserExerciseRecord } from '../../server/repositories/planRepository.js';
 import { validateTemplate } from '../../server/domain/templateValidation.js';
 
 // TEST-11 (F-02 cases) — F-02 STS §8: `validateTemplate` boundary pairs and unit/mode
@@ -516,5 +518,106 @@ describe('F-03 custom exercise: buildCustomExercise', () => {
       const result = buildCustomExercise('x');
       expect('fields' in result).toBe(true);
     });
+  });
+});
+
+// TEST-11 (F-07 cases) — F-07 STS §8: the boundary pairs of TEST-07a-9/10/11/12/13 asserted without
+// HTTP on `buildNextVersion` (pure: merge into the latest version, validate the merged values, R4-R6, R10).
+describe('TEST-11 (F-07 cases): buildNextVersion', () => {
+  const TODAY = '2026-11-12';
+  const exercise = (over: Partial<UserExerciseRecord> = {}): UserExerciseRecord => ({
+    id: 'e1', sourceTemplateId: null, isCustom: false, name: 'Barbell Squat', targetBodyPart: 'Legs',
+    trackingMode: 'WEIGHT', unit: 'reps', cardioCategory: null, metValue: 3.5, rangeMin: 1, rangeMax: 4000, ...over,
+  });
+  const latest = (over: Partial<PlanItemRecord> = {}): PlanItemRecord => ({
+    id: 'p1', userExerciseId: 'e1', planKey: 'k1', version: 1, priorityWeight: 3,
+    targetSets: 4, targetRepsPerSet: 10, loadKg: 40, targetDurationSec: null, targetDistanceKm: null,
+    effectiveFrom: '2026-11-02', endDate: null, repeatDays: [1, 2, 3, 4, 5, 6, 7], createdAt: '2026-11-02T03:00:00.000Z', ...over,
+  });
+  const build = (patch: unknown, l = latest(), e = exercise()) => buildNextVersion(l, e, patch, TODAY);
+  const ok = (patch: unknown, l = latest(), e = exercise()) => {
+    const r = build(patch, l, e);
+    if (!('value' in r)) throw new Error(`expected accepted, got ${JSON.stringify(r)}`);
+    return r.value;
+  };
+  const bad = (patch: unknown, l = latest(), e = exercise()): string[] => {
+    const r = build(patch, l, e);
+    if (!('fields' in r)) throw new Error('expected rejected, got accepted');
+    for (const f of r.fields) expect(f.limit.length).toBeGreaterThan(0);
+    return r.fields.map((f) => f.field);
+  };
+
+  it('merges the patch into the latest version: omitted fields carry over, effectiveFrom = today (R4, R5)', () => {
+    const v = ok({ targetSets: 5 });
+    expect(v).toEqual({
+      priorityWeight: 3,
+      target: { targetSets: 5, targetRepsPerSet: 10, loadKg: 40, targetDurationSec: null, targetDistanceKm: null },
+      effectiveFrom: TODAY,
+      endDate: null,
+      repeatDays: [1, 2, 3, 4, 5, 6, 7],
+    });
+  });
+
+  it('targetSets 20 accepted; 21 and 0 rejected (07a-9)', () => {
+    expect(ok({ targetSets: 20 }).target.targetSets).toBe(20);
+    for (const v of [21, 0]) expect(bad({ targetSets: v })).toEqual(['targetSets']);
+  });
+  it('targetRepsPerSet 200 accepted with 20 sets; 201 and 0 rejected (07a-9)', () => {
+    expect(ok({ targetSets: 20, targetRepsPerSet: 200 }).target.targetRepsPerSet).toBe(200);
+    for (const v of [201, 0]) expect(bad({ targetRepsPerSet: v })).toEqual(['targetRepsPerSet']);
+  });
+  it('loadKg 500 accepted; 500.01, 60.123 and 0 rejected (07a-9)', () => {
+    expect(ok({ loadKg: 500 }).target.loadKg).toBe(500);
+    for (const v of [500.01, 60.123, 0]) expect(bad({ loadKg: v })).toEqual(['loadKg']);
+  });
+  it('time mode: 10,800 accepted; 10,801, 0 and 59.5 rejected (07a-10)', () => {
+    const l = latest({ targetSets: null, targetRepsPerSet: null, loadKg: null, targetDurationSec: 600 });
+    const e = exercise({ trackingMode: 'CARDIO_TIME', unit: 'seconds', rangeMax: 10800 });
+    expect(ok({ targetDurationSec: 10800 }, l, e).target.targetDurationSec).toBe(10800);
+    for (const v of [10801, 0, 59.5]) expect(bad({ targetDurationSec: v }, l, e)).toEqual(['targetDurationSec']);
+  });
+  it('distance mode: 100 accepted; 100.01, 0 and 5.123 rejected (07a-10)', () => {
+    const l = latest({ targetSets: null, targetRepsPerSet: null, loadKg: null, targetDistanceKm: 5 });
+    const e = exercise({ trackingMode: 'CARDIO_DISTANCE', unit: 'km', rangeMax: 100 });
+    expect(ok({ targetDistanceKm: 100 }, l, e).target.targetDistanceKm).toBe(100);
+    for (const v of [100.01, 0, 5.123]) expect(bad({ targetDistanceKm: v }, l, e)).toEqual(['targetDistanceKm']);
+  });
+  it('the merged total is checked against the snapshot Valid Range (07a-11)', () => {
+    const l = latest({ targetSets: 10, targetRepsPerSet: 5 });
+    const e = exercise({ rangeMax: 100 });
+    expect(bad({ targetRepsPerSet: 21 }, l, e)).toEqual(['targetRepsPerSet']);
+    expect(ok({ targetRepsPerSet: 10 }, l, e).target.targetRepsPerSet).toBe(10);
+  });
+  it('priorityWeight 1 and 5 accepted; 0, 6, 2.5 and "3" rejected; repeatDays rules (07a-12)', () => {
+    for (const v of [1, 5]) expect(ok({ priorityWeight: v }).priorityWeight).toBe(v);
+    for (const v of [0, 6, 2.5, '3']) expect(bad({ priorityWeight: v })).toEqual(['priorityWeight']);
+    for (const v of [[], [0], [8], [1, 1], 'Mon']) expect(bad({ repeatDays: v })).toEqual(['repeatDays']);
+    expect(ok({ repeatDays: [5, 1, 3] }).repeatDays).toEqual([1, 3, 5]);
+  });
+  it('a target field of another mode is rejected, naming it (07a-12)', () => {
+    expect(bad({ targetDistanceKm: 3 })).toEqual(['targetDistanceKm']);
+  });
+  it('effectiveFrom must equal today; endDate must not precede today (07a-13)', () => {
+    expect(ok({ effectiveFrom: TODAY }).effectiveFrom).toBe(TODAY);
+    for (const v of ['2026-11-11', '2026-11-13']) expect(bad({ effectiveFrom: v })).toEqual(['effectiveFrom']);
+    expect(bad({ endDate: '2026-11-11' })).toEqual(['endDate']);
+    expect(bad({ endDate: '2026-13-45' })).toEqual(['endDate']);
+    expect(ok({ endDate: TODAY }).endDate).toBe(TODAY);
+    expect(ok({ endDate: null }, latest({ endDate: '2026-11-20' })).endDate).toBeNull();
+  });
+  it('body shape: empty, array, non-object and unknown or non-editable fields (07a-14)', () => {
+    for (const v of [{}, [], 'x', null]) expect(bad(v)).toEqual(['body']);
+    for (const f of ['userId', 'userExerciseId', 'planKey', 'version', 'source', 'exercise', 'id']) {
+      expect(bad({ [f]: 'x', targetSets: 5 })).toEqual([f]);
+    }
+  });
+  it('an item that has ended or has not started is rejected, naming id (R10, 07a-15)', () => {
+    expect(bad({ priorityWeight: 4 }, latest({ endDate: '2026-11-10' }))).toEqual(['id']);
+    expect(bad({ priorityWeight: 4 }, latest({ effectiveFrom: '2026-11-20' }))).toEqual(['id']);
+  });
+  it('body shape is answered before R10, R10 before merged-value validation (07a-18)', () => {
+    const ended = latest({ endDate: '2026-11-10' });
+    expect(bad({ foo: 1 }, ended)).toEqual(['foo']);
+    expect(bad({ targetSets: 99 }, ended)).toEqual(['id']);
   });
 });

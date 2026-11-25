@@ -69,6 +69,22 @@ export type CreatePlanItemInput = {
 export const createPlanItem = (input: CreatePlanItemInput) =>
   apiFetch<PlanEntry>('/api/plan-items', { method: 'POST', body: JSON.stringify(input) })
 
+// Body of PUT /api/plan-items/:id (F-07 §4.2): any subset of the editable fields; `endDate: null` clears the end date.
+export type UpdatePlanItemInput = {
+  priorityWeight?: number
+  targetSets?: number
+  targetRepsPerSet?: number
+  loadKg?: number
+  targetDurationSec?: number
+  targetDistanceKm?: number
+  repeatDays?: number[]
+  endDate?: string | null
+}
+
+// Inserts a new version that applies from today; the response is that new version.
+export const updatePlanItem = (id: string, input: UpdatePlanItemInput) =>
+  apiFetch<PlanEntry>(`/api/plan-items/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) })
+
 export const WEEKDAYS = [
   { day: 1, short: 'Mon' },
   { day: 2, short: 'Tue' },
@@ -126,4 +142,4 @@ export function formatDateRange(item: Pick<PlanItem, 'effectiveFrom' | 'endDate'
 }
 
 // Pure occurrence logic lives in occurrence.ts (no imports, so it can be unit-tested outside the web build).
-export { itemsOn } from './occurrence'
+export { editState, itemsOn, latestVersionOf } from './occurrence'

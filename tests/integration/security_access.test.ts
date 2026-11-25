@@ -404,9 +404,9 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       await prisma.userExercise.deleteMany({ where: { id: { in: [aliceExerciseId, bobExerciseId] } } });
     });
 
-    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-05 / F-06 only (a new feature must get a stage 2 case)', () => {
+    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-05 / F-06 / F-07 only (a new feature must get a stage 2 case)', () => {
       const features = new Set(realPolicies().map((p) => p.featureId));
-      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'SYS-01']);
+      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'F-07', 'SYS-01']);
     });
 
     it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
@@ -417,6 +417,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ...Array(2).fill('F-05'),
         'F-06', // GET /api/progress/daily
         'F-06', // GET /api/progress/monthly (Sprint 2, issue #75)
+        'F-07',
       ].sort());
       const token = await manager();
       const before = await snapshot();
@@ -451,12 +452,13 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     it('TEST-12c (aggregate): every real resource-owner route has a case; Alice on Bob\'s record → 403, Bob → 200, unknown id → 404', async () => {
       const ids: Record<string, string> = { '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId };
       const routes = realPolicies().filter((p) => p.ownership === 'resource-owner');
-      // GET /api/plan-items/:id, and GET / PUT / DELETE /api/entries/:id (F-05 adds the last two).
+      // GET and PUT /api/plan-items/:id (F-07 adds the PUT), and GET / PUT / DELETE /api/entries/:id (F-05 adds the last two).
       expect(routes.map((p) => `${p.method} ${p.path}`).sort()).toEqual([
         'DELETE /api/entries/:id',
         'GET /api/entries/:id',
         'GET /api/plan-items/:id',
         'PUT /api/entries/:id',
+        'PUT /api/plan-items/:id',
       ]);
       const aliceToken = await bearerOf('alice@exercise.test');
       const bobToken = await bearerOf('bob@exercise.test');

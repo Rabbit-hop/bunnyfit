@@ -60,6 +60,8 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/plan-items', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/plan-items', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/plan-items/:id', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
+  // F-07 goal reconfiguration (Sprint 2): inserts a new version of an existing plan item; owner = PlanItem.userId.
+  { method: 'PUT', path: '/api/plan-items/:id', featureId: 'F-07', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
   { method: 'GET', path: '/api/user-exercises', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/plan', featureId: 'F-03', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   // F-04 daily logging - Participant only.

@@ -1,6 +1,8 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { maskToIsoDays, isoDaysToMask, type TargetFields } from '../domain/planValidation.js';
 import type { CustomExercise } from '../domain/customExercise.js';
+import { appError } from '../domain/errors.js';
+import type { NextVersionFields } from '../domain/planVersion.js';
 import type { TemplateRecord } from './libraryRepository.js';
 
 /** `UserExercise` as returned by the API (F-03 §4.4): never `userId`. */
@@ -67,6 +69,17 @@ export interface PlanRepository {
   /** The user's own exercise snapshots, sorted by name. */
   listUserExercises(userId: string): Promise<UserExerciseRecord[]>;
   findPlanItem(id: string): Promise<PlanItemWithExercise | null>;
+  /**
+   * F-07 R2, R13: in one transaction that first locks the `UserExercise` row, reads the latest version
+   * (highest `version`) of `planKey`, lets `build` merge and validate the change (it throws to reject;
+   * nothing is stored then), and inserts version + 1. No existing row is ever updated (R1).
+   */
+  insertNextVersion(
+    userId: string,
+    userExerciseId: string,
+    planKey: string,
+    build: (latest: PlanItemRecord, exercise: UserExerciseRecord) => NextVersionFields,
+  ): Promise<PlanItemWithExercise>;
   /** Owner of a plan item, or null if it does not exist (route ownership check). */
   findPlanItemOwner(id: string): Promise<string | null>;
   /**
@@ -168,6 +181,30 @@ export function createPrismaPlanRepository(prisma: PrismaClient): PlanRepository
       if (!row) return null;
       const { userExercise, ...item } = row;
       return { planItem: toPlanItemRecord(item), userExercise: toUserExerciseRecord(userExercise) };
+    },
+
+    async insertNextVersion(userId, userExerciseId, planKey, build) {
+      return prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "UserExercise" WHERE "id" = ${userExerciseId}::uuid FOR UPDATE`;
+        const latest = await tx.planItem.findFirst({ where: { planKey, userId }, orderBy: { version: 'desc' } });
+        if (!latest) throw appError('NOT_FOUND', 'Plan item not found.');
+        const exercise = await tx.userExercise.findUniqueOrThrow({ where: { id: userExerciseId } });
+        const next = build(toPlanItemRecord(latest), toUserExerciseRecord(exercise));
+        const created = await tx.planItem.create({
+          data: {
+            userId,
+            userExerciseId,
+            planKey,
+            version: latest.version + 1,
+            priorityWeight: next.priorityWeight,
+            ...next.target,
+            effectiveFrom: toDate(next.effectiveFrom),
+            endDate: next.endDate ? toDate(next.endDate) : null,
+            repeatDays: isoDaysToMask(next.repeatDays),
+          },
+        });
+        return { planItem: toPlanItemRecord(created), userExercise: toUserExerciseRecord(exercise) };
+      });
     },
 
     async findPlanItemOwner(id) {
