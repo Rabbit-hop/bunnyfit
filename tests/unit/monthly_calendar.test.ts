@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monthCells, monthSummary, shiftMonth, type MonthlyProgress } from '../../web/src/lib/progress.js'
+import { monthCells, monthSummary, shiftMonth, type MonthlyProgress } from '../../web/src/lib/monthGrid.js'
 
 // Supplementary unit coverage for the S-06 Monthly Progress screen (ui-spec S-06, F-06 §6 month card,
 // issue #75 Part 1). Not RTM evidence for AC-15: that AC is proven by the API and unit tests named in
