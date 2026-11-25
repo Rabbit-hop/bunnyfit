@@ -62,8 +62,9 @@ test('S-06: the Progress button opens the screen; month card shows the average a
   await expect(page.getByTestId('month-title')).toHaveText('November 2026')
   await expect(page.getByTestId('month-average')).toHaveText('64.3%')
   await expect(page.getByTestId('month-detail')).toHaveText('2 targeted days counted, 1 rest day excluded')
-  // The first request lets the server choose the month (server date, never the browser clock).
-  expect(requested[0]).toBe('(default)')
+  // The first monthly request lets the server choose the month (server date, never the browser clock). Only monthly
+  // requests are checked: Today's own GET /api/progress/daily can still be in flight after login and is recorded too.
+  expect(requested.filter((r) => !r.startsWith('daily '))[0]).toBe('(default)')
 })
 
 test('S-06: day states (TARGETED percentage, REST, FUTURE disabled, before the plan disabled) and no next month past the current one', async ({ page }) => {
