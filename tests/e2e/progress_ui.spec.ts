@@ -118,14 +118,16 @@ test('S-06: selecting a day opens a read-only drawer from GET /api/progress/dail
 })
 
 test('S-06: a server error shows the error notice and Retry loads the month', async ({ page }) => {
-  let failures = 1
+  // Fail until Retry is pressed: the dev build runs React StrictMode, which loads the page twice.
+  let failing = true
   await login(page)
   await page.route('**/api/progress/monthly**', async (route) => {
-    if (failures-- > 0) return route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR', message: 'boom', fields: [] } })
+    if (failing) return route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR', message: 'boom', fields: [] } })
     return route.fulfill({ json: NOVEMBER })
   })
   await page.goto('/progress')
   await expect(page.getByTestId('error-notice')).toHaveText('Something went wrong. Please try again.')
+  failing = false
   await page.getByTestId('progress-retry').click()
   await expect(page.getByTestId('month-average')).toHaveText('64.3%')
 })
