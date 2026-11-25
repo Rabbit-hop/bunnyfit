@@ -17,6 +17,7 @@ import type { EntryRepository } from './repositories/entryRepository.js';
 import { registerPlanRoutes } from './routes/plan.js';
 import { registerProfileRoutes } from './routes/profile.js';
 import type { ProfileRepository } from './repositories/profileRepository.js';
+import { registerHistoryRoutes } from './routes/history.js';
 import { registerProgressRoutes } from './routes/progress.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { createRouteRegistrar } from './routes/register.js';
@@ -103,6 +104,7 @@ export function createApp(options: AppOptions = {}): Express {
         clock: options.clock,
       });
     }
+    registerHistoryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
   }
 
   if (options.profiles && options.clock) {
