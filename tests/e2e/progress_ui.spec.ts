@@ -234,3 +234,15 @@ test('S-06: after midnight on the last day of the month, a visible tab on the ol
   await expect(page.getByTestId('month-title')).toHaveText('November 2026')
   await expect(page.getByTestId('month-next')).toBeEnabled()
 })
+
+// Review of PR #119: the drawer has no focus trap, so a keyboard user can reach the month buttons behind it.
+test('S-06: changing the month from the keyboard while a day drawer is open closes the drawer', async ({ page }) => {
+  await login(page)
+  await mockProgress(page, [])
+  await page.goto('/progress')
+  await page.getByTestId('month-day-2026-11-03').click()
+  await expect(page.getByTestId('day-drawer-overall')).toHaveText('75.0%')
+  await page.getByTestId('month-prev').press('Enter')
+  await expect(page.getByTestId('month-title')).toHaveText('October 2026')
+  await expect(page.getByTestId('day-drawer')).toHaveCount(0)
+})
