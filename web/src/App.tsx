@@ -11,6 +11,7 @@ import { HistoryPage } from './pages/HistoryPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanPage } from './pages/PlanPage'
+import { SchedulePage } from './pages/SchedulePage'
 import { TodayPage } from './pages/TodayPage'
 import { WelcomePage } from './pages/WelcomePage'
 
@@ -103,6 +104,14 @@ export default function App() {
             element={
               <Guard role="PARTICIPANT">
                 <PlanPage />
+              </Guard>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <Guard role="PARTICIPANT">
+                <SchedulePage />
               </Guard>
             }
           />

@@ -2049,3 +2049,110 @@ button.bottom-nav-item {
 .history-range {
   margin: 0.5rem 0;
 }
+
+/* F-09 Schedule & reminders (contract §6) */
+.schedule-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.schedule-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.schedule-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.schedule-days,
+.reminder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.schedule-day {
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.schedule-today {
+  outline: 2px solid var(--color-primary);
+}
+
+.schedule-date {
+  font-weight: 600;
+}
+
+.reminder-notice {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--color-sky);
+  font-size: 0.9rem;
+}
+
+.reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.reminder-off .reminder-time,
+.reminder-off .reminder-label {
+  opacity: 0.55;
+}
+
+.reminder-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 3.5rem;
+}
+
+.reminder-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.reminder-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .schedule-day {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+  .reminder-row {
+    flex-wrap: wrap;
+  }
+}
