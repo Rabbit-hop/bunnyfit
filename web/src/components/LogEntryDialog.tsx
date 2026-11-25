@@ -17,6 +17,10 @@ type Props = {
   actual: number
   onClose: () => void
   onSaved: (entry: LedgerEntry | null) => void
+  /** Edit mode (F-05): the entry created today whose values are replaced by a PUT. */
+  entry?: LedgerEntry
+  /** F-05: the server answered ENTRY_NOT_EDITABLE (409) or NOT_FOUND (404); the page shows the notice and reloads. */
+  onStale?: (kind: 'not-editable' | 'gone') => void
   /** LOG_DATE_MISMATCH: the page reloads Today (UI spec §3.5). */
   onDateMismatch: () => void
 }
@@ -41,13 +45,15 @@ export function remainingToday(unit: Unit, rangeMax: number, actual: number): nu
 
 const toInt = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN)
 
-export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDateMismatch }: Props) {
+export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDateMismatch, entry, onStale }: Props) {
   const { unit } = exercise
-  const [sets, setSets] = useState('')
-  const [reps, setReps] = useState('')
-  const [minutes, setMinutes] = useState('')
-  const [seconds, setSeconds] = useState('')
-  const [distance, setDistance] = useState('')
+  const editing = entry !== undefined
+  // Edit mode shows the stored values exactly (Sets and Total reps: a stored entry need not be sets x reps per set).
+  const [sets, setSets] = useState(entry?.sets != null ? String(entry.sets) : '')
+  const [reps, setReps] = useState(entry?.totalReps != null ? String(entry.totalReps) : '')
+  const [minutes, setMinutes] = useState(entry?.durationSec != null ? String(Math.floor(entry.durationSec / 60)) : '')
+  const [seconds, setSeconds] = useState(entry?.durationSec != null ? String(entry.durationSec % 60) : '')
+  const [distance, setDistance] = useState(entry?.distanceKm != null ? String(entry.distanceKm) : '')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const [pending, setPending] = useState(false)
@@ -76,18 +82,23 @@ export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDat
   const distanceN = /^\d+(\.\d{1,2})?$/.test(distance.trim()) ? Number(distance.trim()) : NaN
 
   let preview = ''
-  if (unit === 'reps' && setsN > 0 && repsN > 0) preview = `Adds ${setsN * repsN} reps (${setsN} x ${repsN})`
-  if (unit === 'seconds' && totalSeconds > 0) preview = `Adds ${formatQuantity(totalSeconds, 'seconds')}`
-  if (unit === 'km' && distanceN > 0) preview = `Adds ${formatQuantity(distanceN, 'km')}`
+  const verb = editing ? 'Sets the entry to' : 'Adds'
+  if (unit === 'reps' && setsN > 0 && repsN > 0) {
+    preview = editing ? `${verb} ${repsN} reps in ${setsN} sets` : `Adds ${setsN * repsN} reps (${setsN} x ${repsN})`
+  }
+  if (unit === 'seconds' && totalSeconds > 0) preview = `${verb} ${formatQuantity(totalSeconds, 'seconds')}`
+  if (unit === 'km' && distanceN > 0) preview = `${verb} ${formatQuantity(distanceN, 'km')}`
 
-  const remaining = remainingToday(unit, exercise.rangeMax, actual)
+  // The entry being edited is replaced, so its own value does not count against the day's limit (F-05 R5).
+  const ownValue = entry ? (unit === 'seconds' ? entry.durationSec : unit === 'km' ? entry.distanceKm : entry.totalReps) ?? 0 : 0
+  const remaining = remainingToday(unit, exercise.rangeMax, Math.max(0, actual - ownValue))
 
   // The client checks only required, numeric, integer and > 0 (UI spec §3.4); the server owns the limits.
   function validate(): Record<string, string> {
     const errors: Record<string, string> = {}
     if (unit === 'reps') {
       if (!(setsN > 0)) errors.sets = 'Sets: enter a whole number greater than 0.'
-      if (!(repsN > 0)) errors.totalReps = 'Reps per set: enter a whole number greater than 0.'
+      if (!(repsN > 0)) errors.totalReps = editing ? 'Total reps: enter a whole number greater than 0.' : 'Reps per set: enter a whole number greater than 0.'
     } else if (unit === 'seconds') {
       if (Number.isNaN(totalSeconds) || totalSeconds <= 0) errors.durationSec = 'Duration: enter minutes and/or seconds greater than 0.'
     } else if (!(distanceN > 0)) {
@@ -106,14 +117,16 @@ export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDat
 
     const body =
       unit === 'reps'
-        ? { sets: setsN, totalReps: setsN * repsN }
+        ? { sets: setsN, totalReps: editing ? repsN : setsN * repsN }
         : unit === 'seconds'
           ? { durationSec: totalSeconds }
           : { distanceKm: distanceN }
 
     setPending(true)
     try {
-      const result = await todayApi.createEntry({ userExerciseId: exercise.id, logDate: date, ...body })
+      const result = entry
+        ? await todayApi.updateEntry(entry.id, body)
+        : await todayApi.createEntry({ userExerciseId: exercise.id, logDate: date, ...body })
       onSaved(result.entry)
     } catch (error) {
       const { code, message, fields } = describeError(error, 'log')
@@ -123,11 +136,16 @@ export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDat
         onDateMismatch()
         return
       }
+      if (editing && (code === 'ENTRY_NOT_EDITABLE' || code === 'NOT_FOUND')) {
+        onStale?.(code === 'NOT_FOUND' ? 'gone' : 'not-editable')
+        return
+      }
       // Entered values stay in place after a rejected submit (UI spec §3.4).
       const mapped: Record<string, string> = {}
       const formLevel: string[] = []
       for (const f of fields) {
-        const text = `${FIELD_LABEL[f.field] ?? f.field}: ${f.limit ?? 'invalid value'}`
+        const label = editing && f.field === 'totalReps' ? 'Total reps' : FIELD_LABEL[f.field] ?? f.field
+        const text = `${label}: ${f.limit ?? 'invalid value'}`
         if (f.field in FIELD_LABEL) mapped[f.field] = text
         else formLevel.push(text)
       }
@@ -145,20 +163,20 @@ export function LogEntryDialog({ exercise, date, actual, onClose, onSaved, onDat
 
   return (
     <div className="dialog-backdrop" data-testid="log-dialog">
-      <form className="dialog log-dialog" role="dialog" aria-modal="true" aria-labelledby="log-title" onSubmit={onSubmit} noValidate>
-        <h3 id="log-title">Log activity - {exercise.name}</h3>
+      <form className="dialog log-dialog" role="dialog" aria-modal="true" aria-labelledby="log-title" onSubmit={onSubmit} noValidate data-testid={editing ? 'entry-edit-form' : undefined}>
+        <h3 id="log-title">{editing ? 'Edit activity' : 'Log activity'} - {exercise.name}</h3>
         {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
 
         {unit === 'reps' && (
           <>
             <div className="field">
               <label htmlFor="log-sets">Sets</label>
-              <input id="log-sets" data-testid="log-sets" inputMode="numeric" ref={firstRef} value={sets} onChange={(e) => setSets(e.target.value)} />
+              <input id="log-sets" data-testid={editing ? 'entry-edit-sets' : 'log-sets'} inputMode="numeric" ref={firstRef} value={sets} onChange={(e) => setSets(e.target.value)} />
               {err('sets')}
             </div>
             <div className="field">
-              <label htmlFor="log-reps">Reps per set</label>
-              <input id="log-reps" data-testid="log-reps" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+              <label htmlFor="log-reps">{editing ? 'Total reps' : 'Reps per set'}</label>
+              <input id="log-reps" data-testid={editing ? 'entry-edit-total-reps' : 'log-reps'} inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
               {err('totalReps')}
             </div>
           </>

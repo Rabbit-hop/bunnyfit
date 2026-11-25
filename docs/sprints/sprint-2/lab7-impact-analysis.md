@@ -42,7 +42,7 @@ Requirement and document column: where the rule or a number derived from it is w
 | System SDS | none: the System SDS does not state the category name length | `docs/system-sds.md` (`grep -i category` on the file shows the Category entity row, line 184: "`name` unique; grouping label only", with no length) | none | - |
 | API spec | `POST` / `PUT /api/categories` rule line | `docs/sprints/sprint-1/api-spec.md` §4.1 (line 365) and traceability row (line 627) | rule text and AC list | api-spec 0.6.4 (this PR) |
 | UI spec | category name input | `docs/sprints/sprint-1/ui-spec.md`: no category length stated (line 250 is the template form: name 1–80, body part 1–50) | none; the F-02 §6 note carries the `maxLength` | - |
-| RTM | FR-02 row, §3 counts, §3.1 register | `docs/traceability.md` | AC-02e added, PLANNED; counts 46 → 47 and 80 → 81 | RTM 1.1.12 (this PR) |
+| RTM | FR-02 row, §3 counts, §3.1 register | `docs/traceability.md` | AC-02e added, PLANNED; counts 46 → 47 and 80 → 81 | RTM 1.1.15 (this PR) |
 | Acceptance criteria | new **AC-02e**; AC-02a, 02b, 02c, 02d unchanged | F-02 §7, RTM FR-02 | see §3 of this file | this PR |
 | STS test IDs | new TEST-02e-1 … 02e-6 (+ supplementary SUP-02e-7) | `tests/integration/manager_template.test.ts` (the RTM path of AC-02) | to be written in the red-test commit, not in this PR | #91 |
 | Code: server | `validateCategoryBody`: `name.length > 50`, limit text `1-50 characters`, comment "1-50 characters" | `server/domain/libraryValidation.ts:4,17` | constant 50 → 30 in the condition, the limit text and the comment | #91 |
