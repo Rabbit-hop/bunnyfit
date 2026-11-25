@@ -10,6 +10,7 @@ import { createPrismaLibraryRepository } from '../../server/repositories/library
 import { createPrismaEntryRepository } from '../../server/repositories/entryRepository.js';
 import { createPrismaPlanRepository } from '../../server/repositories/planRepository.js';
 import { createPrismaProfileRepository } from '../../server/repositories/profileRepository.js';
+import { createPrismaReminderRepository } from '../../server/repositories/reminderRepository.js';
 
 export const TEST_SECRET = 'integration-test-secret-0123456789abcdef';
 export const databaseUrl = process.env.DATABASE_URL_TEST;
@@ -52,6 +53,7 @@ export function buildIntegrationApp(prisma: PrismaClient, clock: Clock): Express
     plans: createPrismaPlanRepository(prisma),
     entries: createPrismaEntryRepository(prisma),
     profiles: createPrismaProfileRepository(prisma),
+    reminders: createPrismaReminderRepository(prisma),
     clock,
     probeOwnerLookup: async (id) => (await repo.findUserById(id))?.id ?? null,
   });

@@ -20,6 +20,8 @@ import type { ProfileRepository } from './repositories/profileRepository.js';
 import { registerHistoryRoutes } from './routes/history.js';
 import { registerProgressRoutes } from './routes/progress.js';
 import { registerProbeRoutes } from './routes/probe.js';
+import { registerReminderRoutes } from './routes/reminders.js';
+import type { ReminderRepository } from './repositories/reminderRepository.js';
 import { createRouteRegistrar } from './routes/register.js';
 import { activePolicies, findRoutePolicy } from './routes/registry.js';
 
@@ -38,6 +40,8 @@ export interface AppOptions {
   entries?: EntryRepository;
   /** Profile and body weight storage (F-04, Sprint 2); its routes are mounted only when provided with `clock`. */
   profiles?: ProfileRepository;
+  /** Reminder settings storage (F-09, Sprint 3); its routes are mounted only when provided. */
+  reminders?: ReminderRepository;
   /** Source of business "today" for the plan routes. */
   clock?: Clock;
   /** Owner lookup for the `/__test/owned/:id` probes (test env only). */
@@ -101,6 +105,10 @@ export function createApp(options: AppOptions = {}): Express {
 
   if (options.profiles && options.clock) {
     registerProfileRoutes(registrar, policies, { profiles: options.profiles, clock: options.clock });
+  }
+
+  if (options.reminders) {
+    registerReminderRoutes(registrar, policies, { reminders: options.reminders });
   }
 
   if (nodeEnv === 'test' && options.auth && options.probeOwnerLookup) {

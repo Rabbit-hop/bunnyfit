@@ -80,6 +80,11 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   // F-08 history and streak (Sprint 2) - Participant only, own data from the token, read-only.
   { method: 'GET', path: '/api/history', featureId: 'F-08', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
   { method: 'GET', path: '/api/streak', featureId: 'F-08', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  // F-09 reminder settings (Sprint 3) - Participant only, display only; PUT/DELETE owner only.
+  { method: 'GET', path: '/api/reminders', featureId: 'F-09', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  { method: 'POST', path: '/api/reminders', featureId: 'F-09', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' },
+  { method: 'PUT', path: '/api/reminders/:id', featureId: 'F-09', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
+  { method: 'DELETE', path: '/api/reminders/:id', featureId: 'F-09', auth: 'required', roles: ['PARTICIPANT'], ownership: 'resource-owner' },
 ];
 
 /**
