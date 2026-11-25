@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { LogEntryDialog } from '../components/LogEntryDialog'
 import { ModeTile } from '../components/ModeTile'
+import { messageForCode } from '../lib/api'
 import { WeekRow } from '../components/WeekRow'
+import { WeightChip } from '../components/WeightChip'
 import {
   KIND_LABEL,
   MODE_LABEL,
@@ -27,13 +29,25 @@ import {
 type LoadState = 'loading' | 'ready' | 'error'
 type Snapshot = { daily: DailyProgress; entries: LedgerEntry[]; cumulative: Cumulative[]; exercises: UserExercise[] }
 
-type LogTarget = { exercise: UserExercise }
+type LogTarget = { exercise: UserExercise; entry?: LedgerEntry }
 
 const NOT_AVAILABLE = 'Quick Complete is not available for this exercise today'
 // Tapping another day in the week row only explains this; Today has no screen for other days.
 const OTHER_DAY = "Only today's activity can be viewed and logged."
 
-function EntryList({ entries, unit, scored, testId, empty }: { entries: LedgerEntry[]; unit: UserExercise['unit']; scored: boolean; testId: string; empty: string }) {
+type EntryListProps = {
+  entries: LedgerEntry[]
+  unit: UserExercise['unit']
+  scored: boolean
+  testId: string
+  empty: string
+  /** F-05: today's date; only entries of this date show the edit and delete buttons. */
+  today: string
+  onEdit: (entry: LedgerEntry) => void
+  onDelete: (entry: LedgerEntry) => void
+}
+
+function EntryList({ entries, unit, scored, testId, empty, today, onEdit, onDelete }: EntryListProps) {
   if (entries.length === 0) return <p className="empty-state" data-testid={testId}>{empty}</p>
   return (
     <ul className="entry-list" data-testid={testId}>
@@ -43,6 +57,16 @@ function EntryList({ entries, unit, scored, testId, empty }: { entries: LedgerEn
           <span>{formatQuantity(entryValue(e, unit), unit)}</span>
           <span className="badge">{KIND_LABEL[e.kind]}</span>
           {!scored && <span className="badge badge-muted">not scored</span>}
+          {e.logDate === today && (
+            <span className="entry-actions">
+              <button type="button" className="entry-action" data-testid="entry-edit" aria-label="Edit entry" title="Edit" onClick={() => onEdit(e)}>
+                Edit
+              </button>
+              <button type="button" className="entry-action entry-action-danger" data-testid="entry-delete" aria-label="Delete entry" title="Delete" onClick={() => onDelete(e)}>
+                Delete
+              </button>
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -59,6 +83,9 @@ export function TodayPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [entryNotice, setEntryNotice] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<LedgerEntry | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
   const loadSeq = useRef(0)
 
@@ -113,6 +140,32 @@ export function TodayPage() {
     }
   }
 
+  /** F-05: the server refused (409) or no longer has (404) the entry; say why, change nothing and reload Today. */
+  function entryStale(kind: 'not-editable' | 'gone') {
+    setEntryNotice(kind === 'gone' ? 'This entry no longer exists.' : messageForCode('ENTRY_NOT_EDITABLE'))
+    void load(true)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await todayApi.deleteEntry(deleteTarget.id)
+      setDeleteTarget(null)
+      setToast('Entry deleted')
+      setEntryNotice('')
+      await load(true)
+    } catch (error) {
+      const { code, message } = describeError(error, 'log')
+      setDeleteTarget(null)
+      if (code === 'ENTRY_NOT_EDITABLE') entryStale('not-editable')
+      else if (code === 'NOT_FOUND') entryStale('gone')
+      else setEntryNotice(message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   function toggle(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -159,6 +212,10 @@ export function TodayPage() {
   const entriesOf = (id: string) => entries.filter((e) => e.userExerciseId === id)
   const cumOf = (id: string) => cumulative.find((c) => c.userExerciseId === id)
   const exerciseOf = (id: string) => exercises.find((e) => e.id === id)
+  const editEntry = (entry: LedgerEntry) => {
+    const exercise = exerciseOf(entry.userExerciseId)
+    if (exercise) setLogTarget({ exercise, entry })
+  }
 
   function openLog(item: DailyItem) {
     const exercise = exerciseOf(item.userExerciseId)
@@ -217,7 +274,7 @@ export function TodayPage() {
           <button type="button" className="entries-toggle" data-testid="item-entries-toggle" aria-expanded={open} onClick={() => toggle(item.userExerciseId)}>
             Entries
           </button>
-          {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty="No entries yet today." />}
+          {open && <EntryList entries={own} unit={item.unit} scored testId="item-entries" empty="No entries yet today." today={daily.date} onEdit={editEntry} onDelete={setDeleteTarget} />}
         </li>
     )
   }
@@ -232,6 +289,7 @@ export function TodayPage() {
         <p className="today-date" data-testid="today-date" data-date={daily.date}>
           {formatLongDate(daily.date)}
         </p>
+        {!isMockToday && <WeightChip />}
         {isMockToday && <p className="mock-banner" data-testid="mock-banner">Showing mock data (not connected to the API).</p>}
         {toast && (
           <p className="toast" role="status" data-testid="today-toast">
@@ -239,6 +297,11 @@ export function TodayPage() {
           </p>
         )}
         {notice && <ErrorNotice ref={noticeRef}>{notice}</ErrorNotice>}
+        {entryNotice && (
+          <div data-testid="entry-notice">
+            <ErrorNotice>{entryNotice}</ErrorNotice>
+          </div>
+        )}
 
         <WeekRow today={daily.date} onOtherDay={() => setToast(OTHER_DAY)} />
 
@@ -309,7 +372,7 @@ export function TodayPage() {
                 <p className="muted" id={`why-${exercise.id}`}>
                   {NOT_AVAILABLE}
                 </p>
-                {expanded.has(exercise.id) && <EntryList entries={entriesOf(exercise.id)} unit={exercise.unit} scored={false} testId="rest-day-entries" empty="No entries yet today." />}
+                {expanded.has(exercise.id) && <EntryList entries={entriesOf(exercise.id)} unit={exercise.unit} scored={false} testId="rest-day-entries" empty="No entries yet today." today={daily.date} onEdit={editEntry} onDelete={setDeleteTarget} />}
               </li>
             ))}
           </ul>
@@ -352,11 +415,18 @@ export function TodayPage() {
           exercise={logTarget.exercise}
           date={daily.date}
           actual={cumulativeValue(cumOf(logTarget.exercise.id), logTarget.exercise.unit)}
+          entry={logTarget.entry}
           onClose={() => setLogTarget(null)}
           onSaved={() => {
+            const wasEdit = logTarget.entry !== undefined
             setLogTarget(null)
-            setToast('Activity logged.')
+            setEntryNotice('')
+            setToast(wasEdit ? 'Entry updated' : 'Activity logged.')
             void load(true)
+          }}
+          onStale={(kind) => {
+            setLogTarget(null)
+            entryStale(kind)
           }}
           onDateMismatch={() => {
             setLogTarget(null)
@@ -364,6 +434,21 @@ export function TodayPage() {
             void load(true)
           }}
         />
+      )}
+      {deleteTarget && (
+        <div className="dialog-backdrop" data-testid="entry-delete-dialog">
+          <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="entry-delete-title">
+            <h3 id="entry-delete-title">Delete this entry?</h3>
+            <div className="row-actions">
+              <button type="button" className="btn btn-secondary" data-testid="entry-delete-cancel" disabled={deleting} onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" data-testid="entry-delete-confirm" disabled={deleting} onClick={() => void confirmDelete()}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   )

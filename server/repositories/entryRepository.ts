@@ -52,10 +52,24 @@ export interface EntryRepository {
   withExerciseLock<T>(userExerciseId: string, fn: (scope: EntryScope) => Promise<T>): Promise<T>;
 }
 
+/** The measured columns a PUT replaces (F-05 R4); everything else on the row is immutable (R6). */
+export interface EntryValues {
+  sets: number | null;
+  totalReps: number | null;
+  durationSec: number | null;
+  distanceKm: number | null;
+}
+
 /** The reads/writes available while an exercise row is locked. */
 export interface EntryScope {
   listDayEntries(userId: string, date: string): Promise<EntryRecord[]>;
   insert(input: InsertEntry): Promise<EntryRecord>;
+  /** F-05 R8: the entry is re-read inside the lock; null when a concurrent DELETE won. */
+  findEntry(id: string): Promise<EntryRecord | null>;
+  /** F-05 R4: replaces only the measured columns of one row. */
+  updateValues(id: string, values: EntryValues): Promise<EntryRecord>;
+  /** F-05 R7: removes exactly one row. */
+  remove(id: string): Promise<void>;
 }
 
 const toDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -103,6 +117,28 @@ function createScope(client: EntryClient): EntryScope {
       });
       return toEntryRecord(row);
     },
+
+    async findEntry(id) {
+      const row = await client.ledgerEntry.findUnique({ where: { id } });
+      return row ? toEntryRecord(row) : null;
+    },
+
+    async updateValues(id, values) {
+      const row = await client.ledgerEntry.update({
+        where: { id },
+        data: {
+          sets: values.sets,
+          totalReps: values.totalReps,
+          durationSec: values.durationSec,
+          distanceKm: values.distanceKm,
+        },
+      });
+      return toEntryRecord(row);
+    },
+
+    async remove(id) {
+      await client.ledgerEntry.delete({ where: { id } });
+    },
   };
 }
 
@@ -117,11 +153,6 @@ export function createPrismaEntryRepository(prisma: PrismaClient): EntryReposito
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toEntryRecord);
-    },
-
-    async findEntry(id) {
-      const row = await prisma.ledgerEntry.findUnique({ where: { id } });
-      return row ? toEntryRecord(row) : null;
     },
 
     async findEntryOwner(id) {

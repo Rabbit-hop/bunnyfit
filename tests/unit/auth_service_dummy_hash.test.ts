@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAuthService } from '../../server/domain/authService.js';
 import { FixedClock } from '../../server/domain/clock.js';

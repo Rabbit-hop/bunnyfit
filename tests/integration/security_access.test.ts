@@ -404,16 +404,17 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       await prisma.userExercise.deleteMany({ where: { id: { in: [aliceExerciseId, bobExerciseId] } } });
     });
 
-    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-06 only (a new feature must get a stage 2 case)', () => {
+    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-05 / F-06 only (a new feature must get a stage 2 case)', () => {
       const features = new Set(realPolicies().map((p) => p.featureId));
-      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-06', 'SYS-01']);
+      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'SYS-01']);
     });
 
     it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
       const routes = realPolicies().filter((p) => p.roles.length === 1 && p.roles[0] === 'PARTICIPANT');
       expect(routes.map((p) => p.featureId).sort()).toEqual([
-        ...Array(4).fill('F-04'),
+        ...Array(6).fill('F-04'),
         ...Array(5).fill('F-03'),
+        ...Array(2).fill('F-05'),
         'F-06', // GET /api/progress/daily
         'F-06', // GET /api/progress/monthly (Sprint 2, issue #75)
       ].sort());
@@ -431,7 +432,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-06', 'F-06']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-06']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
@@ -450,7 +451,13 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     it('TEST-12c (aggregate): every real resource-owner route has a case; Alice on Bob\'s record → 403, Bob → 200, unknown id → 404', async () => {
       const ids: Record<string, string> = { '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId };
       const routes = realPolicies().filter((p) => p.ownership === 'resource-owner');
-      expect(routes.map((p) => p.path).sort()).toEqual(Object.keys(ids).sort());
+      // GET /api/plan-items/:id, and GET / PUT / DELETE /api/entries/:id (F-05 adds the last two).
+      expect(routes.map((p) => `${p.method} ${p.path}`).sort()).toEqual([
+        'DELETE /api/entries/:id',
+        'GET /api/entries/:id',
+        'GET /api/plan-items/:id',
+        'PUT /api/entries/:id',
+      ]);
       const aliceToken = await bearerOf('alice@exercise.test');
       const bobToken = await bearerOf('bob@exercise.test');
       const before = await snapshot();
@@ -462,7 +469,18 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         expect(foreign.status, `${p.method} ${p.path} as Alice`).toBe(403);
         expect(foreign.body).toEqual(FORBIDDEN);
         expect(JSON.stringify(foreign.body)).not.toContain(id!);
-        expect((await call(p.method, url(id!), bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(200);
+        if (p.method === 'GET') {
+          expect((await call(p.method, url(id!), bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(200);
+        } else if (p.method === 'PUT') {
+          // The owner is authorized: an empty body reaches validation (400), never 401 / 403.
+          expect((await call(p.method, url(id!), bobToken).send({})).status, `${p.method} ${p.path} as Bob`).toBe(400);
+        } else {
+          // Bob deletes a throwaway entry of his own (created after the snapshot, removed again).
+          const own = await prisma.ledgerEntry.create({
+            data: { userId: bobId, userExerciseId: bobExerciseId, logDate: day(today()), sets: 1, totalReps: 5, kind: 'MANUAL' },
+          });
+          expect((await call(p.method, url(own.id), bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(204);
+        }
         const missing = await call(p.method, url(randomUUID()), aliceToken);
         expect(missing.status, `${p.method} ${p.path} unknown id`).toBe(404);
         expect(missing.body.code).toBe('NOT_FOUND');
@@ -520,9 +538,11 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ['POST', '/api/entries/quick-complete'],
         ['GET', '/api/entries'],
         ['GET', '/api/entries/:id'],
+        ['GET', '/api/profile'],
+        ['PUT', '/api/profile'],
       ];
 
-      it('TEST-22c (F-04 routes): the registry holds the 4 Sprint 1 routes as F-04 / PARTICIPANT, resource-owner only on :id', () => {
+      it('TEST-22c (F-04 routes): the registry holds the 4 Sprint 1 routes and the 2 profile routes (Sprint 2) as F-04 / PARTICIPANT, resource-owner only on :id', () => {
         const policies = activePolicies('test');
         for (const [method, path] of F04) {
           const p = policies.find((x) => x.method === method && x.path === path);
@@ -532,7 +552,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
           expect(p?.roles).toEqual(['PARTICIPANT']);
           expect(p?.ownership).toBe(path === '/api/entries/:id' ? 'resource-owner' : 'self-scoped');
         }
-        expect(policies.filter((x) => x.featureId === 'F-04')).toHaveLength(4);
+        expect(policies.filter((x) => x.featureId === 'F-04')).toHaveLength(6);
       });
 
       it('TEST-22c / 12a (F-04 routes): no token → 401; Manager → 403 envelope only on every route, even with an invalid body; nothing stored', async () => {

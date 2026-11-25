@@ -15,6 +15,8 @@ import { registerLibraryRoutes } from './routes/library.js';
 import { registerEntryRoutes } from './routes/entries.js';
 import type { EntryRepository } from './repositories/entryRepository.js';
 import { registerPlanRoutes } from './routes/plan.js';
+import { registerProfileRoutes } from './routes/profile.js';
+import type { ProfileRepository } from './repositories/profileRepository.js';
 import { registerProgressRoutes } from './routes/progress.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { createRouteRegistrar } from './routes/register.js';
@@ -33,6 +35,8 @@ export interface AppOptions {
   plans?: PlanRepository;
   /** Entry storage (F-04); entry routes are mounted only when provided with `plans` and `clock`. */
   entries?: EntryRepository;
+  /** Profile and body weight storage (F-04, Sprint 2); its routes are mounted only when provided with `clock`. */
+  profiles?: ProfileRepository;
   /** Source of business "today" for the plan routes. */
   clock?: Clock;
   /** Owner lookup for the `/__test/owned/:id` probes (test env only). */
@@ -91,6 +95,10 @@ export function createApp(options: AppOptions = {}): Express {
   if (options.entries && options.plans && options.clock) {
     registerEntryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
     registerProgressRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
+  }
+
+  if (options.profiles && options.clock) {
+    registerProfileRoutes(registrar, policies, { profiles: options.profiles, clock: options.clock });
   }
 
   if (nodeEnv === 'test' && options.auth && options.probeOwnerLookup) {
