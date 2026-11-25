@@ -217,7 +217,14 @@ describeWithDatabase('F-06 daily progress API (real PostgreSQL)', () => {
     expect(before.body.overallPercent).toBe(50);
     expect(after.status).toBe(200);
     expect(after.body.overallPercent).toBe(before.body.overallPercent);
-    expect(after.body.items).toEqual(before.body.items);
+    expect(after.body.totalScore).toBe(before.body.totalScore);
+    // F-11 0.1.2 §4.1 adds `calories` / `calorieError` to each item; body weight is meant to change
+    // those (Decision 11) and only those, so every other item field must stay identical.
+    const withoutKcal = (items: Array<Record<string, unknown>>) =>
+      items.map(({ calories: _calories, calorieError: _calorieError, ...rest }) => rest);
+    expect(withoutKcal(after.body.items)).toEqual(withoutKcal(before.body.items));
+    expect(before.body.items[0].calories).toBe(12.3); // Alice's seeded 70.5 kg: 3.5 × 70.5 × 0.05 = 12.3375
+    expect(after.body.items[0].calories).toBe(21); // 3.5 × 120 × 0.05
   });
 
   it('TEST-06f-2: a second plan with a different loadKg for the same template leaves the first ratio unchanged', async () => {
