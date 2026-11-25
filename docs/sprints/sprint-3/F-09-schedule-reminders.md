@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-09
 **Sprint:**  3 (the Sprint 3 workflow implemented and tested for Deliverable 2 Part C; plan §6.3)
-**Contract Version:**  0.1.0
+**Contract Version:**  0.1.1
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, SRS 1.1.0, System-Level SDS 1.1.1, RTM 1.1.13, Sprint Plan 1.3.0, F-03 contract on `staging/sprint-2`, F-07 contract 0.1.2)
 **Date:**  26 November 2026
-**Status:**  Draft (review-pending). Concise contract for Deliverable 2 Part C: enough detail to control the implementation, not a frozen final design. No implementation is claimed. Open questions are in §13
+**Status:**  Draft (review-pending). Concise contract for Deliverable 2 Part C: enough detail to control the implementation, not a frozen final design. Implementation exists on branch `feature/81-f09-schedule-reminders` (not yet reviewed or merged); this contract is not yet approved. Open questions are in §13
 **Primary Author:**  Onsinee  |  **Reviewer:**  Nakagamon
 **Repository Path:**  `docs/sprints/sprint-3/F-09-schedule-reminders.md`
 **Issue:**  #81 (Part 1: this contract; Part 2: implementation)
@@ -17,6 +17,7 @@
 | Version | Date | Description of Changes | Author(s) | Status |
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 26 Nov 2026 | Initial contract (issue #81 Part 1): `GET /api/schedule`, `ReminderSetting` list/create/update/delete, rules, failure cases, Access Matrix rows, API shapes, UI, AC-09a–c refinement, STS, TDD plan, DoD, open questions | Onsinee | Draft |
+| **0.1.1** | 26 Nov 2026 | Aligned with the implementation, before review (the user asked to start implementation before approval; open questions in §13 are still the reviewer's): (1) §4.6 validators are plain functions, as `planValidation.ts` (0.1.0 said zod; the plan validators do not use it); (2) §6 the month view is a day list like the week, not a calendar grid (simpler; same data); (3) §7 AC-09c and TEST-09c-1: Supertest sends every test request with `http.request` to the app on a loopback port, so "zero `http.request` calls" cannot hold; the check is now zero `fetch`, `http.get`, `https.request`, `https.get` calls and no `http.request` to any host other than the loopback test server; (4) §9 the `PUT` tests (TEST-09b-3, 09b-6) were written red together with list / create / delete in one commit; TEST-09c-1 passed on its first run (no F-09 code sends anything), so it has no red run | Onsinee | Draft |
 
 *Rule: later changes are new versions with a reason, never silent rewrites.*
 
@@ -160,7 +161,7 @@ Body: any non-empty subset of `timeOfDay`, `label`, `repeatDays`, `enabled`, e.g
 | Unit | Kind | Responsibility |
 | ------ | ------ | ------ |
 | `buildSchedule(items, view, date, today)` in `server/domain/schedule.ts` | Pure function | Range by R2; for each day calls `resolveItems` (F-03); returns the §4.1 body. Unit-testable without a DB |
-| `validateReminderCreate` / `validateReminderUpdate` in `server/domain/reminderValidation.ts` | Pure function (zod, as other validators) | R5–R10; returns field errors |
+| `validateReminderCreate` / `validateReminderUpdate` in `server/domain/reminderValidation.ts` | Pure functions (plain checks, as `planValidation.ts`) | R5–R10; returns field errors |
 | `ReminderRepository` in `server/repositories/reminderRepository.ts` | Prisma | `list(userId)`, `create`, `update`, `delete`, `ownerOf(id)`; bitmask ↔ array conversion at this boundary or in the route (one place only) |
 | `server/routes/schedule.ts`, `server/routes/reminders.ts` | Express routes | Registered with the §3.3 policies in the same commit as the route |
 
@@ -202,7 +203,7 @@ Expected week of `date=2026-11-26` (Mon 23 – Sun 29 Nov 2026):
 
 #### 6. UI Specification
 - **Where:** a Schedule screen at `/schedule` for Participants, opened from the My Plan screen (a "Schedule & reminders" link). Exact placement in the navigation is open question 3 (the Profile menu work of ui-spec 0.11.0/0.12.0 is on a separate branch).
-- **Schedule part:** a Week / Month toggle, previous / next arrows (move `date` by 7 days or one month) and a day list (week) or calendar grid (month). Each day shows its exercise names or "Rest day"; today is highlighted.
+- **Schedule part:** a Week / Month toggle, previous / next arrows (move `date` by 7 days or one month) and a day list for both views (7 rows, or one row per day of the month). Each day shows its exercise names or "Rest day"; today is highlighted.
 - **Reminder part:** the list (time, label, repeat days as `Mon, Wed, Fri` / `Every day`, On/Off), an **Add reminder** form (time input `HH:mm`, label, weekday checkboxes, enabled switch), **Edit** (same form, pre-filled) and **Delete** (with a confirmation).
 - **Display-only notice**, always visible above the list: *"Reminders are saved and shown in the app only. Nothing is sent: no email, push or SMS."*
 - There is no "send", "notify" or "test reminder" control anywhere.
@@ -217,7 +218,7 @@ The RTM wording of AC-09a–c is kept; the observable checks below make it testa
 | ------ | ------ | ------ |
 | **AC-09a** | `GET /api/schedule?view=week` or `view=month` returns a schedule derived from `PlanItem`s with targeted days and Rest Days correct. | §5 fixture week gives exactly the table in §5 (items per day, `isRestDay`, the version shown for C); a `month` view has one entry per calendar day; no plan → every day a Rest Day; only the caller's items; invalid `view`/`date` → 400 |
 | **AC-09b** | `ReminderSetting` (time HH:mm, repeatDays, label, enabled) create / update / delete is persisted in the database and readable only by its owner; malformed time → 400. | Create → 201 and the row is in the DB with the bitmask; update → 200 and the DB row changed; delete → 204 and the row is gone; another Participant's `GET` list never shows it and `PUT`/`DELETE` → 403 with the row unchanged; malformed `timeOfDay` → 400 naming `timeOfDay`, nothing stored |
-| **AC-09c** | No email / push / SMS is sent (the test asserts no outbound calls); the UI presents reminders as display-only settings. | During create, update, delete, list and schedule requests, spies on `globalThis.fetch`, `http.request` and `https.request` record **zero** calls; the reminder list component renders the display-only notice and no send/notify control |
+| **AC-09c** | No email / push / SMS is sent (the test asserts no outbound calls); the UI presents reminders as display-only settings. | During create, update, delete, list and schedule requests, spies record **zero** `fetch`, `http.get`, `https.request` and `https.get` calls and no `http.request` to any host other than the loopback test server (Supertest's own requests); the reminder list component renders the display-only notice and no send/notify control |
 
 --------------------------------------------------------------------------------
 
@@ -241,7 +242,7 @@ File: `tests/integration/reminder.test.ts` (RTM path) unless stated. Real Postgr
 | TEST-09b-6 | AC-09b | API/DB Integration | Alice | Invalid `repeatDays`, `label`, `enabled`, unknown field `userId`, `PUT {}` (§3.2) | 400 naming the field; nothing stored or changed |
 | TEST-09b-7 | AC-09b | API/DB Integration | Bob's reminder | Alice `PUT` and `DELETE` it; Alice `GET /api/reminders?userId=<Bob>`; well-formed unknown id; `/api/reminders/abc` | 403, 403 (row unchanged, still present), 403, 404, 400 |
 | TEST-09b-8 | AC-09b | API/DB Integration | Manager token, no token | All five routes (Manager with an invalid body) | 403 / 401; nothing stored |
-| TEST-09c-1 | AC-09c | API/DB Integration | `vi.spyOn` on `globalThis.fetch`, `http.request`, `https.request` | Create, update, list, delete a reminder, then `GET /api/schedule` | All responses successful; every spy has **0** calls |
+| TEST-09c-1 | AC-09c | API/DB Integration | `vi.spyOn` on `globalThis.fetch`, `http.request`, `http.get`, `https.request`, `https.get` (installed after login) | Create, update, list, delete a reminder, then `GET /api/schedule` | All responses successful; 0 calls on every spy except `http.request`, whose calls all target the loopback test server |
 | TEST-09c-2 | AC-09c | UI Component | Reminder list component rendered with `react-dom/server` `renderToStaticMarkup` (already a dependency; no new package) with two reminders, one disabled | Render | Markup contains the display-only notice of §6, both labels, `07:30`, `Mon, Wed, Fri`, `Off`; contains no "Send" / "Notify" / "Test reminder" text |
 
 Not in the RTM, added for regression and the Deliverable 2 demo (not counted as AC evidence on their own):
@@ -255,9 +256,9 @@ Not in the RTM, added for regression and the Deliverable 2 demo (not counted as 
 Implementation order follows the issue #81 scope note (the reminder list, create and delete first; edit and the schedule only if time remains, with the PDF stating what ran):
 
 1. `docs(spec)`: this contract (spec-only commit, before any code).
-2. `test`: red TEST-09b-1, 09b-2, 09b-4, 09b-5, 09b-7, 09b-8 (list / create / delete / owner-only) + registry policies expected by the security aggregates → red run recorded.
+2. `test`: red TEST-09b-1…8 (list / create / update / delete / validation / owner-only; 0.1.1: `PUT` included here) + registry policies expected by the security aggregates → red run recorded.
 3. `feat`: reminder repository, validation, routes, policies → green.
-4. `test` red → `feat` green: `PUT` (TEST-09b-3, 09b-6).
+4. (0.1.1: merged into steps 2–3.)
 5. `test` red → `feat` green: schedule (TEST-09a-1…7, unit tests of `buildSchedule`).
 6. `test` red → `feat` green: AC-09c (TEST-09c-1, 09c-2) and the Schedule screen; E2E.
 7. `docs(rtm)`: §3.1 register rows AC-09a–c with the tested commit, only for what ran.
