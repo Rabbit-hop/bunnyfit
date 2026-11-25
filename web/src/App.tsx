@@ -7,6 +7,7 @@ import { SessionHeader } from './components/SessionHeader'
 import { ErrorPage } from './pages/ErrorPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { MonthlyProgressPage } from './pages/MonthlyProgressPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanPage } from './pages/PlanPage'
@@ -110,6 +111,14 @@ export default function App() {
             element={
               <Guard role="PARTICIPANT">
                 <MonthlyProgressPage />
+              </Guard>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <Guard role="PARTICIPANT">
+                <HistoryPage />
               </Guard>
             }
           />
