@@ -371,7 +371,9 @@ export function TodayPage() {
                 <li key={o.userExerciseId} data-testid={`other-${o.userExerciseId}`}>
                   <span>{o.name}</span>
                   <span>{formatQuantity(o.actual, o.unit)}</span>
-                  <span data-testid="other-kcal">{o.calories === null ? SET_BODY_WEIGHT : formatKcal(o.calories)}</span>
+                  <span data-testid="other-kcal">
+                    {o.calories === null ? <Link to="/profile">{SET_BODY_WEIGHT}</Link> : formatKcal(o.calories)}
+                  </span>
                   <span className="badge badge-muted">not scored</span>
                 </li>
               ))}
