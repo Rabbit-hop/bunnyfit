@@ -90,6 +90,7 @@ describe('TEST-20a (AC-20a): sets-based modes, 1.5 min per set', () => {
       userExerciseId: 'rope',
       name: 'Jump Rope',
       unit: 'seconds',
+      actual: 540,
       metValue: 7,
       ...activity({ trackingMode: 'CARDIO_TIME', durationSec: 540 }),
     };
@@ -169,7 +170,7 @@ describe('pickBodyWeight (R2; extra, not an STS row)', () => {
 describe('withCalories without a weight (R8-R10; extra, not an STS row)', () => {
   it('every value null with BODY_WEIGHT_REQUIRED, minutes still given; a Rest Day total is null too', () => {
     const rest: DailyResult = { isRestDay: true, items: [], totalScore: 0, totalWeight: 0, overallPercent: null };
-    const other = { userExerciseId: 'yoga', name: 'Sun Salutation', unit: 'seconds', metValue: 2.5, ...activity({ trackingMode: 'YOGA', durationSec: 1800 }) };
+    const other = { userExerciseId: 'yoga', name: 'Sun Salutation', unit: 'seconds', actual: 1800, metValue: 2.5, ...activity({ trackingMode: 'YOGA', durationSec: 1800 }) };
     const result = withCalories(rest, [], [other], null);
     expect(result.totalCalories).toBeNull();
     expect(result.calorieError).toBe('BODY_WEIGHT_REQUIRED');
@@ -179,7 +180,7 @@ describe('withCalories without a weight (R8-R10; extra, not an STS row)', () => 
 
   it('otherActivity is ordered by name, then userExerciseId', () => {
     const rest: DailyResult = { isRestDay: true, items: [], totalScore: 0, totalWeight: 0, overallPercent: null };
-    const mk = (userExerciseId: string, name: string) => ({ userExerciseId, name, unit: 'seconds', metValue: 2.5, ...activity({ trackingMode: 'YOGA', durationSec: 60 }) });
+    const mk = (userExerciseId: string, name: string) => ({ userExerciseId, name, unit: 'seconds', actual: 60, metValue: 2.5, ...activity({ trackingMode: 'YOGA', durationSec: 60 }) });
     const result = withCalories(rest, [], [mk('b', 'Yoga'), mk('z', 'Easy Walk'), mk('a', 'Yoga')], 70);
     expect(result.otherActivity.map((o) => o.userExerciseId)).toEqual(['z', 'a', 'b']);
   });
