@@ -402,6 +402,43 @@ describeWithDatabase('F-07 plan versioning (real PostgreSQL)', () => {
     });
   });
 
+  describe('AC-07b the closed-day Streak is unchanged by a goal change (cross-tests with F-08, GET /api/streak)', () => {
+    const streak = async () => (await request(app).get('/api/streak').set(bearer(await aliceToken()))).body as { streak: number; todayPending: boolean; todayPercent: number | null };
+    /** Fixture B with 100% on 9, 10 and 11 Nov (yesterday's streak is 3) and `todayReps` entered today. */
+    const withClosedDays = async (todayReps: number) => {
+      const v1 = await fixtureB();
+      for (const d of ['2026-11-09', '2026-11-10', '2026-11-11']) await createHistoricalEntry(prisma, { userId: aliceId, userExerciseId: v1.userExerciseId, logDate: d, totalReps: 40 });
+      await createHistoricalEntry(prisma, { userId: aliceId, userExerciseId: v1.userExerciseId, logDate: TODAY, totalReps: todayReps });
+      return v1;
+    };
+
+    it('TEST-07b-2: today 25 reps (62.5%): streak 3 and pending before and after raising the target to 50', async () => {
+      const v1 = await withClosedDays(25);
+      expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
+      expect((await put(v1.id, { targetSets: 5 })).status).toBe(200);
+      expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
+    });
+
+    it("TEST-07b-3: today 36 reps (90%): streak 4; a goal change to 100 reps (36%) drops only today's contribution: 3, pending", async () => {
+      const v1 = await withClosedDays(36);
+      expect(await streak()).toMatchObject({ streak: 4, todayPending: false });
+      expect((await put(v1.id, { targetSets: 10 })).status).toBe(200);
+      expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
+    });
+
+    it('TEST-07b-6: ending the item today keeps it counted today: streak 3 and pending', async () => {
+      const v1 = await withClosedDays(25);
+      expect((await put(v1.id, { endDate: TODAY })).status).toBe(200);
+      expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
+    });
+
+    it('TEST-07b-7: making Thursday a Rest Day removes only today\'s contribution: 3, not pending, todayPercent null', async () => {
+      const v1 = await withClosedDays(36);
+      expect((await put(v1.id, { repeatDays: [1, 2, 3, 5, 6, 7] })).status).toBe(200);
+      expect(await streak()).toEqual({ date: TODAY, streak: 3, todayPending: false, todayPercent: null });
+    });
+  });
+
   describe('AC-07c the same goal changed twice on one day', () => {
     it('TEST-07c-1: versions 2 and 3 share effectiveFrom; the plan returns version 3; v1 and v2 stay unchanged', async () => {
       const v1 = await fixtureB();
