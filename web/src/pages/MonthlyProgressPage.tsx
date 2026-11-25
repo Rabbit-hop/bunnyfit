@@ -68,6 +68,34 @@ export function MonthlyProgressPage() {
     void load(null)
   }, [load])
 
+  // A tab left open past Asia/Bangkok midnight (like My Plan): when it becomes visible again ask the server for
+  // today. If the user was looking at the old current month, show the new current month; otherwise keep their month.
+  const currentRef = useRef(current)
+  currentRef.current = current
+  const shownRef = useRef<string | null>(null)
+  useEffect(() => {
+    const onVisible = () => {
+      const before = currentRef.current
+      if (document.visibilityState !== 'visible' || before === null) return
+      progressApi
+        .getMonthly()
+        .then((progress) => {
+          if (progress.to === before.today) return
+          setCurrent({ month: progress.month, today: progress.to })
+          if (shownRef.current === before.month) {
+            requestId.current += 1
+            setMonth(progress.month)
+            setState({ status: 'ready', progress })
+          }
+        })
+        .catch(() => {
+          // Keep what is on screen; the next visibility change tries again.
+        })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   useEffect(() => {
     if (drawer.status !== 'closed') closeRef.current?.focus()
   }, [drawer.status])
@@ -93,6 +121,7 @@ export function MonthlyProgressPage() {
 
   // Before the first answer there is no current month yet, so a retry asks for the default month again.
   const shown = month ?? current?.month ?? null
+  shownRef.current = shown
   const atCurrent = current !== null && shown === current.month
 
   return (
