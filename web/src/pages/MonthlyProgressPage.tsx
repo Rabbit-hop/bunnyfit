@@ -139,7 +139,11 @@ export function MonthlyProgressPage() {
               label="Previous month"
               testId="month-prev"
               disabled={shown === null || state.status === 'loading'}
-              onClick={() => shown && void load(shiftMonth(shown, -1))}
+              onClick={() => {
+                if (!shown) return
+                closeDrawer() // a drawer of the old month must not stay open (reachable from the keyboard)
+                void load(shiftMonth(shown, -1))
+              }}
             />
             <h3 className="cal-title" data-testid="month-title">
               {shown ? formatMonthYear(`${shown}-01`) : 'This month'}
@@ -149,7 +153,11 @@ export function MonthlyProgressPage() {
               label="Next month"
               testId="month-next"
               disabled={shown === null || atCurrent || state.status === 'loading'}
-              onClick={() => shown && void load(shiftMonth(shown, 1))}
+              onClick={() => {
+                if (!shown) return
+                closeDrawer()
+                void load(shiftMonth(shown, 1))
+              }}
             />
           </div>
 
