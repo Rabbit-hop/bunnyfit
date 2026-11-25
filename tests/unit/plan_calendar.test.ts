@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, addMonths, formatLongDay, isoWeekday, monthGrid, weekOf } from '../../web/src/lib/dates.js';
-import { itemsOn } from '../../web/src/lib/occurrence.js';
+import { editState, itemsOn, latestVersionOf } from '../../web/src/lib/occurrence.js';
 
 type PlanEntry = { planItem: Parameters<typeof itemsOn>[0][number]['planItem'] & { id: string } };
 
@@ -135,5 +135,21 @@ describe('itemsOn (F-03 contract R12)', () => {
       entry({ id: 'b', planKey: 'k2', version: 1, effectiveFrom: '2026-11-01' }),
     ];
     expect(ids(itemsOn(rows, '2026-11-10', 2)).sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('F-07 My Plan helpers (supplementary, not an RTM test)', () => {
+  const entry = (planKey: string, version: number) => ({ planItem: { planKey, version } });
+  it('latestVersionOf picks the highest version of the planKey, whatever the order', () => {
+    const list = [entry('a', 2), entry('b', 5), entry('a', 3), entry('a', 1)];
+    expect(latestVersionOf(list, 'a')).toBe(list[2]);
+    expect(latestVersionOf(list, 'z')).toBeNull();
+  });
+  it('editState: ended before today, not started after today, otherwise editable (R10)', () => {
+    const today = '2026-11-12';
+    expect(editState({ effectiveFrom: '2026-11-02', endDate: '2026-11-11' }, today)).toBe('ended');
+    expect(editState({ effectiveFrom: '2026-11-02', endDate: '2026-11-12' }, today)).toBe('editable');
+    expect(editState({ effectiveFrom: '2026-11-13', endDate: null }, today)).toBe('not-started');
+    expect(editState({ effectiveFrom: '2026-11-12', endDate: null }, today)).toBe('editable');
   });
 });

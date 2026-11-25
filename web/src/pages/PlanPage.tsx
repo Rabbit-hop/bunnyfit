@@ -2,15 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AddExerciseDialog } from '../components/AddExerciseDialog'
 import { CalendarCard, type CalendarMode } from '../components/CalendarCard'
+import { EditPlanItemDialog, EndPlanItemDialog } from '../components/EditPlanItemDialog'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { formatLongDay, isoWeekday } from '../lib/dates'
 import { MODE_LABEL } from '../lib/library'
 import {
   WEEKDAYS,
+  editState,
   formatDateRange,
   formatTarget,
   getPlan,
   itemsOn,
+  latestVersionOf,
   listPlanItems,
   type PlanEntry,
 } from '../lib/plan'
@@ -25,6 +28,9 @@ export function PlanPage() {
   const [state, setState] = useState<LoadState>('loading')
   const [reloadKey, setReloadKey] = useState(0)
   const [addOpen, setAddOpen] = useState(false)
+  // F-07: Edit and End always act on the latest version of the item, not on the version shown for the selected day.
+  const [editing, setEditing] = useState<PlanEntry | null>(null)
+  const [ending, setEnding] = useState<PlanEntry | null>(null)
   const [toast, setToast] = useState('')
   const [params, setParams] = useSearchParams()
   const loadSeq = useRef(0)
@@ -95,6 +101,14 @@ export function PlanPage() {
     setToast(`"${name}" added to your plan.`)
     // Show the day the new item starts on; the reload also covers the same-day case.
     if (effectiveFrom) setSelected(effectiveFrom)
+    setReloadKey((k) => k + 1)
+  }
+
+  function onChanged(message: string) {
+    setEditing(null)
+    setEnding(null)
+    setToast(message)
+    // The selected day stays; refetching shows the version resolved for it (a past day keeps its old goal).
     setReloadKey((k) => k + 1)
   }
 
@@ -209,12 +223,29 @@ export function PlanPage() {
                   ))}
                 </ul>
                 <p className="plan-meta">{formatDateRange(planItem)}</p>
+                {(() => {
+                  // Buttons only for an item whose LATEST version can still be changed (F-07 R10).
+                  const latest = latestVersionOf(all, planItem.planKey)
+                  if (!latest || today === '' || editState(latest.planItem, today) !== 'editable') return null
+                  return (
+                    <div className="row-actions">
+                      <button type="button" className="btn btn-secondary" onClick={() => setEditing(latest)} data-testid="plan-item-edit">
+                        Edit
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={() => setEnding(latest)} data-testid="plan-item-end">
+                        End
+                      </button>
+                    </div>
+                  )
+                })()}
               </li>
             ))}
           </ul>
         )}
       </div>
       {addOpen && <AddExerciseDialog onClose={closeAdd} onSaved={onSaved} />}
+      {editing && <EditPlanItemDialog entry={editing} today={today} onClose={() => setEditing(null)} onSaved={onChanged} />}
+      {ending && <EndPlanItemDialog entry={ending} today={today} onClose={() => setEnding(null)} onSaved={onChanged} />}
     </section>
   )
 }

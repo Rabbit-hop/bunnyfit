@@ -33,3 +33,26 @@ export function itemsOn<T extends { planItem: OccurrenceItem }>(entries: T[], is
     ({ planItem }) => (planItem.endDate === null || iso <= planItem.endDate) && planItem.repeatDays.includes(weekday),
   )
 }
+
+/**
+ * The newest version of a plan item (F-07 R7): the highest `version` of its planKey, whichever day
+ * is selected on My Plan. Edit and End always start from this row, never from the version shown for a past day.
+ */
+export function latestVersionOf<T extends { planItem: { planKey: string; version: number } }>(entries: T[], planKey: string): T | null {
+  let best: T | null = null
+  for (const entry of entries) {
+    if (entry.planItem.planKey !== planKey) continue
+    if (!best || entry.planItem.version > best.planItem.version) best = entry
+  }
+  return best
+}
+
+/**
+ * Whether the latest version can still be changed (F-07 R10): an item that has already ended
+ * (`endDate` before today) or that starts after today is read-only. ISO dates compare as strings.
+ */
+export function editState(latest: { effectiveFrom: string; endDate: string | null }, today: string): 'editable' | 'ended' | 'not-started' {
+  if (latest.endDate !== null && latest.endDate < today) return 'ended'
+  if (latest.effectiveFrom > today) return 'not-started'
+  return 'editable'
+}
