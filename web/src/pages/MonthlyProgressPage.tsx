@@ -47,6 +47,8 @@ export function MonthlyProgressPage() {
 
   const load = useCallback(async (wanted: string | null) => {
     const id = ++requestId.current
+    // The title and Retry follow the month that was asked for, also while it loads or after it fails.
+    if (wanted !== null) setMonth(wanted)
     setState({ status: 'loading' })
     try {
       const progress = await progressApi.getMonthly(wanted ?? undefined)
@@ -68,13 +70,23 @@ export function MonthlyProgressPage() {
     if (drawer.status !== 'closed') closeRef.current?.focus()
   }, [drawer.status])
 
+  // A drawer that was closed (or replaced) while its request was running must not be reopened by the answer.
+  const drawerRequest = useRef(0)
+
   async function openDay(date: string) {
+    const id = ++drawerRequest.current
     setDrawer({ status: 'loading', date })
     try {
-      setDrawer({ status: 'ready', date, daily: await progressApi.getDaily(date) })
+      const daily = await progressApi.getDaily(date)
+      if (id === drawerRequest.current) setDrawer({ status: 'ready', date, daily })
     } catch (error) {
-      setDrawer({ status: 'error', date, message: describeError(error).message })
+      if (id === drawerRequest.current) setDrawer({ status: 'error', date, message: describeError(error).message })
     }
+  }
+
+  function closeDrawer() {
+    drawerRequest.current += 1
+    setDrawer({ status: 'closed' })
   }
 
   // Before the first answer there is no current month yet, so a retry asks for the default month again.
@@ -129,7 +141,7 @@ export function MonthlyProgressPage() {
       </div>
 
       {drawer.status !== 'closed' && (
-        <div className="dialog-backdrop" onClick={() => setDrawer({ status: 'closed' })}>
+        <div className="dialog-backdrop" onClick={closeDrawer}>
           <div
             className="dialog dialog-wide day-drawer"
             role="dialog"
@@ -137,13 +149,13 @@ export function MonthlyProgressPage() {
             aria-labelledby="day-drawer-title"
             data-testid="day-drawer"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.key === 'Escape' && setDrawer({ status: 'closed' })}
+            onKeyDown={(e) => e.key === 'Escape' && closeDrawer()}
           >
             <div className="dialog-head">
               <h3 id="day-drawer-title" data-testid="day-drawer-date">
                 {formatLongDate(drawer.date)}
               </h3>
-              <button type="button" className="btn btn-secondary dialog-close" aria-label="Close" data-testid="day-drawer-close" ref={closeRef} onClick={() => setDrawer({ status: 'closed' })}>
+              <button type="button" className="btn btn-secondary dialog-close" aria-label="Close" data-testid="day-drawer-close" ref={closeRef} onClick={closeDrawer}>
                 ×
               </button>
             </div>
