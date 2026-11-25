@@ -422,7 +422,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         'F-06',
         'F-07',
         ...Array(2).fill('F-08'),
-        ...Array(4).fill('F-09'),
+        ...Array(5).fill('F-09'),
       ].sort());
       const token = await manager();
       const before = await snapshot();
@@ -438,7 +438,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-08', 'F-08', 'F-09', 'F-09']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-08', 'F-08', 'F-09', 'F-09', 'F-09']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {

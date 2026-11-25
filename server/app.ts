@@ -21,6 +21,7 @@ import { registerHistoryRoutes } from './routes/history.js';
 import { registerProgressRoutes } from './routes/progress.js';
 import { registerProbeRoutes } from './routes/probe.js';
 import { registerReminderRoutes } from './routes/reminders.js';
+import { registerScheduleRoutes } from './routes/schedule.js';
 import type { ReminderRepository } from './repositories/reminderRepository.js';
 import { createRouteRegistrar } from './routes/register.js';
 import { activePolicies, findRoutePolicy } from './routes/registry.js';
@@ -95,6 +96,7 @@ export function createApp(options: AppOptions = {}): Express {
   if (options.library) registerLibraryRoutes(registrar, policies, options.library);
   if (options.plans && options.library && options.clock) {
     registerPlanRoutes(registrar, policies, { plans: options.plans, library: options.library, clock: options.clock });
+    registerScheduleRoutes(registrar, policies, { plans: options.plans, clock: options.clock });
   }
 
   if (options.entries && options.plans && options.clock) {
