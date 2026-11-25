@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ErrorNotice } from '../components/ErrorNotice'
+import { StreakBadge } from '../components/StreakBadge'
 import { dayOfMonth, formatMonthYear } from '../lib/dates'
 import { monthCells, monthSummary, progressApi, shiftMonth, type DayCell, type MonthlyProgress } from '../lib/progress'
 import { describeError, formatLongDate, formatPercent, formatQuantity, formatScore, type DailyProgress } from '../lib/today'
@@ -34,7 +36,7 @@ function Arrow({ dir, label, testId, disabled, onClick }: { dir: 'prev' | 'next'
  * S-06 Monthly Progress (ui-spec S-06, F-06 §4.2 and §6, AC-15 on the server). The first request has no
  * `month`, so the server picks the current month and its `to` is the server's today (ui-spec §3.5: never the
  * browser clock). The switcher never goes past that month. Selecting a day opens a read-only drawer from
- * `GET /api/progress/daily`; it has no log buttons. The streak badge belongs to F-08 and is not shown here.
+ * `GET /api/progress/daily`; it has no log buttons. The F-08 Streak badge and the History link sit above and below the card.
  */
 export function MonthlyProgressPage() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
@@ -99,6 +101,8 @@ export function MonthlyProgressPage() {
         <h2>Progress</h2>
       </header>
       <div className="page">
+        {/* F-08 §6: the Streak badge is on Today and Progress, and Progress links to History. */}
+        <StreakBadge />
         <div className="calendar-card">
           <div className="cal-head">
             <Arrow
@@ -138,6 +142,11 @@ export function MonthlyProgressPage() {
 
           {state.status === 'ready' && current && <MonthBody progress={state.progress} today={current.today} onOpen={(d) => void openDay(d)} />}
         </div>
+        <p className="progress-history">
+          <Link to="/history" data-testid="progress-history-link">
+            View your history
+          </Link>
+        </p>
       </div>
 
       {drawer.status !== 'closed' && (

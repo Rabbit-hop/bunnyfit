@@ -2126,3 +2126,8 @@ button.bottom-nav-item {
 .history-range {
   margin: 0.5rem 0;
 }
+
+.progress-history {
+  margin: 0.75rem 0 0;
+  text-align: center;
+}
