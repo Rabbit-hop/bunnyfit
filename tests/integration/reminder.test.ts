@@ -1,6 +1,8 @@
+import http from 'node:http';
+import https from 'node:https';
 import type { PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { env } from '../../server/config/env.js';
 import { createHistoricalPlanItem } from '../helpers/historicalPlan.js';
 import { buildIntegrationApp, databaseUrl, MutableClock, newPrisma } from '../helpers/integrationApp.js';
@@ -399,5 +401,83 @@ describeWithDatabase('F-09 schedule API (real PostgreSQL)', () => {
     expect((res.body.days as { date: string }[]).map((d) => d.date)).toEqual([
       '2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03',
     ]);
+  });
+});
+
+// AC-09c: nothing is sent. TEST-09c-1 watches the outbound paths a delivery would need while the F-09 routes run;
+// TEST-09c-2 renders the reminder list component with react-dom/server (no DOM library needed).
+describeWithDatabase('F-09 display only, no delivery (AC-09c)', () => {
+  let prisma: PrismaClient;
+  let app: ReturnType<typeof buildIntegrationApp>;
+  let aliceId: string;
+
+  beforeAll(async () => {
+    prisma = newPrisma();
+    app = buildIntegrationApp(prisma, new MutableClock(new Date('2026-11-26T03:00:00.000Z')));
+    aliceId = (await prisma.user.findUniqueOrThrow({ where: { email: 'alice@exercise.test' } })).id;
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await prisma.reminderSetting.deleteMany({ where: { userId: aliceId } });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('TEST-09c-1: create, update, list, delete and the schedule make no outbound call (fetch, https, or http to any host but the test server)', async () => {
+    const res = await request(app).post('/api/auth/login').send({ email: 'alice@exercise.test', password: env.seedParticipantPassword });
+    const auth = { Authorization: `Bearer ${res.body.token as string}` };
+    // Spies are installed after login, so only the F-09 requests are observed. Supertest itself sends each
+    // test request with http.request to the app on a loopback port; those calls are expected and filtered
+    // out. Any other target (an email, push or SMS service) would be an outbound call.
+    const httpRequest = vi.spyOn(http, 'request');
+    const others = [vi.spyOn(globalThis, 'fetch'), vi.spyOn(http, 'get'), vi.spyOn(https, 'request'), vi.spyOn(https, 'get')];
+    const hostOf = (arg: unknown): string => {
+      if (typeof arg === 'string') return new URL(arg).hostname;
+      if (arg instanceof URL) return arg.hostname;
+      const o = (arg ?? {}) as { hostname?: string; host?: string };
+      return (o.hostname ?? o.host ?? 'localhost').replace(/:\d+$/, '');
+    };
+
+    const created = await request(app).post('/api/reminders').set(auth).send({ timeOfDay: '07:30', label: 'Run' });
+    expect(created.status).toBe(201);
+    const id = created.body.id as string;
+    expect((await request(app).put(`/api/reminders/${id}`).set(auth).send({ enabled: false })).status).toBe(200);
+    expect((await request(app).get('/api/reminders').set(auth)).status).toBe(200);
+    expect((await request(app).get('/api/schedule').set(auth)).status).toBe(200);
+    expect((await request(app).delete(`/api/reminders/${id}`).set(auth)).status).toBe(204);
+
+    for (const spy of others) expect(spy).not.toHaveBeenCalled();
+    expect(httpRequest.mock.calls.length).toBeGreaterThan(0); // the spy does see Supertest's own requests
+    const outbound = httpRequest.mock.calls.map((c) => hostOf(c[0])).filter((h) => !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(h));
+    expect(outbound).toEqual([]);
+  });
+
+  it('TEST-09c-2: the reminder list renders the display-only notice, the settings and no send or notify control', async () => {
+    // Loaded by a computed path so the server type-check (tsconfig.json, no JSX/DOM) does not compile web code.
+    const componentPath = new URL('../../web/src/components/ReminderList.tsx', import.meta.url).href;
+    const { ReminderList, DISPLAY_ONLY_NOTICE } = (await import(/* @vite-ignore */ componentPath)) as {
+      ReminderList: (props: Record<string, unknown>) => unknown;
+      DISPLAY_ONLY_NOTICE: string;
+    };
+    const { createElement } = await import('react');
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const reminders = [
+      { id: 'r1', timeOfDay: '07:30', repeatDays: [1, 3, 5], label: 'Morning run', enabled: true, createdAt: '', updatedAt: '' },
+      { id: 'r2', timeOfDay: '18:00', repeatDays: [1, 2, 3, 4, 5, 6, 7], label: 'Evening yoga', enabled: false, createdAt: '', updatedAt: '' },
+    ];
+    const noop = () => undefined;
+    const html = renderToStaticMarkup(
+      createElement(ReminderList as never, { reminders, onEdit: noop, onDelete: noop, onToggle: noop }),
+    );
+    expect(DISPLAY_ONLY_NOTICE).toBe('Reminders are saved and shown in the app only. Nothing is sent: no email, push or SMS.');
+    expect(html).toContain(DISPLAY_ONLY_NOTICE);
+    for (const text of ['Morning run', '07:30', 'Mon, Wed, Fri', 'Evening yoga', '18:00', 'Every day', 'On', 'Off']) {
+      expect(html, text).toContain(text);
+    }
+    // Apart from the notice ("Nothing is sent"), no text offers sending, notifying or a test reminder.
+    expect(html.replace(DISPLAY_ONLY_NOTICE, '')).not.toMatch(/send|notify|notification|test reminder/i);
   });
 });
