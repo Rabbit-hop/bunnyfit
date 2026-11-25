@@ -193,3 +193,43 @@ test('S-06 (real API): Progress shows the F-08 Streak badge (F-08 §6) and links
   await page.getByTestId('progress-history-link').click()
   await expect(page).toHaveURL(/\/history$/)
 })
+
+// Review of PR #119: S-06 kept the "today" of its first load, so a tab left open past Asia/Bangkok midnight showed
+// the new day as FUTURE and could not reach a new month. Like My Plan, it asks the server again when it becomes visible.
+test('S-06: a tab that becomes visible after midnight asks the server for today; the new day is no longer FUTURE', async ({ page }) => {
+  let shifted = false
+  await login(page)
+  await page.route('**/api/progress/monthly**', async (route: Route) => {
+    if (!shifted) return route.fulfill({ json: NOVEMBER })
+    return route.fulfill({
+      json: { ...NOVEMBER, to: '2026-11-06', targetedDays: 3, days: [...NOVEMBER.days, { date: '2026-11-06', isRestDay: false, overallPercent: 0 }] },
+    })
+  })
+  await page.goto('/progress')
+  await expect(page.getByTestId('month-day-2026-11-06')).toHaveAttribute('data-state', 'FUTURE')
+  shifted = true
+  await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+  await expect(page.getByTestId('month-day-2026-11-06')).toHaveAttribute('data-state', 'TARGETED')
+  await expect(page.getByTestId('month-day-2026-11-06')).toContainText('0%')
+})
+
+test('S-06: after midnight on the last day of the month, a visible tab on the old current month moves to the new month', async ({ page }) => {
+  let shifted = false
+  await login(page)
+  const DECEMBER = { month: '2026-12', from: '2026-12-01', to: '2026-12-01', targetedDays: 1, restDaysExcluded: 0, averagePercent: 0, days: [{ date: '2026-12-01', isRestDay: false, overallPercent: 0 }] }
+  await page.route('**/api/progress/monthly**', async (route: Route) => {
+    const month = new URL(route.request().url()).searchParams.get('month')
+    if (month === '2026-11' || (!shifted && month === null)) return route.fulfill({ json: { ...NOVEMBER, to: '2026-11-30' } })
+    return route.fulfill({ json: DECEMBER })
+  })
+  await page.goto('/progress')
+  await expect(page.getByTestId('month-title')).toHaveText('November 2026')
+  await expect(page.getByTestId('month-next')).toBeDisabled()
+  shifted = true
+  await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+  await expect(page.getByTestId('month-title')).toHaveText('December 2026')
+  await expect(page.getByTestId('month-next')).toBeDisabled()
+  await page.getByTestId('month-prev').click()
+  await expect(page.getByTestId('month-title')).toHaveText('November 2026')
+  await expect(page.getByTestId('month-next')).toBeEnabled()
+})
