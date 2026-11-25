@@ -9,6 +9,8 @@ import type { RouteRegistrar } from './register.js';
 import { findRoutePolicy, type RoutePolicy } from './registry.js';
 
 const VIEWS: readonly ScheduleView[] = ['week', 'month'];
+const MIN_DATE = '2000-01-01';
+const MAX_DATE = '2099-12-31';
 
 /**
  * F-09 §4.1 `GET /api/schedule?view=week|month&date=YYYY-MM-DD` (Participant, self-scoped).
@@ -36,7 +38,10 @@ export function registerScheduleRoutes(
         fields.push({ field: 'view', limit: 'must be week or month' });
       }
       const date = rawDate === undefined ? today : rawDate;
-      if (!isCalendarDate(date)) fields.push({ field: 'date', limit: 'must be a date YYYY-MM-DD' });
+      // R1 (0.1.3): a real calendar date in 2000-01-01 ... 2099-12-31 (a week near 9999-12-31 would reach year 10000).
+      if (!isCalendarDate(date) || date < MIN_DATE || date > MAX_DATE) {
+        fields.push({ field: 'date', limit: `must be a date YYYY-MM-DD from ${MIN_DATE} to ${MAX_DATE}` });
+      }
       if (fields.length > 0) throw validationError(fields);
 
       const items = await deps.plans.listPlanItems(req.auth.userId);
