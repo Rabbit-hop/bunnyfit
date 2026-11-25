@@ -208,6 +208,10 @@ describeWithDatabase('F-09 reminder settings API (real PostgreSQL)', () => {
     expect(put.body.code).toBe('FORBIDDEN');
     const del = await request(app).delete(`/api/reminders/${bobs.id}`).set(auth);
     expect(del.status).toBe(403);
+    // R11 (0.1.3): ownership is checked before the body, as F-05 R2, so an invalid body on a foreign id is 403.
+    const putInvalid = await request(app).put(`/api/reminders/${bobs.id}`).set(auth).send({ timeOfDay: '99:99' });
+    expect(putInvalid.status).toBe(403);
+    expect(putInvalid.body.code).toBe('FORBIDDEN');
     expect(await prisma.reminderSetting.findUniqueOrThrow({ where: { id: bobs.id } })).toEqual(bobs);
 
     const list = await request(app).get(`/api/reminders?userId=${bobId}`).set(auth);
@@ -386,6 +390,9 @@ describeWithDatabase('F-09 schedule API (real PostgreSQL)', () => {
       ['date=2026-02-30', 'date'],
       ['date=26-11-2026', 'date'],
       ['date=2026-11-5', 'date'],
+      // R1 (0.1.3): 2000-01-01 ... 2099-12-31 only.
+      ['date=9999-12-31', 'date'],
+      ['date=1999-12-31', 'date'],
     ];
     for (const [query, field] of cases) {
       const res = await request(app).get(`/api/schedule?${query}`).set(token);
