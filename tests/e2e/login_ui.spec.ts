@@ -16,6 +16,8 @@ async function login(page: import('@playwright/test').Page, email: string, passw
   await page.getByTestId('login-email').fill(email)
   await page.getByTestId('login-password').fill(password)
   await page.getByTestId('login-submit').click()
+  // Callers wait up to 20 s for the landing page (as main_journey, library_ui and progress_ui do): with parallel
+  // workers a bcrypt login can take longer than the default 5 s; a failure at 5 s showed "Signing in…" still pending.
 }
 
 test('AC-01f (UI): invalid email format shows the field error next to the input', async ({ page }) => {
@@ -30,7 +32,7 @@ test('AC-01f (UI): invalid email format shows the field error next to the input'
 
 test('AC-22a (UI): a 401 on the next call clears the session and returns to Login', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
-  await expect(page).toHaveURL(/\/today$/)
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
 
   // Corrupt the stored JWT in place, then reload — AuthProvider's mount effect
   // calls GET /api/auth/me with it, the real backend rejects it with 401, and
@@ -46,7 +48,7 @@ test('AC-22a (UI): a 401 on the next call clears the session and returns to Logi
 
 test('AC-22b (UI): a participant visiting a manager-only route lands on Access Denied, no manager data', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
-  await expect(page).toHaveURL(/\/today$/)
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
 
   await page.goto('/manager/library')
 
@@ -58,7 +60,7 @@ test('AC-22b (UI): a participant visiting a manager-only route lands on Access D
 
 test('AC-22b (UI) manager side: a manager visiting a participant-only route also lands on Access Denied', async ({ page }) => {
   await login(page, MANAGER.email, MANAGER.password)
-  await expect(page).toHaveURL(/\/manager\/library$/)
+  await expect(page).toHaveURL(/\/manager\/library$/, { timeout: 20_000 })
 
   await page.goto('/today')
 
@@ -68,7 +70,7 @@ test('AC-22b (UI) manager side: a manager visiting a participant-only route also
 
 test('regression: a transient /api/auth/me failure does not sign the user out', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
-  await expect(page).toHaveURL(/\/today$/)
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
   const tokenBefore = await page.evaluate(() => sessionStorage.getItem('bunnyfit.token'))
   expect(tokenBefore).not.toBeNull()
 
