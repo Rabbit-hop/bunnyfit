@@ -2013,8 +2013,15 @@ button.bottom-nav-item {
   font-size: 0.9rem;
 }
 
+/* Same card as the progress card, so the list does not float between the cards */
 .other-activity {
-  margin-top: 12px;
+  padding: 1rem 1.1rem;
+  background: var(--color-surface);
+  border-radius: 20px;
+}
+
+.other-activity .entry-list {
+  margin-top: 0.5rem;
 }
 
 /* F-08 streak badge and history */
