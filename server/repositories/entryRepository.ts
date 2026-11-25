@@ -37,6 +37,11 @@ export interface EntryRepository {
   listDayEntries(userId: string, date: string): Promise<EntryRecord[]>;
   /** One entry by id (`GET /api/entries/:id`). */
   findEntry(id: string): Promise<EntryRecord | null>;
+  /**
+   * F-08 §4.5: one user's entries with `from <= logDate <= to`, ordered by `logDate` then `createdAt`
+   * (read-only; served by the `LedgerEntry(userId, logDate)` index).
+   */
+  listEntriesBetween(userId: string, from: string, to: string): Promise<EntryRecord[]>;
   /** Owner of an entry, or null when it does not exist (route ownership check, §4.6). */
   findEntryOwner(id: string): Promise<string | null>;
   /** Inserts one row; the caller supplies `createdAt` from the Clock. */
@@ -144,6 +149,14 @@ export function createPrismaEntryRepository(prisma: PrismaClient): EntryReposito
   const scope = createScope(prisma);
   return {
     ...scope,
+
+    async listEntriesBetween(userId, from, to) {
+      const rows = await prisma.ledgerEntry.findMany({
+        where: { userId, logDate: { gte: toDate(from), lte: toDate(to) } },
+        orderBy: [{ logDate: 'asc' }, { createdAt: 'asc' }],
+      });
+      return rows.map(toEntryRecord);
+    },
 
     async findEntryOwner(id) {
       const row = await prisma.ledgerEntry.findUnique({ where: { id }, select: { userId: true } });

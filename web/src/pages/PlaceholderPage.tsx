@@ -1,9 +1,10 @@
 type PlaceholderPageProps = {
+  children?: React.ReactNode
   title: string
   description: string
 }
 
-export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
+export function PlaceholderPage({ title, description, children }: PlaceholderPageProps) {
   return (
     <>
       <header className="page-holder">
@@ -11,6 +12,7 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
       </header>
       <section className="page">
         <p>{description}</p>
+        {children}
       </section>
     </>
   )
