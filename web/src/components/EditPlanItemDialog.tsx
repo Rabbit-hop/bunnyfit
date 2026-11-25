@@ -282,7 +282,7 @@ export function EditPlanItemDialog({ entry, today, onClose, onSaved }: CommonPro
               <button type="button" className="btn btn-secondary" onClick={requestClose} data-testid="plan-cancel">
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" data-testid="plan-save">
+              <button type="submit" className="btn btn-primary" disabled={!dirty} data-testid="plan-save">
                 Save changes
               </button>
             </div>
