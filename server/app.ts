@@ -94,7 +94,15 @@ export function createApp(options: AppOptions = {}): Express {
 
   if (options.entries && options.plans && options.clock) {
     registerEntryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
-    registerProgressRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
+    // The daily progress response carries the F-11 calorie fields, which read WeightLog.
+    if (options.profiles) {
+      registerProgressRoutes(registrar, policies, {
+        entries: options.entries,
+        plans: options.plans,
+        weights: options.profiles,
+        clock: options.clock,
+      });
+    }
   }
 
   if (options.profiles && options.clock) {
