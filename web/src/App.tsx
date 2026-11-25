@@ -7,7 +7,7 @@ import { SessionHeader } from './components/SessionHeader'
 import { ErrorPage } from './pages/ErrorPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { MonthlyProgressPage } from './pages/MonthlyProgressPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanPage } from './pages/PlanPage'
 import { TodayPage } from './pages/TodayPage'
@@ -109,7 +109,7 @@ export default function App() {
             path="/progress"
             element={
               <Guard role="PARTICIPANT">
-                <PlaceholderPage title="Progress" description="Monthly progress is planned for Sprint 2." />
+                <MonthlyProgressPage />
               </Guard>
             }
           />
