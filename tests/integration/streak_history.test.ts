@@ -390,10 +390,10 @@ describeWithDatabase('F-08 history and streak (real PostgreSQL)', () => {
       const created = await request(app).post('/api/entries').set(bearer(token)).send({ userExerciseId: item.userExerciseId, sets: 1, totalReps: 28 });
       expect(created.status, JSON.stringify(created.body)).toBe(201);
       expect(await streak()).toMatchObject({ streak: 4, todayPending: false });
-      const edited = await request(app).put(`/api/entries/${created.body.id}`).set(bearer(token)).send({ sets: 1, totalReps: 20 });
+      const edited = await request(app).put(`/api/entries/${created.body.entry.id}`).set(bearer(token)).send({ sets: 1, totalReps: 20 });
       expect(edited.status, JSON.stringify(edited.body)).toBe(200);
       expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
-      expect((await request(app).delete(`/api/entries/${created.body.id}`).set(bearer(token))).status).toBe(204);
+      expect((await request(app).delete(`/api/entries/${created.body.entry.id}`).set(bearer(token))).status).toBe(204);
       expect(await streak()).toMatchObject({ streak: 3, todayPending: true });
     });
   });

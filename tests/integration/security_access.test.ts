@@ -404,9 +404,9 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       await prisma.userExercise.deleteMany({ where: { id: { in: [aliceExerciseId, bobExerciseId] } } });
     });
 
-    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-05 / F-06 / F-07 only (a new feature must get a stage 2 case)', () => {
+    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-05 / F-06 / F-07 / F-08 only (a new feature must get a stage 2 case)', () => {
       const features = new Set(realPolicies().map((p) => p.featureId));
-      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'F-07', 'SYS-01']);
+      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'F-07', 'F-08', 'SYS-01']);
     });
 
     it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
@@ -417,6 +417,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ...Array(2).fill('F-05'),
         'F-06',
         'F-07',
+        ...Array(2).fill('F-08'),
       ].sort());
       const token = await manager();
       const before = await snapshot();
@@ -432,7 +433,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-08', 'F-08']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
