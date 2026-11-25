@@ -366,6 +366,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     let bobExerciseId: string;
     let bobEntryId: string;
     let bobItemId: string;
+    let bobItemRow: { planKey: string; version: number };
     let aliceItemId: string;
     let templateId: string;
     let categoryId: string;
@@ -387,6 +388,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
       const bobItem = await createHistoricalPlanItem(prisma, { userId: bobId, effectiveFrom: '2026-11-01' });
       const aliceItem = await createHistoricalPlanItem(prisma, { userId: aliceId, effectiveFrom: '2026-11-01' });
       bobItemId = bobItem.id;
+      bobItemRow = bobItem;
       aliceItemId = aliceItem.id;
       bobExerciseId = bobItem.userExerciseId;
       aliceExerciseId = aliceItem.userExerciseId;
@@ -400,13 +402,13 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     afterAll(async () => {
       await prisma.ledgerEntry.deleteMany({ where: { userExerciseId: { in: [aliceExerciseId, bobExerciseId] } } });
-      await prisma.planItem.deleteMany({ where: { id: { in: [aliceItemId, bobItemId] } } });
+      await prisma.planItem.deleteMany({ where: { userExerciseId: { in: [aliceExerciseId, bobExerciseId] } } });
       await prisma.userExercise.deleteMany({ where: { id: { in: [aliceExerciseId, bobExerciseId] } } });
     });
 
-    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-06 only (a new feature must get a stage 2 case)', () => {
+    it('TEST-22c (aggregate): the real routes belong to SYS-01 / F-01 / F-02 / F-03 / F-04 / F-06 / F-07 only (a new feature must get a stage 2 case)', () => {
       const features = new Set(realPolicies().map((p) => p.featureId));
-      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-06', 'SYS-01']);
+      expect([...features].sort()).toEqual(['F-01', 'F-02', 'F-03', 'F-04', 'F-06', 'F-07', 'SYS-01']);
     });
 
     it('TEST-12a-2: Manager → 403 on every PARTICIPANT-only route of the registry, even with an invalid body or query; envelope only, nothing stored', async () => {
@@ -415,6 +417,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ...Array(6).fill('F-04'),
         ...Array(5).fill('F-03'),
         'F-06',
+        'F-07',
       ].sort());
       const token = await manager();
       const before = await snapshot();
@@ -447,26 +450,38 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     });
 
     it('TEST-12c (aggregate): every real resource-owner route has a case; Alice on Bob\'s record → 403, Bob → 200, unknown id → 404', async () => {
-      const ids: Record<string, string> = { '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId };
+      // Keyed by method and path: F-07 adds PUT /api/plan-items/:id, which inserts a new version of Bob's item for Bob (200).
+      const ids: Record<string, string> = {
+        'GET /api/plan-items/:id': bobItemId,
+        'PUT /api/plan-items/:id': bobItemId,
+        'GET /api/entries/:id': bobEntryId,
+      };
       const routes = realPolicies().filter((p) => p.ownership === 'resource-owner');
-      expect(routes.map((p) => p.path).sort()).toEqual(Object.keys(ids).sort());
+      expect(routes.map((p) => `${p.method} ${p.path}`).sort()).toEqual(Object.keys(ids).sort());
       const aliceToken = await bearerOf('alice@exercise.test');
       const bobToken = await bearerOf('bob@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
-        const id = ids[p.path];
+        const id = ids[`${p.method} ${p.path}`];
         expect(id, `${p.method} ${p.path} has a stage 2 case`).toBeDefined();
         const url = (value: string) => p.path.replace(':id', value);
-        const foreign = await call(p.method, url(id!), aliceToken);
+        const send = (value: string, token: string) =>
+          p.method === 'PUT' ? call(p.method, url(value), token).send({ priorityWeight: 4 }) : call(p.method, url(value), token);
+        const foreign = await send(id!, aliceToken);
         expect(foreign.status, `${p.method} ${p.path} as Alice`).toBe(403);
         expect(foreign.body).toEqual(FORBIDDEN);
         expect(JSON.stringify(foreign.body)).not.toContain(id!);
-        expect((await call(p.method, url(id!), bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(200);
-        const missing = await call(p.method, url(randomUUID()), aliceToken);
+        expect((await send(id!, bobToken)).status, `${p.method} ${p.path} as Bob`).toBe(200);
+        const missing = await send(randomUUID(), aliceToken);
         expect(missing.status, `${p.method} ${p.path} unknown id`).toBe(404);
         expect(missing.body.code).toBe('NOT_FOUND');
       }
-      expect(await snapshot()).toEqual(before);
+      // Only Bob's own PUT may store anything: exactly one new version of his item, and no other change.
+      const after = await snapshot();
+      const known = new Set(before.items.map((i) => i.id));
+      const added = after.items.filter((i) => !known.has(i.id));
+      expect(added.map((i) => [i.userId, i.planKey, i.version])).toEqual([[bobId, bobItemRow.planKey, bobItemRow.version + 1]]);
+      expect({ ...after, items: after.items.filter((i) => known.has(i.id)) }).toEqual(before);
     });
 
     describe('F-02 routes (shared catalog; no owner-scoped route)', () => {
