@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-09
 **Sprint:**  3 (the Sprint 3 workflow implemented and tested for Deliverable 2 Part C; plan §6.3)
-**Contract Version:**  0.1.1
+**Contract Version:**  0.1.2
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, SRS 1.1.0, System-Level SDS 1.1.1, RTM 1.1.13, Sprint Plan 1.3.0, F-03 contract on `staging/sprint-2`, F-07 contract 0.1.2)
 **Date:**  26 November 2026
 **Status:**  Draft (review-pending). Concise contract for Deliverable 2 Part C: enough detail to control the implementation, not a frozen final design. Implementation exists on branch `feature/81-f09-schedule-reminders` (not yet reviewed or merged); this contract is not yet approved. Open questions are in §13
@@ -18,6 +18,7 @@
 | ------ | ------ | ------ | ------ | ------ |
 | **0.1.0** | 26 Nov 2026 | Initial contract (issue #81 Part 1): `GET /api/schedule`, `ReminderSetting` list/create/update/delete, rules, failure cases, Access Matrix rows, API shapes, UI, AC-09a–c refinement, STS, TDD plan, DoD, open questions | Onsinee | Draft |
 | **0.1.1** | 26 Nov 2026 | Aligned with the implementation, before review (the user asked to start implementation before approval; open questions in §13 are still the reviewer's): (1) §4.6 validators are plain functions, as `planValidation.ts` (0.1.0 said zod; the plan validators do not use it); (2) §6 the month view is a day list like the week, not a calendar grid (simpler; same data); (3) §7 AC-09c and TEST-09c-1: Supertest sends every test request with `http.request` to the app on a loopback port, so "zero `http.request` calls" cannot hold; the check is now zero `fetch`, `http.get`, `https.request`, `https.get` calls and no `http.request` to any host other than the loopback test server; (4) §9 the `PUT` tests (TEST-09b-3, 09b-6) were written red together with list / create / delete in one commit; TEST-09c-1 passed on its first run (no F-09 code sends anything), so it has no red run | Onsinee | Draft |
+| **0.1.2** | 26 Nov 2026 | §13 items 1–4: the author's recommendation with reasons is recorded (keep the 0.1.0 proposals; the implementation already follows them). They stay **recommendations until the reviewer confirms them**; none is marked decided. Item 7: proposal that the reminder label case already covered by `tests/e2e/reminder_ui.spec.ts` becomes an AC-23 case, for SYS-01 to decide. No rule, API, AC or test changed | Onsinee | Draft |
 
 *Rule: later changes are new versions with a reason, never silent rewrites.*
 
@@ -294,13 +295,13 @@ No baseline document is changed by this contract. When F-09 is implemented, the 
 --------------------------------------------------------------------------------
 
 #### 13. Known Limitations and Open Questions
-| # | Question / limitation | Proposal in 0.1.0 | Status |
+| # | Question / limitation | Proposal (0.1.0) and author's recommendation (0.1.2) | Status |
 | ------ | ------ | ------ | ------ |
-| 1 | `PUT` partial or full replacement? | Partial (any non-empty subset), so the On/Off switch sends `{enabled}` only | Open, reviewer to confirm |
-| 2 | List response: bare array or `{ reminders: [...] }`? | Bare array, as `GET /api/plan-items` | Open, reviewer to confirm |
-| 3 | Where the Schedule screen sits in the navigation | Link from My Plan; revisit after the Profile menu branch merges | Open |
-| 4 | `label` length | 1–40 characters after trimming | Open, reviewer to confirm |
+| 1 | `PUT` partial or full replacement? | Partial (any non-empty subset), so the On/Off switch sends `{enabled}` only. Recommend keeping it: F-07 §3.1 step 3 already sends `PUT /api/plan-items/:id` "with the changed fields" (same project convention; SDS §5.2 fixes the method name `PUT`); the client does not resend the whole row, so it cannot overwrite fields with stale values; a full-replacement rule would change validation, UI and tests for no gain | Recommended; reviewer to confirm |
+| 2 | List response: bare array or `{ reminders: [...] }`? | Bare array, as `GET /api/plan-items`. Recommend keeping it: `GET /api/plan-items` and `GET /api/user-exercises` return bare arrays; the project wraps a list only when other data comes with it (`GET /api/entries` returns `{ date, entries, cumulative }`), and the reminder list has none | Recommended; reviewer to confirm |
+| 3 | Where the Schedule screen sits in the navigation | Link from My Plan; revisit after the Profile menu branch merges. Recommend keeping it: the schedule is derived from the plan, so My Plan is where it is looked for; it does not wait for the unmerged Profile menu branch and adds no bottom-nav tab (a larger UI spec change). A second entry from the Profile menu can be added later without any API change | Recommended; reviewer to confirm |
+| 4 | `label` length | 1–40 characters after trimming. Recommend keeping it: a typical label ("Morning run before work") is about 25 characters; 40 fits one reminder row at the 360 px width the E2E uses; the limit is in the API only (no DB CHECK), so raising it later needs no migration | Recommended; reviewer to confirm |
 | 5 | Maximum number of reminders per user | None; no new error code (the code list is fixed). Limitation stated | Known limitation |
 | 6 | Show enabled reminders on the matching days of the schedule | Out of scope for 0.1.0 | Open (Sprint 3 remainder if time) |
-| 7 | Reminder field cases for AC-23 (SYS-01 §13 item 6) | Candidate: invalid time shows the server error under the time field; decided in SYS-01 | Open |
+| 7 | Reminder field cases for AC-23 (SYS-01 §13 item 6) | Candidate: invalid time shows the server error under the time field; decided in SYS-01. 0.1.2 proposal: `tests/e2e/reminder_ui.spec.ts` already checks that a blank label is rejected by the server and shown under the label field with the form kept open; it could become a `TEST-23-n` case if SYS-01 accepts it (it is not AC evidence until then) | Open (SYS-01 decides) |
 | 8 | Schedule date range limit | None beyond a valid calendar date; a month is at most 31 resolutions over the caller's plan items | Known limitation |
