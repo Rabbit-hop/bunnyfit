@@ -140,3 +140,46 @@ test('S-06 (real API): the current month loads from the seed and the next-month 
   await expect(page.getByTestId('month-next')).toBeDisabled()
   await expect(page.getByTestId('month-grid')).toBeVisible()
 })
+
+test('S-06: when the previous month fails to load, the title names that month and Retry asks for it again', async ({ page }) => {
+  const requested: string[] = []
+  let failOctober = true
+  await login(page)
+  await page.route('**/api/progress/monthly**', async (route: Route) => {
+    const month = new URL(route.request().url()).searchParams.get('month')
+    requested.push(month ?? '(default)')
+    if (month === '2026-10' && failOctober) return route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR', message: 'boom', fields: [] } })
+    return route.fulfill({ json: month === '2026-10' ? OCTOBER : NOVEMBER })
+  })
+  await page.goto('/progress')
+  await expect(page.getByTestId('month-average')).toHaveText('64.3%')
+  await page.getByTestId('month-prev').click()
+  await expect(page.getByTestId('error-notice')).toBeVisible()
+  await expect(page.getByTestId('month-title')).toHaveText('October 2026')
+  failOctober = false
+  requested.length = 0
+  await page.getByTestId('progress-retry').click()
+  await expect(page.getByTestId('month-detail')).toHaveText('No targeted days yet')
+  expect(requested).toEqual(['2026-10'])
+})
+
+test('S-06: a day drawer closed while it is still loading stays closed when the answer arrives', async ({ page }) => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  await login(page)
+  await mockProgress(page, [])
+  await page.route('**/api/progress/daily**', async (route: Route) => {
+    await gate
+    await route.fulfill({ json: DAILY_NOV_3 })
+  })
+  await page.goto('/progress')
+  await page.getByTestId('month-day-2026-11-03').click()
+  await expect(page.getByTestId('day-drawer-loading')).toBeVisible()
+  await page.getByTestId('day-drawer-close').click()
+  await expect(page.getByTestId('day-drawer')).toHaveCount(0)
+  const answered = page.waitForResponse('**/api/progress/daily**')
+  release()
+  await answered
+  await page.waitForTimeout(300)
+  await expect(page.getByTestId('day-drawer')).toHaveCount(0)
+})
