@@ -570,6 +570,30 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
       expect(over.body.fields.map((f: { field: string }) => f.field)).toContain('durationSec');
       expect(await dbSnapshot()).toEqual(snapshot);
 
+      // "Same limits" includes the exercise snapshot's own Valid Range max (R6), not only the 10,800 s hard cap that
+      // the fixture above shares with its rangeMax (found by a mutation check: ignoring rangeMax passed the lines above).
+      const narrow = await prisma.userExercise.create({
+        data: {
+          userId: aliceId,
+          isCustom: true,
+          name: 'Unplanned Short Stretch',
+          targetBodyPart: 'Legs',
+          unit: 'seconds',
+          trackingMode: 'CARDIO_TIME',
+          metValue: 3.5,
+          rangeMin: 1,
+          rangeMax: 1200,
+        },
+      });
+      createdExercises.push(narrow.id);
+      const atMax = await postEntry({ userExerciseId: narrow.id, durationSec: 1200 }, auth);
+      expect(atMax.status, JSON.stringify(atMax.body)).toBe(201);
+      const narrowSnapshot = await dbSnapshot();
+      const overMax = await postEntry({ userExerciseId: narrow.id, durationSec: 1 }, auth);
+      expect(overMax.status, JSON.stringify(overMax.body)).toBe(400);
+      expect(overMax.body.fields.map((f: { field: string }) => f.field)).toContain('durationSec');
+      expect(await dbSnapshot()).toEqual(narrowSnapshot);
+
       const after = await request(app).get(`/api/progress/daily?date=${TODAY}`).set(auth);
       expect(after.body).toEqual(before.body);
     });
