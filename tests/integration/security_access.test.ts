@@ -419,7 +419,8 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         ...Array(6).fill('F-04'),
         ...Array(5).fill('F-03'),
         ...Array(2).fill('F-05'),
-        'F-06',
+        'F-06', // GET /api/progress/daily
+        'F-06', // GET /api/progress/monthly (Sprint 2, issue #75)
         'F-07',
         ...Array(2).fill('F-08'),
         ...Array(5).fill('F-09'),
@@ -438,7 +439,7 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
 
     it('TEST-12b-4: Alice with a foreign ?userId=<Bob> → 403 on every self-scoped route (any method); own ?userId is not rejected; nothing stored, no Bob data in the body', async () => {
       const routes = realPolicies().filter((p) => p.ownership === 'self-scoped' && p.roles.includes('PARTICIPANT'));
-      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-08', 'F-08', 'F-09', 'F-09', 'F-09']);
+      expect(routes.map((p) => p.featureId).sort()).toEqual(['F-03', 'F-03', 'F-03', 'F-03', 'F-04', 'F-04', 'F-04', 'F-04', 'F-04', 'F-06', 'F-06', 'F-08', 'F-08', 'F-09', 'F-09', 'F-09']);
       const aliceToken = await bearerOf('alice@exercise.test');
       const before = await snapshot();
       for (const p of routes) {
@@ -622,10 +623,29 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
     });
 
     describe('F-06 routes', () => {
-      it('TEST-22c (F-06 routes): the registry holds GET /api/progress/daily as F-06 / PARTICIPANT / self-scoped, and only that one in Sprint 1', () => {
+      it('TEST-22c (F-06 routes): the registry holds GET /api/progress/daily and (Sprint 2, issue #75) GET /api/progress/monthly as F-06 / PARTICIPANT / self-scoped, and nothing else', () => {
         const f06 = activePolicies('test').filter((x) => x.featureId === 'F-06');
-        expect(f06).toHaveLength(1);
-        expect(f06[0]).toMatchObject({ method: 'GET', path: '/api/progress/daily', auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' });
+        expect(f06).toHaveLength(2);
+        for (const path of ['/api/progress/daily', '/api/progress/monthly']) {
+          expect(f06.find((x) => x.path === path)).toMatchObject({ method: 'GET', path, auth: 'required', roles: ['PARTICIPANT'], ownership: 'self-scoped' });
+        }
+      });
+
+      it('TEST-22c / 12a / 12b (F-06 monthly, Sprint 2): no token → 401; Manager → 403 envelope only (valid and invalid month); Alice with ?userId=<Bob> → 403 with no data; Bob own request → 200', async () => {
+        expect((await call('GET', '/api/progress/monthly')).status).toBe(401);
+        const token = bearer(await manager());
+        for (const query of ['', '?month=2026-11', '?month=garbage', '?month=2999-01']) {
+          const res = await call('GET', `/api/progress/monthly${query}`, token);
+          expect(res.status, query).toBe(403);
+          expect(res.body, query).toEqual(FORBIDDEN);
+        }
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const foreign = await call('GET', `/api/progress/monthly?userId=${bobId}`, aliceToken);
+        expect(foreign.status).toBe(403);
+        expect(foreign.body).toEqual(FORBIDDEN);
+        expect(JSON.stringify(foreign.body)).not.toContain(bobExerciseId);
+        const bobOwn = await call('GET', '/api/progress/monthly', await bearerOf('bob@exercise.test'));
+        expect(bobOwn.status).toBe(200);
       });
 
       it('TEST-22c / 12a (F-06 routes): no token → 401; Manager → 403 envelope only, with a valid and with an invalid date', async () => {
@@ -651,6 +671,137 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         expect(aliceOwn.status).toBe(200);
         expect(JSON.stringify(aliceOwn.body)).not.toContain(bobExerciseId);
         expect(JSON.stringify(aliceOwn.body)).toContain(aliceExerciseId);
+      });
+    });
+
+    // Issue #78 (Sprint 2 SYS-01): every route added in Sprint 2 has a matrix row here. Each
+    // rejected request carries a body that the owner could save (Bob's own PUT below returns 200),
+    // so a 401 / 403 / 404 is the access rule and not a validation failure; the snapshot includes
+    // the WeightLog and User tables because PUT /api/profile appends a WeightLog row.
+    describe('Sprint 2 routes (issue #78): F-04 profile, F-05, F-06 monthly, F-07, F-08', () => {
+      const SPRINT2_MATRIX: Array<{ method: string; path: string; featureId: string; ownership: 'self-scoped' | 'resource-owner' }> = [
+        { method: 'PUT', path: '/api/plan-items/:id', featureId: 'F-07', ownership: 'resource-owner' },
+        { method: 'PUT', path: '/api/entries/:id', featureId: 'F-05', ownership: 'resource-owner' },
+        { method: 'DELETE', path: '/api/entries/:id', featureId: 'F-05', ownership: 'resource-owner' },
+        { method: 'GET', path: '/api/profile', featureId: 'F-04', ownership: 'self-scoped' },
+        { method: 'PUT', path: '/api/profile', featureId: 'F-04', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/progress/monthly', featureId: 'F-06', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/history', featureId: 'F-08', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/streak', featureId: 'F-08', ownership: 'self-scoped' },
+      ];
+      const BODIES: Record<string, Record<string, unknown>> = {
+        'PUT /api/plan-items/:id': { targetSets: 4 },
+        'PUT /api/entries/:id': { sets: 2, totalReps: 20 },
+        'PUT /api/profile': { weightKg: 70.5 },
+      };
+      const fullSnapshot = async () => ({
+        ...(await snapshot()),
+        weightLogs: await prisma.weightLog.findMany({ orderBy: { id: 'asc' } }),
+        users: await prisma.user.findMany({ orderBy: { id: 'asc' } }),
+      });
+      const recordIds = () => ({ '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId }) as Record<string, string>;
+      const send = (method: string, url: string, token?: string) => {
+        const body = BODIES[`${method} ${url.startsWith('/api/plan-items/') ? '/api/plan-items/:id' : url.startsWith('/api/entries/') ? '/api/entries/:id' : url.split('?')[0]}`];
+        const r = call(method, url, token);
+        return body ? r.send(body) : r;
+      };
+      const urlOf = (row: { path: string }, id?: string) => row.path.replace(':id', id ?? recordIds()[row.path] ?? '');
+
+      it('TEST-22c (Sprint 2 routes): each route is in the registry as PARTICIPANT-only with its ownership; F-05, F-07 and F-08 have no route outside this matrix', () => {
+        const policies = activePolicies('test');
+        for (const row of SPRINT2_MATRIX) {
+          const p = policies.find((x) => x.method === row.method && x.path === row.path);
+          expect(p, `${row.method} ${row.path} in the registry`).toEqual({
+            method: row.method,
+            path: row.path,
+            featureId: row.featureId,
+            auth: 'required',
+            roles: ['PARTICIPANT'],
+            ownership: row.ownership,
+          });
+        }
+        for (const featureId of ['F-05', 'F-07', 'F-08']) {
+          const registered = policies.filter((x) => x.featureId === featureId).map((x) => `${x.method} ${x.path}`).sort();
+          const inMatrix = SPRINT2_MATRIX.filter((x) => x.featureId === featureId).map((x) => `${x.method} ${x.path}`).sort();
+          expect(registered, featureId).toEqual(inMatrix);
+        }
+      });
+
+      it('TEST-22c (Sprint 2 routes): no token → 401 UNAUTHENTICATED envelope on each route, with a valid body on the writes; nothing changed', async () => {
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX) {
+          const res = await send(row.method, urlOf(row));
+          expect(res.status, `${row.method} ${row.path}`).toBe(401);
+          expect(res.body, `${row.method} ${row.path}`).toEqual({ code: 'UNAUTHENTICATED', message: expect.any(String), fields: [] });
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it('TEST-12a / 22c (Sprint 2 routes): Manager → 403 FORBIDDEN envelope on each route, with a valid body on the writes; no Participant data in the body; nothing changed', async () => {
+        const token = bearer(await manager());
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX) {
+          const res = await send(row.method, urlOf(row), token);
+          expect(res.status, `${row.method} ${row.path}`).toBe(403);
+          expect(res.body, `${row.method} ${row.path}`).toEqual(FORBIDDEN);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b / 12c (Sprint 2 routes): Alice on Bob's plan item or entry → 403 on PUT / DELETE with a valid body; Bob's rows unchanged", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'resource-owner')) {
+          const id = recordIds()[row.path]!;
+          const res = await send(row.method, urlOf(row), aliceToken);
+          expect(res.status, `${row.method} ${row.path} as Alice`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+          expect(JSON.stringify(res.body)).not.toContain(id);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b / 12c (Sprint 2 routes): Alice with ?userId=<Bob> → 403 on each self-scoped route (PUT /api/profile with a valid weight); no Bob data in the body; no WeightLog row added", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'self-scoped')) {
+          const res = await send(row.method, `${row.path}?userId=${bobId}`, aliceToken);
+          expect(res.status, `${row.method} ${row.path} ?userId=<Bob>`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+          expect(JSON.stringify(res.body)).not.toContain(bobExerciseId);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it('TEST-12b (Sprint 2 routes): an unknown well-formed id → 404 NOT_FOUND on PUT /api/plan-items/:id, PUT and DELETE /api/entries/:id, with a valid body; nothing changed', async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'resource-owner')) {
+          const res = await send(row.method, urlOf(row, randomUUID()), aliceToken);
+          expect(res.status, `${row.method} ${row.path} unknown id`).toBe(404);
+          expect(res.body.code).toBe('NOT_FOUND');
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b (Sprint 2 routes, control): Bob's own request with the same body → 200 on PUT /api/entries/:id, PUT /api/plan-items/:id and PUT /api/profile, so the rejections above are not caused by the body", async () => {
+        const bobToken = await bearerOf('bob@exercise.test');
+        const entry = await send('PUT', `/api/entries/${bobEntryId}`, bobToken);
+        expect(entry.status, 'PUT /api/entries/:id as Bob').toBe(200);
+        expect(entry.body.entry).toMatchObject({ id: bobEntryId, sets: 2, totalReps: 20 });
+
+        // The PUT inserts a new version of Bob's plan item and appends a WeightLog row for Bob;
+        // both are removed again so the afterAll cleanup and other suites see the earlier state.
+        const weightsBefore = (await prisma.weightLog.findMany({ where: { userId: bobId }, select: { id: true } })).map((w) => w.id);
+        try {
+          const plan = await send('PUT', `/api/plan-items/${bobItemId}`, bobToken);
+          expect(plan.status, 'PUT /api/plan-items/:id as Bob').toBe(200);
+          const profile = await send('PUT', '/api/profile', bobToken);
+          expect(profile.status, 'PUT /api/profile as Bob').toBe(200);
+        } finally {
+          await prisma.planItem.deleteMany({ where: { userExerciseId: bobExerciseId, id: { not: bobItemId } } });
+          await prisma.weightLog.deleteMany({ where: { userId: bobId, id: { notIn: weightsBefore } } });
+        }
       });
     });
   });

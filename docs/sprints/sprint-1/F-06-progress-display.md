@@ -3,10 +3,10 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-06
 **Sprint:**  1 (calories are F-11, Sprint 2; Monthly Progress Summary is F-10, Sprint 3)
-**Contract Version:**  0.3.1
+**Contract Version:**  0.3.2
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0, F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0)
 **Date:**  9 November 2026
-**Status:**  Approved: v0.3.1 by the reviewer's reply on PR #24 (9 Nov 2026); implementation may start (DoD #1)
+**Status:**  Approved: v0.3.1 by the reviewer's reply on PR #24 (9 Nov 2026); implementation may start (DoD #1). v0.3.2 (one clarification of §4.2) is review-pending in PR #119
 **Primary Author:**  Nakagamon  |  **Reviewer:**  Onsinee
 **Repository Path:**  `docs/sprints/sprint-1/F-06-progress-display.md`
 
@@ -20,6 +20,7 @@
 | **0.3.0** | 6 Nov 2026 | Review-fix pass against baseline 1.1.0: citations updated to RTM / SDS / plan / SRS / Feature Inventory 1.1.0 (F-01 contract 0.3.0, F-02 to F-04 contracts 0.3.0); AC-06g is now an RTM 1.1.0 criterion (no longer *proposed*); AC-06g (CHANGE-08), AC-15 (CHANGE-06) and AC-21a (CHANGE-03) are marked **deferred to Sprint 2** in §1, §2, §7, §8, §9, §10 and §12 — STS rows kept; the Sprint 1 scope of F-06 is AC-06a–f; `tests/integration/progress_api.test.ts` is now listed in RTM §2 (P6-6 applied); §12 pending items given a status column | Nakagamon | Draft |
 | **0.3.1** | 9 Nov 2026 | Test-row fixes only, requested by the reviewer on PR #24 (issuecomment-6741224888): `TEST-06e-3` (line 237 in 0.3.0) now requests the past date 2026-11-03 with the Clock fixed at 2026-11-05 (it requested the future date 2026-11-10, which R13, SRS Q47 and TEST-06g-4 answer with 400); `TEST-06f-1` (line 238 in 0.3.0) inserts a `WeightLog` row directly instead of calling `PUT /api/profile` (Sprint 2, CHANGE-04). No AC, API, schema or scope change. Also §9 step 1 now names v0.3.1 | Nakagamon | Draft |
 | **0.3.1** | 9 Nov 2026 | Status only, no content change: the reviewer's reply on PR #24 (issuecomment-6743198059, 9 Nov 2026 14:57 UTC) records `F-06 v0.3.1: approved` after re-reading the diff `548407c..27dd0c5` (both test-row fixes, header, this table and §9 step 1) | Nakagamon | Approved |
+| **0.3.2** | 26 Nov 2026 | One clarification of §4.2 for a case v0.3.1 did not state: a Participant with **no plan item** has no first `effectiveFrom`, so `GET /api/progress/monthly` returns `days: []`, `targetedDays` 0, `restDaysExcluded` 0 and `averagePercent` null (before, every day of the month was returned as a Rest Day, so `restDaysExcluded` was 30 or 31). Raised in the review of PR #119 and decided by the team (issue #75). **Order:** this row was written after the code change (`c22d8a9`, red test `fee764f`), not before it as the spec-first rule asks; it is recorded here so the contract matches the code. No AC, STS row, test ID or other behaviour changes; TEST-15-4 is unchanged. | Onsinee (67070501078) | Draft (review-pending) |
 
 *Rule: committed as a specification-only commit before any F-06 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -160,7 +161,7 @@ Success `200 OK`:
   ]
 }
 ```
-`from` is `max(month start, first effectiveFrom)`; `to` is today for the current month or the month end for a past month. `averagePercent` is `null` when `targetedDays` is 0. Errors: 400, 401, 403.
+`from` is `max(month start, first effectiveFrom)`; `to` is today for the current month or the month end for a past month. `averagePercent` is `null` when `targetedDays` is 0. A Participant with no plan item has no first `effectiveFrom`: `days` is `[]`, `targetedDays` and `restDaysExcluded` are 0 and `averagePercent` is `null` (0.3.2). Errors: 400, 401, 403.
 
 ##### 4.3 Route Policies (registered in the F-01 registry)
 Both routes: `featureId: 'F-06'`, `auth: 'required'`, `roles: ['PARTICIPANT']`, `ownership: 'self-scoped'`. F-06 has no owner-scoped (`resource-owner`) route.

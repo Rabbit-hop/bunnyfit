@@ -118,7 +118,7 @@ test('S-04 (UI): nothing is saved without choosing a template', async ({ page })
   await expect(page.getByTestId('error-notice')).toContainText('Choose an exercise')
 })
 
-test('bottom bar: Today and My Plan link to their pages; Progress and Profile say they come in Sprint 2', async ({ page }) => {
+test('bottom bar: Today, My Plan and Progress (S-06, issue #75) link to their pages; Profile says it comes in Sprint 2', async ({ page }) => {
   await loginAsParticipant(page)
   await page.goto('/today')
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
@@ -128,12 +128,12 @@ test('bottom bar: Today and My Plan link to their pages; Progress and Profile sa
   await expect(page.getByTestId('plan-page')).toBeVisible()
 
   await page.getByTestId('nav-progress').click()
-  await expect(page.getByTestId('nav-coming-soon')).toContainText('Sprint 2')
-  await expect(page).toHaveURL(/\/plan$/)
+  await expect(page).toHaveURL(/\/progress$/)
+  await expect(page.getByTestId('progress-page')).toBeVisible()
 
   await page.getByTestId('nav-profile').click()
   await expect(page.getByTestId('nav-coming-soon')).toContainText('Profile')
-  await expect(page).toHaveURL(/\/plan$/)
+  await expect(page).toHaveURL(/\/progress$/)
 })
 
 test('calendar (UI): stepping months from the 31st returns to the 31st instead of drifting to the 28th', async ({ page }) => {

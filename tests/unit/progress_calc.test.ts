@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cumulativeFor, type Cumulative } from '../../server/domain/entryCalc.js';
-import { calcDaily, calcItem } from '../../server/domain/progressCalc.js';
+import { calcDaily, calcItem, calcMonthly, type DailyResult } from '../../server/domain/progressCalc.js';
 import type { ResolvedItem } from '../../server/domain/planResolution.js';
 
 // TEST-14a (AC-14a, F-04 STS §8; RTM §3.1 path for AC-14a is this file):
@@ -278,6 +278,40 @@ describe('TEST-06e (AC-06e): targeted day without log vs Rest Day', () => {
       actual: 120,
       ratio: 1,
       itemScore: 2,
+    });
+  });
+});
+
+// TEST-15-1, 15-2, 15-5 (AC-15, F-06 STS §8, Sprint 2 / CHANGE-06): `calcMonthly` averages the
+// Daily Overall % of the targeted days only; Rest Days (`overallPercent` null) are counted in
+// `restDaysExcluded`, never in the denominator (BR-07, R10).
+describe('calcMonthly (AC-15)', () => {
+  const day = (overallPercent: number | null): DailyResult => ({
+    isRestDay: overallPercent === null,
+    items: [],
+    totalScore: 0,
+    totalWeight: 0,
+    overallPercent,
+  });
+
+  it('TEST-15-1: days 100, Rest Day, 50, Rest Day → targetedDays 2, restDaysExcluded 2, average 75 (not 37.5)', () => {
+    expect(calcMonthly([day(100), day(null), day(50), day(null)])).toEqual({
+      targetedDays: 2,
+      restDaysExcluded: 2,
+      averagePercent: 75,
+    });
+  });
+
+  it('TEST-15-2: only Rest Days → averagePercent null and targetedDays 0', () => {
+    expect(calcMonthly([day(null), day(null)])).toEqual({ targetedDays: 0, restDaysExcluded: 2, averagePercent: null });
+    expect(calcMonthly([])).toEqual({ targetedDays: 0, restDaysExcluded: 0, averagePercent: null });
+  });
+
+  it('TEST-15-5: days 80, 60, 100 and an explicit 0 → targetedDays 4, average 60 (a 0% day counts)', () => {
+    expect(calcMonthly([day(80), day(60), day(100), day(0)])).toEqual({
+      targetedDays: 4,
+      restDaysExcluded: 0,
+      averagePercent: 60,
     });
   });
 });

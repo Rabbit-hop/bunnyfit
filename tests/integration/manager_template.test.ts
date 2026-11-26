@@ -23,6 +23,23 @@ const SEEDED_TEMPLATES = [
 ];
 const SEEDED_CATEGORIES = ['Weight Training', 'Bodyweight', 'Yoga', 'Cardio'];
 
+// AC-02e (Lab 7, issue #89): category names are 1-30 characters. Fixed names so a crashed run is cleaned up.
+const N1 = 'a';
+const N29 = 'b'.repeat(29);
+const N30 = 'c'.repeat(30);
+const N30_TRIM = 'd'.repeat(30);
+const N30_RENAME = 'e'.repeat(30);
+const N40_A = 'f'.repeat(40);
+const N40_B = 'g'.repeat(40);
+const N30_OLD = 'l'.repeat(30);
+// Rows that exist only if the code is wrong (31+ characters written): listed too, so a red run leaves nothing behind.
+const TOO_LONG = [31, 50, 51, 100].map((n) => 'h'.repeat(n));
+const TOO_LONG_RENAME = [31, 50].map((n) => 'i'.repeat(n));
+const AC02E_NAMES = [
+  N1, N29, N30, N30_TRIM, N30_RENAME, N30_OLD, N40_A, N40_B, 'AC02e Rename Me',
+  ...TOO_LONG, ...TOO_LONG_RENAME, 'j'.repeat(31), 'k'.repeat(30), 'k'.repeat(31),
+];
+
 describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
   let prisma: PrismaClient;
   let app: ReturnType<typeof buildIntegrationApp>;
@@ -36,7 +53,7 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
   const NO_SUCH_ID = '00000000-0000-4000-8000-000000000000';
   /** Names created by this suite; removed in afterAll (and before, in case of a crashed earlier run). */
-  const TEST_CATEGORIES = ['Mobility', 'Mobility & Stretch', 'Disposable', 'Mobility Extra'];
+  const TEST_CATEGORIES = ['Mobility', 'Mobility & Stretch', 'Disposable', 'Mobility Extra', 'Conflict Base', ...AC02E_NAMES];
   const cleanup = async () => {
     await prisma.exerciseTemplate.deleteMany({ where: { category: { name: { in: TEST_CATEGORIES } } } });
     await prisma.category.deleteMany({ where: { name: { in: TEST_CATEGORIES } } });
@@ -148,6 +165,105 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
       expect(put.body.message).not.toMatch(/No route matches/);
       expect(del.body.message).not.toMatch(/No route matches/);
       expect(await prisma.category.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    });
+  });
+
+  describe('AC-02e category name 1-30 characters (Lab 7, issue #89)', () => {
+    const nameLimit = (body: { fields?: Array<{ field: string; limit: string }> }) =>
+      (body.fields ?? []).find((f) => f.field === 'name')?.limit;
+
+    it('TEST-02e-1: POST with 1, 29 and 30 characters → 201 each; name stored exactly; three new rows', async () => {
+      const token = await managerToken();
+      const before = await prisma.category.count();
+      for (const name of [N1, N29, N30]) {
+        const res = await request(app).post('/api/categories').set(bearer(token)).send({ name });
+        expect(res.status).toBe(201);
+        expect(res.body.name).toBe(name);
+        const row = await prisma.category.findUniqueOrThrow({ where: { id: res.body.id } });
+        expect(row.name).toBe(name);
+      }
+      expect(await prisma.category.count()).toBe(before + 3);
+    });
+
+    it('TEST-02e-2: POST with 31, 50, 51 and 100 characters → 400 VALIDATION_ERROR naming name (1-30 characters); row count unchanged', async () => {
+      const token = await managerToken();
+      const before = await prisma.category.count();
+      for (const length of [31, 50, 51, 100]) {
+        const res = await request(app).post('/api/categories').set(bearer(token)).send({ name: 'h'.repeat(length) });
+        expect(res.status, `length ${length}`).toBe(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(nameLimit(res.body), `length ${length}`).toBe('1-30 characters');
+      }
+      expect(await prisma.category.count()).toBe(before);
+    });
+
+    it('TEST-02e-3: PUT to 30 characters → 200; to 31 and 50 → 400 and the row keeps the 30-character name', async () => {
+      const token = await managerToken();
+      const created = await prisma.category.create({ data: { name: 'AC02e Rename Me' } });
+      const ok = await request(app).put(`/api/categories/${created.id}`).set(bearer(token)).send({ name: N30_RENAME });
+      expect(ok.status).toBe(200);
+      expect(ok.body).toEqual({ id: created.id, name: N30_RENAME });
+      for (const length of [31, 50]) {
+        const bad = await request(app).put(`/api/categories/${created.id}`).set(bearer(token)).send({ name: 'i'.repeat(length) });
+        expect(bad.status, `length ${length}`).toBe(400);
+        expect(bad.body.code).toBe('VALIDATION_ERROR');
+        expect(nameLimit(bad.body)).toBe('1-30 characters');
+      }
+      expect((await prisma.category.findUniqueOrThrow({ where: { id: created.id } })).name).toBe(N30_RENAME);
+    });
+
+    it('TEST-02e-4: 30 characters with surrounding spaces → 201 trimmed; 31 with spaces, "", "   " and a non-string name → 400 naming name; nothing stored', async () => {
+      const token = await managerToken();
+      const trimmed = await request(app).post('/api/categories').set(bearer(token)).send({ name: `  ${N30_TRIM}  ` });
+      expect(trimmed.status).toBe(201);
+      expect(trimmed.body.name).toBe(N30_TRIM);
+      expect((await prisma.category.findUniqueOrThrow({ where: { id: trimmed.body.id } })).name).toBe(N30_TRIM);
+
+      const before = await prisma.category.count();
+      for (const name of [` ${'j'.repeat(31)} `, '', '   ', 12345]) {
+        const res = await request(app).post('/api/categories').set(bearer(token)).send({ name });
+        expect(res.status, JSON.stringify(name)).toBe(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(nameLimit(res.body)).toBeDefined();
+      }
+      expect(await prisma.category.count()).toBe(before);
+    });
+
+    it('TEST-02e-5: Alice POST with 30 and 31 characters, PUT and DELETE → 403 FORBIDDEN each; database unchanged', async () => {
+      const token = await aliceToken();
+      const auth = bearer(token);
+      const existing = await prisma.category.findFirstOrThrow();
+      const before = await prisma.category.findMany({ orderBy: { id: 'asc' } });
+      const responses = [
+        await request(app).post('/api/categories').set(auth).send({ name: 'k'.repeat(30) }),
+        await request(app).post('/api/categories').set(auth).send({ name: 'k'.repeat(31) }),
+        await request(app).put(`/api/categories/${existing.id}`).set(auth).send({ name: 'k'.repeat(31) }),
+        await request(app).delete(`/api/categories/${existing.id}`).set(auth),
+      ];
+      for (const res of responses) {
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe('FORBIDDEN');
+      }
+      expect(await prisma.category.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    });
+
+    it('TEST-02e-6: an existing 40-character name stays listed; PUT to another 40-character name → 400; PUT to 30 → 200', async () => {
+      const aliceAuth = bearer(await aliceToken());
+      const token = await managerToken();
+      const old = await prisma.category.create({ data: { name: N40_A } });
+      const list = await request(app).get('/api/categories').set(aliceAuth);
+      expect(list.status).toBe(200);
+      expect((list.body as Array<{ id: string; name: string }>).find((c) => c.id === old.id)?.name).toBe(N40_A);
+
+      const bad = await request(app).put(`/api/categories/${old.id}`).set(bearer(token)).send({ name: N40_B });
+      expect(bad.status).toBe(400);
+      expect(bad.body.code).toBe('VALIDATION_ERROR');
+      expect(nameLimit(bad.body)).toBe('1-30 characters');
+      expect((await prisma.category.findUniqueOrThrow({ where: { id: old.id } })).name).toBe(N40_A);
+
+      const ok = await request(app).put(`/api/categories/${old.id}`).set(bearer(token)).send({ name: N30_OLD });
+      expect(ok.status).toBe(200);
+      expect((await prisma.category.findUniqueOrThrow({ where: { id: old.id } })).name).toBe(N30_OLD);
     });
   });
 
@@ -333,6 +449,168 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
         expect(res.status).toBe(403);
         expect(res.body.code).toBe('FORBIDDEN');
       }
+      expect(await snapshot()).toEqual(before);
+    });
+  });
+
+  // AC-02d (CHANGE-08, Sprint 2): conflicting or invalid library data is rejected and nothing is stored.
+  describe('AC-02d conflicts and invalid library data (Manager)', () => {
+    let categoryId: string;
+    const fieldsOf = (res: { body: { fields?: Array<{ field: string }> } }): string[] =>
+      (res.body.fields ?? []).map((f) => f.field);
+    const snapshot = async () => ({
+      categories: await prisma.category.findMany({ orderBy: { id: 'asc' } }),
+      templates: await prisma.exerciseTemplate.findMany({ orderBy: { id: 'asc' } }),
+    });
+    const validBody = (extra: Record<string, unknown> = {}) => ({
+      categoryId,
+      name: 'D-valid WEIGHT',
+      targetBodyPart: 'Chest',
+      trackingMode: 'WEIGHT',
+      metValue: 3.5,
+      ...extra,
+    });
+    const post = async (body: Record<string, unknown>) =>
+      request(app).post('/api/templates').set(bearer(await managerToken())).send(body);
+
+    beforeAll(async () => {
+      categoryId = (await prisma.category.create({ data: { name: 'Conflict Base' } })).id;
+    });
+
+    it('TEST-02d-1: duplicate category name (case-insensitive) on POST and on PUT → 400 VALIDATION_ERROR naming name; database unchanged', async () => {
+      const token = await managerToken();
+      const before = await snapshot();
+      const created = await request(app).post('/api/categories').set(bearer(token)).send({ name: 'weight training' });
+      expect(created.status).toBe(400);
+      expect(created.body.code).toBe('VALIDATION_ERROR');
+      expect(fieldsOf(created)).toContain('name');
+      const renamed = await request(app).put(`/api/categories/${categoryId}`).set(bearer(token)).send({ name: 'Weight Training' });
+      expect(renamed.status).toBe(400);
+      expect(renamed.body.code).toBe('VALIDATION_ERROR');
+      expect(fieldsOf(renamed)).toContain('name');
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('TEST-02d-2: duplicate template name within a category → 400; the same name in another category → 201', async () => {
+      const token = await managerToken();
+      const bodyweight = await prisma.category.findFirstOrThrow({ where: { name: 'Bodyweight' } });
+      const yoga = await prisma.category.findFirstOrThrow({ where: { name: 'Yoga' } });
+      const before = await prisma.exerciseTemplate.count();
+      const dup = await request(app)
+        .post('/api/templates')
+        .set(bearer(token))
+        .send({ categoryId: bodyweight.id, name: 'push-UP', targetBodyPart: 'Chest', trackingMode: 'BODYWEIGHT_REPS', metValue: 3.8 });
+      expect(dup.status).toBe(400);
+      expect(dup.body.code).toBe('VALIDATION_ERROR');
+      expect(fieldsOf(dup)).toContain('name');
+      expect(await prisma.exerciseTemplate.count()).toBe(before);
+      const other = await request(app)
+        .post('/api/templates')
+        .set(bearer(token))
+        .send({ categoryId: yoga.id, name: 'Push-up', targetBodyPart: 'Chest', trackingMode: 'BODYWEIGHT_REPS', metValue: 3.8 });
+      expect(other.status).toBe(201);
+      await prisma.exerciseTemplate.delete({ where: { id: other.body.id } });
+    });
+
+    it('TEST-02d-3: DELETE a category that still has templates → 409 CATEGORY_HAS_TEMPLATES, intact; after deleting its templates → 204', async () => {
+      const token = await managerToken();
+      const category = await prisma.category.create({ data: { name: 'Disposable' } });
+      const tpl = await post(validBody({ categoryId: category.id, name: 'D-disposable' }));
+      expect(tpl.status).toBe(201);
+      const before = await snapshot();
+      const blocked = await request(app).delete(`/api/categories/${category.id}`).set(bearer(token));
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.code).toBe('CATEGORY_HAS_TEMPLATES');
+      expect(await snapshot()).toEqual(before);
+      expect((await request(app).delete(`/api/templates/${tpl.body.id}`).set(bearer(token))).status).toBe(204);
+      expect((await request(app).delete(`/api/categories/${category.id}`).set(bearer(token))).status).toBe(204);
+    });
+
+    it('TEST-02d-4: invalid name, body part, unit, metValue, trackingMode or unknown field → 400 VALIDATION_ERROR naming the field; database unchanged', async () => {
+      const before = await snapshot();
+      const cases: Array<[Record<string, unknown>, string]> = [
+        [{ name: '' }, 'name'],
+        [{ name: '   ' }, 'name'],
+        [{ name: 'x'.repeat(81) }, 'name'],
+        [{ targetBodyPart: '' }, 'targetBodyPart'],
+        [{ targetBodyPart: 'y'.repeat(51) }, 'targetBodyPart'],
+        [{ unit: 'kg' }, 'unit'],
+        [{ metValue: 0 }, 'metValue'],
+        [{ metValue: 25.1 }, 'metValue'],
+        [{ metValue: 3.55 }, 'metValue'],
+        [{ trackingMode: 'PILATES' }, 'trackingMode'],
+        [{ surprise: true }, 'surprise'],
+      ];
+      for (const [extra, field] of cases) {
+        const res = await post(validBody({ name: 'D-invalid', ...extra }));
+        expect(res.status, JSON.stringify(extra)).toBe(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(fieldsOf(res), JSON.stringify(extra)).toContain(field);
+      }
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('TEST-02d-5: Valid Range boundary pairs (reps, seconds, km) and rangeMin vs rangeMax', async () => {
+      const modes = [
+        { trackingMode: 'WEIGHT', max: 4000, over: 4001, label: 'reps' },
+        { trackingMode: 'BODYWEIGHT_TIME', max: 10800, over: 10801, label: 'seconds' },
+        { trackingMode: 'CARDIO_DISTANCE', max: 100, over: 100.01, label: 'km', cardioCategory: 'RUNNING' },
+      ];
+      const createdIds: string[] = [];
+      for (const m of modes) {
+        const base = { trackingMode: m.trackingMode, ...(m.cardioCategory ? { cardioCategory: m.cardioCategory } : {}) };
+        const atMax = await post(validBody({ ...base, name: `D-max ${m.label}`, rangeMax: m.max }));
+        expect(atMax.status, `${m.label} at max`).toBe(201);
+        createdIds.push(atMax.body.id as string);
+        const before = await prisma.exerciseTemplate.count();
+        const over = await post(validBody({ ...base, name: `D-over ${m.label}`, rangeMax: m.over }));
+        expect(over.status, `${m.label} over max`).toBe(400);
+        expect(fieldsOf(over)).toContain('rangeMax');
+        const zeroMin = await post(validBody({ ...base, name: `D-zero ${m.label}`, rangeMin: 0 }));
+        expect(zeroMin.status, `${m.label} rangeMin 0`).toBe(400);
+        expect(fieldsOf(zeroMin)).toContain('rangeMin');
+        const inverted = await post(validBody({ ...base, name: `D-inv ${m.label}`, rangeMin: 10, rangeMax: 5 }));
+        expect(inverted.status, `${m.label} min > max`).toBe(400);
+        expect(fieldsOf(inverted)).toContain('rangeMin');
+        expect(await prisma.exerciseTemplate.count()).toBe(before);
+        const equal = await post(validBody({ ...base, name: `D-eq ${m.label}`, rangeMin: 5, rangeMax: 5 }));
+        expect(equal.status, `${m.label} min = max`).toBe(201);
+        createdIds.push(equal.body.id as string);
+      }
+      await prisma.exerciseTemplate.deleteMany({ where: { id: { in: createdIds } } });
+    });
+
+    it('TEST-02d-6: boundary accepted values: name of 80 characters, metValue 25 and 0.1 → 201', async () => {
+      const ids: string[] = [];
+      for (const extra of [{ name: 'n'.repeat(80) }, { name: 'D-met25', metValue: 25 }, { name: 'D-met01', metValue: 0.1 }]) {
+        const res = await post(validBody(extra));
+        expect(res.status, JSON.stringify(extra)).toBe(201);
+        ids.push(res.body.id as string);
+      }
+      await prisma.exerciseTemplate.deleteMany({ where: { id: { in: ids } } });
+    });
+
+    it('TEST-02d-7: PUT changing trackingMode, or giving cardioCategory to a WEIGHT template → 400 naming the field; unchanged', async () => {
+      const token = await managerToken();
+      const created = await post(validBody({ name: 'D-immutable' }));
+      expect(created.status).toBe(201);
+      const before = await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: created.body.id } });
+      const mode = await request(app).put(`/api/templates/${created.body.id}`).set(bearer(token)).send({ trackingMode: 'YOGA' });
+      expect(mode.status).toBe(400);
+      expect(mode.body.code).toBe('VALIDATION_ERROR');
+      expect(fieldsOf(mode)).toContain('trackingMode');
+      const cardio = await request(app).put(`/api/templates/${created.body.id}`).set(bearer(token)).send({ cardioCategory: 'RUNNING' });
+      expect(cardio.status).toBe(400);
+      expect(fieldsOf(cardio)).toContain('cardioCategory');
+      expect(await prisma.exerciseTemplate.findUniqueOrThrow({ where: { id: created.body.id } })).toEqual(before);
+      await prisma.exerciseTemplate.delete({ where: { id: created.body.id } });
+    });
+
+    it('TEST-02d-8: POST template with a well-formed categoryId that does not exist → 404 NOT_FOUND; database unchanged', async () => {
+      const before = await snapshot();
+      const res = await post(validBody({ categoryId: NO_SUCH_ID, name: 'D-orphan' }));
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('NOT_FOUND');
       expect(await snapshot()).toEqual(before);
     });
   });

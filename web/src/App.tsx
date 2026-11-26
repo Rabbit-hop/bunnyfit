@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { landingPath, useAuth } from './auth/AuthContext'
 import { BottomNav } from './components/BottomNav'
 import { LoadingScreen } from './components/LoadingScreen'
@@ -8,7 +8,7 @@ import { ErrorPage } from './pages/ErrorPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { LoginPage } from './pages/LoginPage'
 import { HistoryPage } from './pages/HistoryPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { MonthlyProgressPage } from './pages/MonthlyProgressPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanPage } from './pages/PlanPage'
 import { SchedulePage } from './pages/SchedulePage'
@@ -119,9 +119,7 @@ export default function App() {
             path="/progress"
             element={
               <Guard role="PARTICIPANT">
-                <PlaceholderPage title="Progress" description="Monthly progress is planned for Sprint 2.">
-                  <Link to="/history" data-testid="progress-history-link">View your history</Link>
-                </PlaceholderPage>
+                <MonthlyProgressPage />
               </Guard>
             }
           />
