@@ -5,6 +5,9 @@ import { createApp } from '../../server/app.js';
 import { FixedClock } from '../../server/domain/clock.js';
 import { signToken } from '../../server/domain/token.js';
 import { activePolicies, PROBE_ROUTE_POLICIES } from '../../server/routes/registry.js';
+import type { EntryRepository } from '../../server/repositories/entryRepository.js';
+import type { PlanRepository } from '../../server/repositories/planRepository.js';
+import type { ProfileRepository } from '../../server/repositories/profileRepository.js';
 import { routesMissingPolicy } from '../helpers/expressRoutes.js';
 
 // F-01 §4.5: probe routes (test env only), registry completeness,
@@ -135,5 +138,24 @@ describe('registry completeness', () => {
     const app = build('test');
     app.get('/api/sneaky', (_req, res) => res.json({}));
     expect(routesMissingPolicy(app, activePolicies('test'))).toEqual(['GET /api/sneaky']);
+  });
+});
+
+// PR #117 review item 3: GET /api/progress/daily needs WeightLog (F-11), so an app
+// given entry storage without profile storage must fail at startup, not answer 404.
+describe('app wiring (F-11)', () => {
+  const stores = {
+    auth: { secret: SECRET, clock, isRevoked: async () => false, userExists: async () => true },
+    entries: {} as EntryRepository,
+    plans: {} as PlanRepository,
+    clock,
+  };
+
+  it('throws when entries, plans and clock are given without profiles', () => {
+    expect(() => createApp({ nodeEnv: 'test', ...stores })).toThrow(/profiles/);
+  });
+
+  it('builds when profiles is given as well', () => {
+    expect(() => createApp({ nodeEnv: 'test', ...stores, profiles: {} as ProfileRepository })).not.toThrow();
   });
 });

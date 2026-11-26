@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import type { WeightRow } from '../domain/calorieCalc.js';
 
 /**
  * Profile as the API returns it (F-04 §4.5): never `userId` or `passwordHash`.
@@ -17,6 +18,8 @@ export interface ProfileRepository {
   getProfile(userId: string): Promise<ProfileRecord | null>;
   /** Appends one `WeightLog` row (append-only, R16); rows are never updated or deleted. */
   appendWeight(userId: string, weightKg: number, effectiveDate: string): Promise<void>;
+  /** F-11 R2: the caller's `WeightLog` rows with `effectiveDate` on or before `date`; `pickBodyWeight` chooses one. */
+  listWeightsUpTo(userId: string, date: string): Promise<WeightRow[]>;
 }
 
 const toDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -42,6 +45,25 @@ export function createPrismaProfileRepository(prisma: PrismaClient): ProfileRepo
 
     async appendWeight(userId, weightKg, effectiveDate) {
       await prisma.weightLog.create({ data: { userId, weightKg, effectiveDate: toDate(effectiveDate) } });
+    },
+
+    async listWeightsUpTo(userId, date) {
+      // Served by the index (userId, effectiveDate); only the latest effectiveDate can win (R2).
+      const latest = await prisma.weightLog.findFirst({
+        where: { userId, effectiveDate: { lte: toDate(date) } },
+        orderBy: { effectiveDate: 'desc' },
+        select: { effectiveDate: true },
+      });
+      if (!latest) return [];
+      const rows = await prisma.weightLog.findMany({
+        where: { userId, effectiveDate: latest.effectiveDate },
+        select: { weightKg: true, effectiveDate: true, createdAt: true },
+      });
+      return rows.map((row) => ({
+        weightKg: Number(row.weightKg),
+        effectiveDate: row.effectiveDate.toISOString().slice(0, 10),
+        createdAt: row.createdAt,
+      }));
     },
   };
 }

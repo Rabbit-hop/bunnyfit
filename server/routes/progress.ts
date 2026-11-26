@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { validationError } from '../middleware/errorHandler.js';
 import type { EntryRepository } from '../repositories/entryRepository.js';
 import type { PlanRepository } from '../repositories/planRepository.js';
+import type { ProfileRepository } from '../repositories/profileRepository.js';
 import type { RouteRegistrar } from './register.js';
 import { findRoutePolicy, type RoutePolicy } from './registry.js';
 
@@ -13,7 +14,8 @@ import { findRoutePolicy, type RoutePolicy } from './registry.js';
  * F-06 §4.1 `GET /api/progress/daily?date=YYYY-MM-DD` (Participant, self-scoped, read-only).
  * Role and `?userId=` ownership (R1, §3.4) are enforced by the registry policy before this
  * handler runs, so authorization precedes validation. R13: `date` must be a real calendar
- * date and not after today (Clock).
+ * date and not after today (Clock). F-11 §4.1 adds the calorie fields to the same response
+ * (no new route, same policy).
  *
  * F-06 §4.2 `GET /api/progress/monthly?month=YYYY-MM` (CHANGE-06): same policy shape; `month`
  * defaults to the current month and must be `YYYY-MM` and not after the current month (R13).
@@ -21,7 +23,7 @@ import { findRoutePolicy, type RoutePolicy } from './registry.js';
 export function registerProgressRoutes(
   registrar: RouteRegistrar,
   policies: readonly RoutePolicy[],
-  deps: { entries: EntryRepository; plans: PlanRepository; clock: Clock },
+  deps: { entries: EntryRepository; plans: PlanRepository; weights: Pick<ProfileRepository, 'listWeightsUpTo'>; clock: Clock },
 ): void {
   const policy = findRoutePolicy('GET', '/api/progress/daily', policies);
   if (!policy) throw new Error('GET /api/progress/daily has no route policy');

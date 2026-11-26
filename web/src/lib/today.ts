@@ -57,7 +57,15 @@ export type Cumulative = {
   distanceKm: number
 }
 
-export type DailyItem = {
+/** F-11 §4.1: `calories` is null exactly when `calorieError` is set (no body weight on the date). */
+export type CalorieError = 'BODY_WEIGHT_REQUIRED'
+export type CalorieFields = {
+  estimatedMinutes: number
+  calories: number | null
+  calorieError: CalorieError | null
+}
+
+export type DailyItem = CalorieFields & {
   planItemId: string
   userExerciseId: string
   name: string
@@ -70,6 +78,15 @@ export type DailyItem = {
   itemScore: number
 }
 
+/** F-11 R12: an exercise logged on the date that is not in `items` (unscored). */
+export type OtherActivity = CalorieFields & {
+  userExerciseId: string
+  name: string
+  trackingMode: TrackingMode
+  unit: Unit
+  actual: number
+}
+
 export type DailyProgress = {
   date: string
   isRestDay: boolean
@@ -77,6 +94,9 @@ export type DailyProgress = {
   totalScore: number
   totalWeight: number
   overallPercent: number | null
+  otherActivity: OtherActivity[]
+  totalCalories: number | null
+  calorieError: CalorieError | null
 }
 
 export type DayEntries = { date: string; entries: LedgerEntry[]; cumulative: Cumulative[] }
@@ -142,6 +162,12 @@ export const KIND_LABEL: Record<EntryKind, string> = { MANUAL: 'Manual', QUICK_C
 
 export const PRIORITY_LABEL: Record<number, string> = { 1: 'Low', 2: 'Medium', 3: 'High' }
 export const priorityLabel = (weight: number) => PRIORITY_LABEL[weight] ?? `Weight ${weight}`
+
+/** F-11 §6: kcal as returned (already rounded to 1 decimal by the server), shown with 1 decimal. */
+export const formatKcal = (value: number) => `≈ ${value.toFixed(1)} kcal`
+/** F-11 §6: estimated minutes to 1 decimal (the server returns them unrounded). */
+export const formatMinutes = (value: number) => `${Number(value.toFixed(1))} min`
+export const SET_BODY_WEIGHT = 'Set your body weight'
 
 /** Percentages and scores show one decimal (UI spec §3.4); ratios are returned unrounded. */
 export const formatPercent = (value: number) => `${value.toFixed(1)}%`
@@ -297,15 +323,26 @@ function validationError(field: string, limit: string): ApiError {
   return new ApiError(400, 'VALIDATION_ERROR', 'Validation failed', [{ field, limit }])
 }
 
+// Mock only: a fixed 70 kg, 3.5 METs and float arithmetic; real values come from the server (F-11 R5).
+const MOCK_WEIGHT_KG = 70
+
+function mockCalories(c: Cumulative, unit: Unit): CalorieFields {
+  const minutes = unit === 'reps' ? c.sets * 1.5 : unit === 'seconds' ? c.durationSec / 60 : c.distanceKm * 6
+  return { estimatedMinutes: minutes, calories: Math.round(3.5 * MOCK_WEIGHT_KG * (minutes / 60) * 10) / 10, calorieError: null }
+}
+
 function mockDaily(): DailyProgress {
   const plan = mockPlanToday()
+  const calories = { otherActivity: [] as OtherActivity[], calorieError: null }
   if (plan.length === 0) {
-    return { date: MOCK_DATE, isRestDay: true, items: [], totalScore: 0, totalWeight: 0, overallPercent: null }
+    return { date: MOCK_DATE, isRestDay: true, items: [], totalScore: 0, totalWeight: 0, overallPercent: null, ...calories, totalCalories: 0 }
   }
   const items: DailyItem[] = plan.map((p) => {
-    const actual = cumulativeValue(mockCumulative(p.exercise.id), p.exercise.unit)
+    const cum = mockCumulative(p.exercise.id)
+    const actual = cumulativeValue(cum, p.exercise.unit)
     const ratio = Math.min(1, actual / p.target)
     return {
+      ...mockCalories(cum, p.exercise.unit),
       planItemId: `pi-${p.exercise.id}`,
       userExerciseId: p.exercise.id,
       name: p.exercise.name,
@@ -320,7 +357,8 @@ function mockDaily(): DailyProgress {
   })
   const totalScore = items.reduce((s, i) => s + i.itemScore, 0)
   const totalWeight = items.reduce((s, i) => s + i.priorityWeight, 0)
-  return { date: MOCK_DATE, isRestDay: false, items, totalScore, totalWeight, overallPercent: (totalScore / totalWeight) * 100 }
+  const totalCalories = Math.round(items.reduce((sum, i) => sum + (i.calories ?? 0), 0) * 10) / 10
+  return { date: MOCK_DATE, isRestDay: false, items, totalScore, totalWeight, overallPercent: (totalScore / totalWeight) * 100, ...calories, totalCalories }
 }
 
 function mockAddEntry(input: EntryInput, kind: EntryKind): EntryResult {

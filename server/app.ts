@@ -36,7 +36,7 @@ export interface AppOptions {
   plans?: PlanRepository;
   /** Entry storage (F-04); entry routes are mounted only when provided with `plans` and `clock`. */
   entries?: EntryRepository;
-  /** Profile and body weight storage (F-04, Sprint 2); its routes are mounted only when provided with `clock`. */
+  /** Profile and body weight storage (F-04, Sprint 2); its routes are mounted only when provided with `clock`. Required whenever `entries`, `plans` and `clock` are given (F-11 daily progress reads WeightLog). */
   profiles?: ProfileRepository;
   /** Source of business "today" for the plan routes. */
   clock?: Clock;
@@ -94,8 +94,19 @@ export function createApp(options: AppOptions = {}): Express {
   }
 
   if (options.entries && options.plans && options.clock) {
+    // GET /api/progress/daily carries the F-11 calorie fields, which read WeightLog, so
+    // entry storage without profile storage is a wiring error: fail at startup instead
+    // of silently leaving the route unmounted (404).
+    if (!options.profiles) {
+      throw new Error('createApp: `profiles` is required when `entries`, `plans` and `clock` are given (GET /api/progress/daily, F-11)');
+    }
     registerEntryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
-    registerProgressRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
+    registerProgressRoutes(registrar, policies, {
+      entries: options.entries,
+      plans: options.plans,
+      weights: options.profiles,
+      clock: options.clock,
+    });
     registerHistoryRoutes(registrar, policies, { entries: options.entries, plans: options.plans, clock: options.clock });
   }
 

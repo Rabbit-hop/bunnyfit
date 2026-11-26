@@ -2079,6 +2079,28 @@ button.bottom-nav-item {
   border-radius: 12px;
 }
 
+/* F-11 §6: calorie estimate on Today */
+.item-kcal {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+
+.overall-kcal {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+/* Same card as the progress card, so the list does not float between the cards */
+.other-activity {
+  padding: 1rem 1.1rem;
+  background: var(--color-surface);
+  border-radius: 20px;
+}
+
+.other-activity .entry-list {
+  margin-top: 0.5rem;
+}
+
 /* F-08 streak badge and history */
 .streak-badge {
   display: inline-flex;
