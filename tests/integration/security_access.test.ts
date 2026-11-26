@@ -659,5 +659,122 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         expect(JSON.stringify(aliceOwn.body)).toContain(aliceExerciseId);
       });
     });
+
+    // Issue #78 (Sprint 2 SYS-01): every route added in Sprint 2 has a matrix row here. Each
+    // rejected request carries a body that the owner could save (Bob's own PUT below returns 200),
+    // so a 401 / 403 / 404 is the access rule and not a validation failure; the snapshot includes
+    // the WeightLog and User tables because PUT /api/profile appends a WeightLog row.
+    describe('Sprint 2 routes (issue #78): F-04 profile, F-05, F-06 monthly, F-07, F-08', () => {
+      const SPRINT2_MATRIX: Array<{ method: string; path: string; featureId: string; ownership: 'self-scoped' | 'resource-owner' }> = [
+        { method: 'PUT', path: '/api/plan-items/:id', featureId: 'F-07', ownership: 'resource-owner' },
+        { method: 'PUT', path: '/api/entries/:id', featureId: 'F-05', ownership: 'resource-owner' },
+        { method: 'DELETE', path: '/api/entries/:id', featureId: 'F-05', ownership: 'resource-owner' },
+        { method: 'GET', path: '/api/profile', featureId: 'F-04', ownership: 'self-scoped' },
+        { method: 'PUT', path: '/api/profile', featureId: 'F-04', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/progress/monthly', featureId: 'F-06', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/history', featureId: 'F-08', ownership: 'self-scoped' },
+        { method: 'GET', path: '/api/streak', featureId: 'F-08', ownership: 'self-scoped' },
+      ];
+      const BODIES: Record<string, Record<string, unknown>> = {
+        'PUT /api/plan-items/:id': { targetSets: 4 },
+        'PUT /api/entries/:id': { sets: 2, totalReps: 20 },
+        'PUT /api/profile': { weightKg: 70.5 },
+      };
+      const fullSnapshot = async () => ({
+        ...(await snapshot()),
+        weightLogs: await prisma.weightLog.findMany({ orderBy: { id: 'asc' } }),
+        users: await prisma.user.findMany({ orderBy: { id: 'asc' } }),
+      });
+      const recordIds = () => ({ '/api/plan-items/:id': bobItemId, '/api/entries/:id': bobEntryId }) as Record<string, string>;
+      const send = (method: string, url: string, token?: string) => {
+        const body = BODIES[`${method} ${url.startsWith('/api/plan-items/') ? '/api/plan-items/:id' : url.startsWith('/api/entries/') ? '/api/entries/:id' : url.split('?')[0]}`];
+        const r = call(method, url, token);
+        return body ? r.send(body) : r;
+      };
+      const urlOf = (row: { path: string }, id?: string) => row.path.replace(':id', id ?? recordIds()[row.path] ?? '');
+
+      it('TEST-22c (Sprint 2 routes): each route is in the registry as PARTICIPANT-only with its ownership; F-05, F-07 and F-08 have no route outside this matrix', () => {
+        const policies = activePolicies('test');
+        for (const row of SPRINT2_MATRIX) {
+          const p = policies.find((x) => x.method === row.method && x.path === row.path);
+          expect(p, `${row.method} ${row.path} in the registry`).toEqual({
+            method: row.method,
+            path: row.path,
+            featureId: row.featureId,
+            auth: 'required',
+            roles: ['PARTICIPANT'],
+            ownership: row.ownership,
+          });
+        }
+        for (const featureId of ['F-05', 'F-07', 'F-08']) {
+          const registered = policies.filter((x) => x.featureId === featureId).map((x) => `${x.method} ${x.path}`).sort();
+          const inMatrix = SPRINT2_MATRIX.filter((x) => x.featureId === featureId).map((x) => `${x.method} ${x.path}`).sort();
+          expect(registered, featureId).toEqual(inMatrix);
+        }
+      });
+
+      it('TEST-22c (Sprint 2 routes): no token → 401 UNAUTHENTICATED envelope on each route, with a valid body on the writes; nothing changed', async () => {
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX) {
+          const res = await send(row.method, urlOf(row));
+          expect(res.status, `${row.method} ${row.path}`).toBe(401);
+          expect(res.body, `${row.method} ${row.path}`).toEqual({ code: 'UNAUTHENTICATED', message: expect.any(String), fields: [] });
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it('TEST-12a / 22c (Sprint 2 routes): Manager → 403 FORBIDDEN envelope on each route, with a valid body on the writes; no Participant data in the body; nothing changed', async () => {
+        const token = bearer(await manager());
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX) {
+          const res = await send(row.method, urlOf(row), token);
+          expect(res.status, `${row.method} ${row.path}`).toBe(403);
+          expect(res.body, `${row.method} ${row.path}`).toEqual(FORBIDDEN);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b / 12c (Sprint 2 routes): Alice on Bob's plan item or entry → 403 on PUT / DELETE with a valid body; Bob's rows unchanged", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'resource-owner')) {
+          const id = recordIds()[row.path]!;
+          const res = await send(row.method, urlOf(row), aliceToken);
+          expect(res.status, `${row.method} ${row.path} as Alice`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+          expect(JSON.stringify(res.body)).not.toContain(id);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b / 12c (Sprint 2 routes): Alice with ?userId=<Bob> → 403 on each self-scoped route (PUT /api/profile with a valid weight); no Bob data in the body; no WeightLog row added", async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'self-scoped')) {
+          const res = await send(row.method, `${row.path}?userId=${bobId}`, aliceToken);
+          expect(res.status, `${row.method} ${row.path} ?userId=<Bob>`).toBe(403);
+          expect(res.body).toEqual(FORBIDDEN);
+          expect(JSON.stringify(res.body)).not.toContain(bobExerciseId);
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it('TEST-12b (Sprint 2 routes): an unknown well-formed id → 404 NOT_FOUND on PUT /api/plan-items/:id, PUT and DELETE /api/entries/:id, with a valid body; nothing changed', async () => {
+        const aliceToken = await bearerOf('alice@exercise.test');
+        const before = await fullSnapshot();
+        for (const row of SPRINT2_MATRIX.filter((x) => x.ownership === 'resource-owner')) {
+          const res = await send(row.method, urlOf(row, randomUUID()), aliceToken);
+          expect(res.status, `${row.method} ${row.path} unknown id`).toBe(404);
+          expect(res.body.code).toBe('NOT_FOUND');
+        }
+        expect(await fullSnapshot()).toEqual(before);
+      });
+
+      it("TEST-12b (Sprint 2 routes, control): Bob's own PUT /api/entries/:id with the same body → 200, so the rejections above are not caused by the body", async () => {
+        const res = await send('PUT', `/api/entries/${bobEntryId}`, await bearerOf('bob@exercise.test'));
+        expect(res.status).toBe(200);
+        expect(res.body.entry).toMatchObject({ id: bobEntryId, sets: 2, totalReps: 20 });
+      });
+    });
   });
 });
