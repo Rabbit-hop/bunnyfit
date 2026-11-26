@@ -119,7 +119,7 @@ export function registerEntryRoutes(
 
       // R14: entries and Quick Complete share one row lock, so the sums are read after it is held.
       const outcome = await deps.entries.withExerciseLock(userExerciseId, async (scope) => {
-        const dayEntries = await scope.listDayEntries(userId, today);
+        const dayEntries = await scope.listExerciseDayEntries(userId, userExerciseId, today);
         const totals = cumulativeFor(dayEntries, userExerciseId, today);
         const validated = validateEntry(values, exercise.trackingMode, totals, exercise.rangeMax);
         if ('fields' in validated) throw validationError(validated.fields);
@@ -175,7 +175,7 @@ export function registerEntryRoutes(
 
       // R14: the row lock serializes concurrent requests; the sums are read after it is held.
       const outcome = await deps.entries.withExerciseLock(userExerciseId, async (scope) => {
-        const dayEntries = await scope.listDayEntries(userId, today);
+        const dayEntries = await scope.listExerciseDayEntries(userId, userExerciseId, today);
         const totals = cumulativeFor(dayEntries, userExerciseId, today);
 
         // R9 / R10: nothing remaining → No-op, nothing stored.
@@ -273,7 +273,7 @@ export function registerEntryRoutes(
         const current = await scope.findEntry(id); // R8: re-read inside the lock
         if (!current) throw gone();
         if (current.logDate !== deps.clock.today()) throw notEditable(); // R3
-        const others = (await scope.listDayEntries(req.auth!.userId, current.logDate)).filter(
+        const others = (await scope.listExerciseDayEntries(req.auth!.userId, current.userExerciseId, current.logDate)).filter(
           (e) => e.id !== id,
         );
         // R5: the sum of the day's OTHER entries; the old values of this entry are replaced.
