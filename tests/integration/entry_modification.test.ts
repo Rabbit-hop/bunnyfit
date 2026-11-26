@@ -508,4 +508,41 @@ describeWithDatabase('F-05 same-day entry modification and deletion (real Postgr
       expect(res.body.entry).toMatchObject({ kind: 'QUICK_COMPLETE', sets: 3, totalReps: 30 });
     });
   });
+
+  // Issue #78 Part 2, cross-feature check (F-05 x F-06 x F-11): an edit or a delete changes the
+  // derived values on the next read. Score and ratio are also in TEST-05a-3 and the streak in
+  // TEST-19d-6 (tests/integration/streak_history.test.ts); this case adds the calories. A 70 kg
+  // WeightLog row dated today is inserted so the expected values do not depend on other suites
+  // (Squat 3.5 METs, 1.5 min a set: 2 sets 12.25 -> 12.3 kcal as in TEST-28a-1, 4 sets 24.5).
+  describe('extra (issue #78 cross-feature): an edit and a delete recompute progress and calories on read', () => {
+    it('PUT 2 -> 4 sets: ratio 0.5 -> 1 and calories 12.3 -> 24.5; DELETE: actual 0, calories 0; no stored aggregate', async () => {
+      await resetEntries();
+      const weightRow = await prisma.weightLog.create({
+        data: { userId: aliceId, weightKg: 70, effectiveDate: new Date(`${TODAY}T00:00:00.000Z`) },
+      });
+      try {
+        type Item = { userExerciseId: string; ratio: number; actual: number; calories: number | null };
+        const squat = (body: { items: Item[] }) => body.items.find((i) => i.userExerciseId === exId('Barbell Squat'));
+        const id = await mk(aliceId, exId('Barbell Squat'), TODAY, { sets: 2, totalReps: 20 });
+
+        const before = await daily();
+        expect(before.status).toBe(200);
+        expect(squat(before.body)).toMatchObject({ actual: 20, ratio: 0.5, calories: 12.3 });
+        expect(before.body.totalCalories).toBe(12.3);
+
+        expect((await put(id, { sets: 4, totalReps: 40 })).status).toBe(200);
+        const edited = await daily();
+        expect(squat(edited.body)).toMatchObject({ actual: 40, ratio: 1, calories: 24.5 });
+        expect(edited.body.totalCalories).toBe(24.5);
+
+        expect((await del(id)).status).toBe(204);
+        const deleted = await daily();
+        expect(squat(deleted.body)).toMatchObject({ actual: 0, ratio: 0, calories: 0 });
+        expect(deleted.body.totalCalories).toBe(0);
+        expect(await prisma.ledgerEntry.count({ where: { userId: aliceId } })).toBe(0);
+      } finally {
+        await prisma.weightLog.delete({ where: { id: weightRow.id } });
+      }
+    });
+  });
 });
