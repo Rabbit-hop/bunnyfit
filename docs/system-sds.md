@@ -1,10 +1,10 @@
 ### System-Level Software Design Specification (System-Level SDS)
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.1.1
+**Document Version:**  1.1.2
 **SRS Baseline Version:**  1.1.0
-**Date:**  8 November 2026
-**Status:**  Approved Baseline
+**Date:**  27 November 2026 (1.1.2; 1.1.1: 8 November 2026)
+**Status:**  Approved Baseline 1.1.0; revision 1.1.1 approved in PR #19; revision 1.1.2 is a Draft, review-pending
 
 --------------------------------------------------------------------------------
 
@@ -14,7 +14,8 @@
 | **0.1.0** | 4 Nov 2026 | Initial draft derived from SRS 1.0.0, Feature Inventory 1.0.0 and RTM 1.0.0: architecture and stack, data model, UI structure, API conventions, role/permission matrix, authentication design, configuration, delivery and deployment plan, testability design | Nakagamon (67070501064) & Onsinee (67070501078) | Draft |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Synchronized error codes (`NOT_FOUND`, `CATEGORY_HAS_TEMPLATES`, `INTERNAL_ERROR`, `QUICK_COMPLETE_NOT_AVAILABLE`), explicit backend HTTP 400 validation for Quick Complete on Rest Days, retained `ReminderSetting` fields (`label`, `enabled`), and added explicit AC references for template snapshot isolation (AC-27) and historical `WeightLog` lookup (AC-28a–c). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 | **1.1.0** | 6 Nov 2026 | Endpoint catalog corrected against the Sprint 1 contracts (v0.2.0), Section 5.2: removed the non-existent `GET/POST /api/exercises` and `GET /api/exercises/:id`, added `GET /api/plan-items/:id` (F-03), `GET /api/user-exercises`, `GET /api/plan?date=` (F-03) and `GET /api/entries/:id` (F-04). Added the API representation of `repeatDays` (ISO weekday array exchanged at the boundary, stored as the Section 3.2 Monday–Sunday bitmask), which resolves contract pending item F-03 P3-9. Schema and Section 3.3 unchanged (already matched by contracts 0.2.0). Review-fix pass before merge: Section 1 cites SRS / Feature Inventory / RTM 1.1.0 and the SRS Baseline Version header is 1.1.0; Section 5.2 `GET/PUT /api/profile` is Sprint 2 (CHANGE-04, AC-17a–d deferred) and `GET /api/progress/monthly` is Sprint 2 (CHANGE-06, AC-15 deferred); the service-layer row (Section 4) states the entry/Quick Complete row lock (SRS Q45) and the decision log cites SRS Q1–Q49. Review-fix pass (PR #13): NFR-01 row now lists AC-21a as Sprint 2 (CHANGE-03). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
-| **1.1.1** | 8 Nov 2026 | Section 6.3: the completeness rule ("every route is registered") has one explicit exemption, the non-API SPA shell fallback that serves `index.html`; routes inside a sub-`Router` are included. Source: F-01 contract v0.3.7 (PR #19 review). No other change. | Nakagamon (67070501064) | Draft (review-pending) |
+| **1.1.1** | 8 Nov 2026 | Section 6.3: the completeness rule ("every route is registered") has one explicit exemption, the non-API SPA shell fallback that serves `index.html`; routes inside a sub-`Router` are included. Source: F-01 contract v0.3.7 (PR #19 review). No other change. Status record (added in 1.1.2): this row was committed in `7c6df4d`, part of PR #19, which was approved and merged. | Nakagamon (67070501064) | Approved (PR #19) |
+| **1.1.2** | 27 Nov 2026 | Deliverable 2 Part D (issue #87): the SDS is brought in line with the product on `staging/sprint-2` (Sprint 2 features merged through PRs #110, #112, #115, #116, #117, #119; Lab 5 delivery through PR #100 on `main`). **No endpoint, role, ownership or rule changes.** (1) Section 3.2: an as-built note lists which tables have `updatedAt`; `LedgerEntry` has none although F-05 edits it (F-05 §12 P5-1, accepted in PR #106), and `RevokedToken` has `revokedAt`. (2) Section 4.1: screens that exist in `web/src/App.tsx` but were not listed are added (public Welcome page, Progress page for daily/monthly progress, 403 and not-found pages); the existing rows are unchanged (Schedule & Reminders and Monthly Summary are not built yet; their screens are Sprint 3). (3) Section 9 changes from a plan to the as-built delivery set up in Lab 5 (`docker-compose.yml`, `Dockerfile`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/labs/lab-05/deployment.md`): one-shot `migrate` service with the seed run on demand; CI jobs `test`, `docker-build` and `e2e`; the latency suite (`pnpm run test:perf`) is run by no workflow; deploy through Workload Identity Federation, a Cloud Run job for migrations and a smoke check whose login step is conditional; Secret Manager holds `DATABASE_URL` and `JWT_SECRET`; the GCP resources come from the course portal. Gaps against the 1.1.1 plan are stated, not hidden: no system-test step in CI (no `tests/system/` files exist yet) and no CI latency job. (4) Section 12 item 5 (GCP components) is closed by Lab 5. Section 5.2 (endpoint catalog) and 6.1 (permission matrix) were compared with `server/routes/registry.ts` on 27 Nov 2026 and need no change. | Onsinee (67070501078) | Draft (review-pending) |
 
 --------------------------------------------------------------------------------
 
@@ -175,7 +176,7 @@ erDiagram
 ```
 
 ##### 3.2 Entity Definitions
-Every private row has a `userId` owner link. `createdAt` (and `updatedAt` where rows can change) exist on all tables.
+Every private row has a `userId` owner link. `createdAt` (and `updatedAt` where rows can change) exist on all tables. *As built (1.1.2, read from `prisma/schema.prisma`):* `updatedAt` exists on `User`, `Category`, `ExerciseTemplate`, `UserExercise` and `ReminderSetting`. `PlanItem`, `WeightLog` (never updated in place) and `LedgerEntry` have `createdAt` only; `LedgerEntry` rows can change through F-05 (same-day edit) but carry no `updatedAt` (F-05 §12 P5-1, accepted in PR #106). `RevokedToken` has `revokedAt` instead of `createdAt`.
 
 | Entity | Key fields | Constraints and notes | Sprint |
 | ------ | ------ | ------ | ------ |
@@ -213,11 +214,14 @@ Item Score, Daily Overall %, monthly average, Streak, estimated minutes, calorie
 ##### 4.1 Screens and Navigation
 | Role | Screen | Purpose | Features |
 | ------ | ------ | ------ | ------ |
+| Unauthenticated | **Welcome** (`/welcome`, added in 1.1.2: exists in `web/src/App.tsx`) | Public landing page shown before login; links to Login | F-01 |
 | Both | **Login** | Email/password; redirects by role | F-01 |
+| Both | **403 / not found** (`/403`, any unknown path; added in 1.1.2) | Shown when a role opens a screen it cannot use, or an unknown path | F-01 |
 | Both | **Header / session menu** | Current user (`/me`), logout | F-01 |
 | Manager | **Exercise Library** | Categories and base exercise templates: list, create, edit, delete | F-02 |
 | Participant | **Today (Dashboard)** | Planned items for today, progress per item, Daily Overall %, manual log form, Quick Complete (disabled on Rest Days), entry list, estimated kcal | F-04, F-06, F-05, F-11 |
 | Participant | **Plan** | Choose a template or create a custom exercise, set targets, priority, repeat days, start/end; change a goal (new version) | F-03, F-07 |
+| Participant | **Progress** (`/progress`, added in 1.1.2) | Daily and monthly progress (monthly average on targeted days only) | F-06 |
 | Participant | **History & Streak** | Past days, daily %, current Streak | F-08 |
 | Participant | **Schedule & Reminders** | Week/month schedule, reminder settings (display only) | F-09 |
 | Participant | **Monthly Summary** | Monthly report | F-10 |
@@ -340,34 +344,37 @@ Secret handling: real values live only in the local untracked `.env` and in the 
 --------------------------------------------------------------------------------
 
 #### 9. Delivery & Deployment Plan
-Subject to the access and instructions provided in **Lab 5**; designed now so no rework is needed.
+Subject to the access and instructions provided in **Lab 5**; designed now so no rework is needed. *Status (1.1.2):* Lab 5 is done; Sections 9.1–9.4 below now describe what is built, read from `docker-compose.yml`, `Dockerfile`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` and `docs/labs/lab-05/deployment.md` on 27 Nov 2026. Where the build differs from the 1.1.1 plan, the difference is stated in place. Evidence of runs (restart, redeploy, rollback, failing-check demonstration) is in `docs/labs/lab-05/deployment.md`, not repeated here.
 
 ##### 9.1 Local Development
-`docker compose up` starts PostgreSQL (with a named volume) and the app; `prisma migrate deploy` and the seed run on first start. The same image is used locally and in the cloud. Build, test and run commands are documented in the README.
+`docker compose up -d` starts PostgreSQL (with a named volume). With `--profile app`, a one-shot `migrate` service (Dockerfile target `migrate`) runs `prisma migrate deploy` and exits, and the `app` service starts after it succeeds. *Differs from the 1.1.1 plan:* the seed does not run on first start; it runs on demand (`docker compose run --rm migrate pnpm run db:seed`) and refuses empty `SEED_*` passwords. The runtime image is the same one deployed to the cloud. Build, test and run commands are documented in the README.
 
 ##### 9.2 Docker Image
 Multi-stage build: install and build UI and API, then a slim runtime image running as a non-root user, exposing `PORT`, with a `GET /api/health` health check. No secrets are baked into the image.
 
 ##### 9.3 CI/CD (GitHub Actions)
-| Trigger | Checks |
+| Trigger | Checks (as built: workflow `CI`, file `.github/workflows/ci.yml`; deploy: `.github/workflows/deploy.yml`) |
 | ------ | ------ |
-| Pull request into a sprint staging branch | Install, type-check, build, unit tests, API/DB integration tests against a PostgreSQL service container (migrations + seed) |
-| Release pull request into `main` | All of the above + Playwright UI E2E + system tests; required checks block the merge (branch protection) |
-| Merge to `main` | Build and push image; run `prisma migrate deploy`; deploy; post-deployment smoke check (`/api/health`, login, one persisted read) |
-| On demand / release PR | Latency benchmark (NFR-01) on a seeded database |
+| Pull request into a sprint staging branch (`staging/**`) | Job `test`: install (`--frozen-lockfile`), type-check, build, unit and API/DB integration tests (Vitest) against a PostgreSQL 17 service container; `tests/globalSetup.ts` applies the committed migrations and the seed first. Job `docker-build`: builds the runtime and the `migrate` images |
+| Release pull request into `main` | The same jobs + job `e2e` (Playwright, Chromium, against a migrated and seeded database). Required checks block the merge through GitHub rulesets (`protect-staging`, `protect-main`; set in GitHub, not in the file). *Differs from the 1.1.1 plan:* there is no system-test step; no `tests/system/` files exist yet (AC-26a–c are Sprint 3) |
+| Merge to `main` | Sign in to GCP with Workload Identity Federation (no key file in GitHub); build and push the runtime image (tag = commit SHA) and the migrate image; run `prisma migrate deploy` (`pnpm run db:migrate`) as a Cloud Run job; deploy the service; smoke check `GET /api/health`, then a login and `GET /api/categories` **only when** the smoke account is configured in the GitHub environment `demo` (otherwise that step is skipped and the summary says so) |
+| On demand | Latency benchmark (NFR-01): `pnpm run test:perf` (`tests/performance/latency.test.ts`). *Differs from the 1.1.1 plan:* no workflow runs it; it is started by hand |
 
-A deliberately failing check on a temporary branch demonstrates that the normal merge/release path is blocked (Lab 5).
+A deliberately failing check on a temporary branch demonstrated that the normal merge path is blocked (Lab 5, PR #60; details in `docs/labs/lab-05/deployment.md` §4).
 
-##### 9.4 Planned GCP Components
+##### 9.4 GCP Components (as built; heading was "Planned GCP Components" until 1.1.2)
+The resources were created by the course portal, not by the team (`docs/labs/lab-05/deployment.md` §1 and §5); names and region are listed there.
+
 | Component | Use |
 | ------ | ------ |
-| Artifact Registry | Stores the Docker images |
-| Cloud Run | Runs the container (one service; UI and API together) |
+| Artifact Registry | Stores the runtime and migrate images; one tag per deployed commit, which is what rollback uses |
+| Cloud Run (service) | Runs the container (one service; UI and API together) |
+| Cloud Run (job) | Runs `prisma migrate deploy` with the migrate image before the service is updated; the one-off seed ran the same way |
 | Cloud SQL for PostgreSQL | Durable database; survives restarts and redeployments |
-| Secret Manager | `DATABASE_URL`, `JWT_SECRET`, seed passwords, injected as environment variables |
-| GitHub Actions | Builds and deploys from `main` (manual approval step allowed) |
+| Secret Manager | `DATABASE_URL` and the seed passwords (portal secrets) and `JWT_SECRET` (a portal secret slot, because the team account cannot create secrets), injected as environment variables |
+| GitHub Actions | Builds and deploys from `main` through the environment `demo` (deployment branches limited to `main`) |
 
-Migrations run as a pipeline step before traffic moves to the new revision. After each deployment the smoke check confirms that previously saved data is still retrievable (AC-24b).
+Migrations run as a pipeline step before the new revision is deployed. The smoke check reads seeded data (`GET /api/categories`) when the smoke account is configured; it does not by itself verify AC-24b (TEST-24b, `tests/integration/persistence.test.ts`, Sprint 3, PLANNED in RTM §3.1).
 
 ##### 9.5 Branches and Releases
 `main` (released) ← `staging/sprint-N` (integration) ← `feature/F-xx-…` / `fix/…`. Authors do not approve their own PRs. Each accepted release on `main` is tagged (e.g. `sprint1-v1.0.0`); later commits never silently replace a submitted tag.
@@ -403,5 +410,5 @@ Migrations run as a pipeline step before traffic moves to the new revision. Afte
 | 2 | Error codes missing from SRS Appendix A.5 (`NOT_FOUND`, `CATEGORY_HAS_TEMPLATES`, `INTERNAL_ERROR`, `QUICK_COMPLETE_NOT_AVAILABLE`) | **Resolved:** Added and baseline-approved in SRS 1.0.0 Appendix A.5 | Nakagamon (67070501064) |
 | 3 | Cross-user access returns 403 (SRS BR-04) even when the ID exists, which reveals that the ID exists | Accepted trade-off; documented here | Both |
 | 4 | Token stored in `sessionStorage` rather than an HttpOnly cookie | Accepted for simplicity; revisit if time allows in Sprint 3 | Onsinee (67070501078) |
-| 5 | GCP component choice (Section 9.4) | Confirm against Lab 5 instructions | Nakagamon (67070501064) |
+| 5 | GCP component choice (Section 9.4) | **Resolved (1.1.2):** the components were provisioned by the course portal for Lab 5 and are recorded as built in Section 9.4 and `docs/labs/lab-05/deployment.md` | Nakagamon (67070501064) |
 | 6 | `userId` query parameter on self-scoped endpoints is rejected with 403 if different (Section 5.1) | Keep; needed to make cross-user tests on endpoints without IDs (AC-12b, AC-26c) | Both |
