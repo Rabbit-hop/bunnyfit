@@ -32,7 +32,13 @@ const N30_RENAME = 'e'.repeat(30);
 const N40_A = 'f'.repeat(40);
 const N40_B = 'g'.repeat(40);
 const N30_OLD = 'l'.repeat(30);
-const AC02E_NAMES = [N1, N29, N30, N30_TRIM, N30_RENAME, N30_OLD, N40_A, N40_B, 'AC02e Rename Me'];
+// Rows that exist only if the code is wrong (31+ characters written): listed too, so a red run leaves nothing behind.
+const TOO_LONG = [31, 50, 51, 100].map((n) => 'h'.repeat(n));
+const TOO_LONG_RENAME = [31, 50].map((n) => 'i'.repeat(n));
+const AC02E_NAMES = [
+  N1, N29, N30, N30_TRIM, N30_RENAME, N30_OLD, N40_A, N40_B, 'AC02e Rename Me',
+  ...TOO_LONG, ...TOO_LONG_RENAME, 'j'.repeat(31), 'k'.repeat(30), 'k'.repeat(31),
+];
 
 describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
   let prisma: PrismaClient;
