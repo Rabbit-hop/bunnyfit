@@ -10,16 +10,20 @@ import { WeightChip } from '../components/WeightChip'
 import {
   KIND_LABEL,
   MODE_LABEL,
+  SET_BODY_WEIGHT,
   cumulativeValue,
   describeError,
   entryValue,
   formatEntryTime,
+  formatKcal,
   formatLongDate,
+  formatMinutes,
   formatPercent,
   formatQuantity,
   formatScore,
   isMockToday,
   todayApi,
+  type CalorieFields,
   type Cumulative,
   type DailyItem,
   type DailyProgress,
@@ -71,6 +75,22 @@ function EntryList({ entries, unit, scored, testId, empty, today, onEdit, onDele
         </li>
       ))}
     </ul>
+  )
+}
+
+/** F-11 §6: the item's kcal and estimated minutes, or the body-weight prompt (informational, not an error). */
+function ItemKcal({ value }: { value: CalorieFields }) {
+  if (value.calories === null) {
+    return (
+      <p className="item-kcal muted" data-testid="item-kcal">
+        {SET_BODY_WEIGHT}
+      </p>
+    )
+  }
+  return (
+    <p className="item-kcal" data-testid="item-kcal">
+      {formatKcal(value.calories)} <span className="muted">· {formatMinutes(value.estimatedMinutes)}</span>
+    </p>
   )
 }
 
@@ -246,6 +266,7 @@ export function TodayPage() {
               <p className="item-actual" data-testid="item-actual">
                 Logged {formatQuantity(item.actual, item.unit)} of {formatQuantity(item.target, item.unit)} · score {formatScore(item.itemScore)}
               </p>
+              <ItemKcal value={item} />
             </div>
             <span className="badge-p" title={`Priority ${item.priorityWeight}`} aria-label={`Priority ${item.priorityWeight}`}>
               P{item.priorityWeight}
@@ -328,7 +349,37 @@ export function TodayPage() {
               </p>
             </>
           )}
+          {daily.totalCalories !== null ? (
+            <p className="overall-kcal" data-testid="today-kcal">
+              Calories today: {formatKcal(daily.totalCalories)}
+            </p>
+          ) : (
+            <p className="overall-kcal">
+              <Link to="/profile" data-testid="today-weight-prompt">
+                {SET_BODY_WEIGHT}
+              </Link>{' '}
+              <span className="muted">to see calories</span>
+            </p>
+          )}
         </div>
+
+        {daily.otherActivity.length > 0 && (
+          <div className="other-activity" data-testid="today-other-activity">
+            <h3 className="panel-title">Not in today&apos;s plan</h3>
+            <ul className="entry-list">
+              {daily.otherActivity.map((o) => (
+                <li key={o.userExerciseId} data-testid={`other-${o.userExerciseId}`}>
+                  <span>{o.name}</span>
+                  <span>{formatQuantity(o.actual, o.unit)}</span>
+                  <span data-testid="other-kcal">
+                    {o.calories === null ? <Link to="/profile">{SET_BODY_WEIGHT}</Link> : formatKcal(o.calories)}
+                  </span>
+                  <span className="badge badge-muted">not scored</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
       </div>
 
