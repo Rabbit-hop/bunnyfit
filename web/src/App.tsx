@@ -25,7 +25,8 @@ function Guard({ role, children }: GuardProps) {
     return null
   }
   if (!user) {
-    return <Navigate to={expired ? '/login?reason=expired' : '/welcome'} replace />
+    // ui-spec 3.1: a visitor without a session goes to /login; only `/` shows Welcome (RootRedirect).
+    return <Navigate to={expired ? '/login?reason=expired' : '/login'} replace />
   }
   if (role && user.role !== role) {
     return <Navigate to="/403" replace />
