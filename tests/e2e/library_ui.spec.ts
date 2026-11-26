@@ -127,3 +127,26 @@ test('S-08 (UI): the Mode chip row filters by trackingMode and "All modes" clear
   await cleared
   await expect(page.getByTestId('mode-chip-all')).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('SUP-02e-7 (UI): the category name inputs keep at most 30 characters', async ({ page }) => {
+  const category = `E2E Len ${Date.now().toString(36)}`
+  await loginAsManager(page)
+
+  await page.getByTestId('categories-open').click()
+  await page.getByTestId('category-add-name').fill('x'.repeat(35))
+  await expect(page.getByTestId('category-add-name')).toHaveValue('x'.repeat(30))
+
+  await page.getByTestId('category-add-name').fill(category)
+  await page.getByTestId('category-add').click()
+  const catRow = page.locator('[data-testid^="category-row-"]', { hasText: category })
+  await expect(catRow).toBeVisible()
+  await catRow.getByRole('button', { name: 'Rename' }).click()
+  const input = page.locator('[data-testid^="category-rename-input-"]')
+  await input.fill('y'.repeat(35))
+  await expect(input).toHaveValue('y'.repeat(30))
+  await page.locator('form.inline-form').getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(catRow).toBeVisible()
+  await catRow.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('[data-testid^="category-row-"]', { hasText: category })).toHaveCount(0)
+})

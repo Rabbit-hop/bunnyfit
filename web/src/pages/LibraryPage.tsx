@@ -422,7 +422,7 @@ export function LibraryPage() {
               <input
                 id="category-add-name"
                 value={newCategory}
-                maxLength={50}
+                maxLength={30}
                 placeholder="New category"
                 onChange={(e) => setNewCategory(e.target.value)}
                 data-testid="category-add-name"
@@ -454,7 +454,7 @@ export function LibraryPage() {
                       <input
                         id={`category-rename-input-${c.id}`}
                         value={renameValue}
-                        maxLength={50}
+                        maxLength={30}
                         autoFocus
                         onChange={(e) => setRenameValue(e.target.value)}
                         data-testid={`category-rename-input-${c.id}`}
