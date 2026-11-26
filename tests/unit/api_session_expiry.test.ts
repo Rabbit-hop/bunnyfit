@@ -1,6 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SESSION_EXPIRED_EVENT, apiFetch } from '../../web/src/lib/api.js';
-import { destroySession, getToken, saveSession } from '../../web/src/auth/session.js';
+
+// The web modules use browser-only types and extensionless imports that the server tsconfig cannot
+// compile, so they are loaded at run time (Vitest resolves them) instead of imported statically.
+const API_PATH = '../../web/src/lib/api';
+const SESSION_PATH = '../../web/src/auth/session';
+type AppUser = { id: string; email: string; role: 'PARTICIPANT' | 'MANAGER'; displayName: string };
+const api = (await import(API_PATH)) as {
+  SESSION_EXPIRED_EVENT: string;
+  apiFetch: (path: string, init?: RequestInit) => Promise<unknown>;
+};
+const { destroySession, getToken, saveSession } = (await import(SESSION_PATH)) as {
+  destroySession: () => void;
+  getToken: () => string | null;
+  saveSession: (token: string, user: AppUser) => void;
+};
+const { SESSION_EXPIRED_EVENT, apiFetch } = api;
 
 // Issue #122 (UAT-S1-02 step 6): a request sent before Log out can get its 401 after the token was
 // revoked. That late 401 must not be reported as an expired session, or the browser ends on
