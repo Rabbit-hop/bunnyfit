@@ -31,7 +31,8 @@ const N30_TRIM = 'd'.repeat(30);
 const N30_RENAME = 'e'.repeat(30);
 const N40_A = 'f'.repeat(40);
 const N40_B = 'g'.repeat(40);
-const AC02E_NAMES = [N1, N29, N30, N30_TRIM, N30_RENAME, N40_A, N40_B, 'AC02e Rename Me'];
+const N30_OLD = 'l'.repeat(30);
+const AC02E_NAMES = [N1, N29, N30, N30_TRIM, N30_RENAME, N30_OLD, N40_A, N40_B, 'AC02e Rename Me'];
 
 describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
   let prisma: PrismaClient;
@@ -254,9 +255,9 @@ describeWithDatabase('F-02 exercise library (real PostgreSQL)', () => {
       expect(nameLimit(bad.body)).toBe('1-30 characters');
       expect((await prisma.category.findUniqueOrThrow({ where: { id: old.id } })).name).toBe(N40_A);
 
-      const ok = await request(app).put(`/api/categories/${old.id}`).set(bearer(token)).send({ name: N30_RENAME });
+      const ok = await request(app).put(`/api/categories/${old.id}`).set(bearer(token)).send({ name: N30_OLD });
       expect(ok.status).toBe(200);
-      expect((await prisma.category.findUniqueOrThrow({ where: { id: old.id } })).name).toBe(N30_RENAME);
+      expect((await prisma.category.findUniqueOrThrow({ where: { id: old.id } })).name).toBe(N30_OLD);
     });
   });
 
