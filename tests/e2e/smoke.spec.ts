@@ -20,11 +20,14 @@ test('unauthenticated / redirects to welcome with a delayed Login button', async
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
 })
 
-test('protected route sends unauthenticated users to welcome', async ({ page }) => {
-  await page.goto('/today')
+// Issue #122: ui-spec 3.1 / Section 2 send a visitor without a session to /login (only `/` shows Welcome).
+test('protected routes send unauthenticated users to the login form, not welcome', async ({ page }) => {
+  for (const path of ['/today', '/manager/library']) {
+    await page.goto(path)
 
-  await expect(page).toHaveURL(/\/welcome$/)
-  await expect(page.getByTestId('welcome-login')).toBeVisible()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByTestId('login-email')).toBeVisible()
+  }
 })
 
 test('forwards /api requests to the Express API', async ({ request }) => {
