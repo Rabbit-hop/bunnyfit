@@ -595,7 +595,14 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
       expect(await dbSnapshot()).toEqual(narrowSnapshot);
 
       const after = await request(app).get(`/api/progress/daily?date=${TODAY}`).set(auth);
-      expect(after.body).toEqual(before.body);
+      // F-11 R12 lists exercises logged but not planned on the date in `otherActivity` and counts them in
+      // `totalCalories`, by design; the scores (F-06 R3) and every other field must stay identical.
+      const withoutOtherActivity = ({ otherActivity: _other, totalCalories: _total, ...rest }: Record<string, unknown>) => rest;
+      expect(withoutOtherActivity(after.body)).toEqual(withoutOtherActivity(before.body));
+      expect(before.body.otherActivity).toEqual([]);
+      expect(after.body.otherActivity.map((o: { userExerciseId: string }) => o.userExerciseId).sort()).toEqual(
+        [unplannedId, narrow.id].sort(),
+      );
     });
   });
 
