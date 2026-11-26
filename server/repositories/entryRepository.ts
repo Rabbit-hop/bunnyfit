@@ -38,7 +38,7 @@ export interface EntryRepository {
   /** One entry by id (`GET /api/entries/:id`). */
   findEntry(id: string): Promise<EntryRecord | null>;
   /**
-   * F-08 §4.5: one user's entries with `from <= logDate <= to`, ordered by `logDate` then `createdAt`
+   * F-08 §4.5 and F-06 §4.2 (monthly): one user's entries with `from <= logDate <= to`, ordered by `logDate` then `createdAt`
    * (read-only; served by the `LedgerEntry(userId, logDate)` index).
    */
   listEntriesBetween(userId: string, from: string, to: string): Promise<EntryRecord[]>;

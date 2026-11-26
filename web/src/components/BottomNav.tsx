@@ -21,7 +21,7 @@ const ADD = icon('add.svg')
 
 const PARTICIPANT_ITEMS: Item[] = [
   { to: '/today', label: 'Today', testId: 'nav-today', icon: TODAY },
-  { to: '/progress', label: 'Progress', testId: 'nav-progress', icon: PROGRESS, comingSoon: true },
+  { to: '/progress', label: 'Progress', testId: 'nav-progress', icon: PROGRESS },
   // Opens the Add Exercise dialog on the plan page (PlanPage reads ?add=1).
   { to: '/plan?add=1', label: 'Add exercise', testId: 'nav-add', icon: ADD, center: true },
   { to: '/plan', label: 'My Plan', testId: 'nav-plan', icon: PLAN },

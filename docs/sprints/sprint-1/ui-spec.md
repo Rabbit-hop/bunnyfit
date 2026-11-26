@@ -2,7 +2,7 @@
 
 **Project Title:** Habit and Activity Tracking System — BunnyFit (Exercise Domain)
 **Course:** CPE 334 Software Engineering
-**Document Version:** 0.13.1
+**Document Version:** 0.14.0
 **SRS Baseline Version:** 1.1.0 (Feature Inventory 1.1.0, RTM 1.1.0, System-Level SDS 1.1.0)
 **Date:** 6 November 2026
 **Status:** 0.8.0 Draft (0.7.0 reconciled the UI with PR #36; 0.8.0 aligns S-02 Today with the design reference, review pending); 0.6.0 was approved
@@ -32,6 +32,7 @@
 | **0.8.0** | 13 Nov 2026 | S-02 Today look aligned to the design reference (issue #10): a Monday-to-Sunday week row (`today-week`, day buttons `today-day-<YYYY-MM-DD>`, today marked; tapping any other day opens nothing and only shows the message "Only today's activity can be viewed and logged."), the overall card as a "Today's progress" row with the percentage on the right and "x / y points" below, and per plan item card a coloured exercise tile, a mode badge, a priority badge "P<weight>", "Target …", "Logged a of t … · score s", the item ratio as a percentage (`item-pct`), the Quick Complete / Completed and Log buttons and a small "Entries" link. Data sources, API calls and the S-02/S-03 test ids are unchanged, but the Today behaviour changes as described below; there is still no global "Add activity" control and no body-weight chip in Sprint 1. S-03 helper text follows F-04 R6 (daily cap and `rangeMax`, not the target; the contract takes precedence over this spec). The Today screen shows the date, the week row and the progress card on the page and only the activities in one soft-blue panel (activity cards 65 % white) under a title-only header; completed activities move behind a History button and Today lists only the unfinished ones; the "Log" button is labelled "Record". No baseline or API change and no edit to F-04. This does change what Today shows: the F-04 UI text (Today screen, Quick Complete row: when the target is reached the button shows "Completed" and a click shows "Already completed, nothing added") still holds, but a completed item is no longer on the Today list; it is reached through History, which shows it with the same card and the same button. Past days have no view in Sprint 1 (a tap on another day only shows a message). | Onsinee | Draft |
 | **0.13.0** | 26 Nov 2026 | S-02 Today calorie display for F-11 (contract 0.1.2 §6, issue #71 Part 2, P11-2): item card kcal and estimated minutes (`item-kcal`), "Calories today" total on the progress card (`today-kcal`), "Set your body weight" link to Profile instead of numbers when `calorieError` is `BODY_WEIGHT_REQUIRED` (`today-weight-prompt`), and a "Not in today's plan" list for unplanned or Rest Day activity with kcal and a "not scored" badge (`today-other-activity`). Numbered 0.13.0 because 0.9.0-0.12.0 exist on the unmerged `feature/profile-logout-nav`; whichever merges second renumbers. No API, baseline or contract change | Onsinee | Draft |
 | **0.13.1** | 26 Nov 2026 | S-02 "Not in today's plan": without a weight, each row's kcal cell (`other-kcal`) shows "Set your body weight" as a link to `/profile`, like the progress card (`today-weight-prompt`); was plain text. Requested in the PR #117 review (item 4); F-11 §6 does not require it. No API, baseline or contract change | Onsinee | Draft |
+| **0.14.0** | 26 Nov 2026 | (Written as 0.13.0 on this branch; renumbered to 0.14.0 on 26 Nov 2026 when `staging/sprint-2` with 0.13.0 and 0.13.1 of PR #117 was merged in; commits before that merge use 0.13.0.) S-06 Monthly Progress aligned to the screen built for AC-15 in PR #119 (issue #75); no baseline, API or AC change. (1) Month card copy follows the F-06 contract §6 (contract precedence): "Monthly average (targeted days only): 64.3%", subtitle "N targeted days counted, M rest days excluded", and "No targeted days yet" when `averagePercent` is null; this replaces "Based on N targeted days" and "No targeted days this month". (2) A fourth day state NO_PLAN for a past date the server did not return (before the first plan start). (3) Streak badge and "View your history" link per F-08 §6. (4) The first request has no `month`; a tab that becomes visible again asks the server for today. (5) The month arrows close an open day drawer. **Numbering:** 0.9.0-0.12.0 are used by the unmerged branch `feature/profile-logout-nav`, so this row takes 0.13.0 to avoid a clash. | Onsinee | Draft (review-pending) |
 
 **Source-of-truth rule:** the approved baseline (SRS/RTM/SDS/plan 1.1.0) and Sprint 1 feature contracts 0.3.0 take precedence over this consolidated specification. The exact request/response shapes and rules in the F-xx contracts are authoritative; the UI may not depend on removed endpoints or fields. The v0.2.0 draft is reconciliation history only.
 
@@ -273,13 +274,12 @@ Selection or custom data is kept in dialog state. Save sends everything in one `
 
 Deferred to Sprint 2 with AC-15; this screen is not part of the Sprint 1 gate.
 
-- Month switcher with previous and next; do not go past the current month.
-- Summary: large `averagePercent` and "Based on N targeted days".
-- Use `days[]` from `GET /api/progress/monthly`. Derive display state: date after today is FUTURE; `isRestDay` is REST; otherwise TARGETED.
-- TARGETED shows its percentage. REST shows "Rest" in muted style. FUTURE is disabled.
+- Month switcher with previous and next; do not go past the current month. (0.14.0) The first request has no `month`, so the server's today chooses the current month; when the tab becomes visible again the screen asks the server for today (as S-05 My Plan does). The arrows close an open day drawer.
+- (0.14.0) Summary follows F-06 §6: "Monthly average (targeted days only): 64.3%" with the subtitle "N targeted days counted, M rest days excluded"; "No targeted days yet" when `averagePercent` is null.
+- Use `days[]` from `GET /api/progress/monthly`. Derive display state: date after today is FUTURE; `isRestDay` is REST; (0.14.0) a past date not in `days[]` (before the first plan start, or no plan) is NO_PLAN; otherwise TARGETED.
+- TARGETED shows its percentage. REST shows "Rest" in muted style. FUTURE is disabled. (0.14.0) NO_PLAN shows "–" and is disabled.
 - Selecting a day opens a read-only day drawer using `GET /api/progress/daily`. It has no log buttons.
-- Empty state: "No targeted days this month".
-- Sprint 2 adds the streak badge.
+- (0.14.0) Streak badge at the top and a "View your history" link to `/history` (F-08 §6).
 
 ##### S-07 Profile (FR-08) *(Sprint 2, CHANGE-04)*
 
@@ -352,7 +352,7 @@ The Manager never sees participant data. Opening `/today` as a Manager shows `/4
 | S-02 Today | Card skeletons | "Add an exercise to your plan first" + link, or Rest Day panel | Notice + Retry | Card and overall refreshed |
 | S-05 My Plan | List skeleton | "No exercises in your plan yet. Add your first one" + button | Notice + Retry | - |
 | S-04 Add Exercise | Template skeleton | "No templates available yet" | Notice, inline field errors | Toast, dialog closed, My Plan refreshed |
-| S-06 Progress (S2) | Grid skeleton | "No targeted days this month" | Notice + Retry | - |
+| S-06 Progress (S2) | Grid skeleton | "No targeted days yet" (0.14.0) | Notice + Retry | - |
 | S-07 Profile (S2) | Field skeleton | "No weight set" hint | Inline error | Toast |
 | S-08 Exercise Library | Table skeleton | "No exercises yet. Add the first one" or "No categories yet" | Notice + Retry | Toast after delete |
 

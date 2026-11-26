@@ -11,8 +11,8 @@ import { buildIntegrationApp, databaseUrl, MutableClock, newPrisma } from '../he
 // TEST-11-neg, TEST-14a-4, one extra GET /api/entries/:id case (§3.3 ownership row)
 // and TEST-24a-1 (in persistence.test.ts). Slice 3 adds the Quick Complete cases that
 // live in this file: TEST-04b-1..3, TEST-10a-2, TEST-10b-2 (TEST-13* are in
-// quick_complete.test.ts, TEST-24a-2 in persistence.test.ts). The deferred ACs
-// (04c/04d/10c) are Sprint 2.
+// quick_complete.test.ts, TEST-24a-2 in persistence.test.ts). Sprint 2 (issue #75) adds
+// the deferred TEST-04c-1, TEST-04d-1 and TEST-10c-1.
 if (!databaseUrl && process.env.CI === 'true') {
   throw new Error('DATABASE_URL_TEST is required in CI (AC-04 / AC-10 / TEST-04 / TEST-10).');
 }
@@ -519,6 +519,114 @@ describeWithDatabase('F-04 daily logging: manual entry and day listing (real Pos
       expect(res.status, JSON.stringify(res.body)).toBe(400);
       expect(res.body).toEqual({ code: 'QUICK_COMPLETE_NOT_AVAILABLE', message: expect.any(String), fields: [] });
       expect(await dbSnapshot()).toEqual(before);
+    });
+  });
+
+  // AC-04c / AC-04d / AC-10c (CHANGE-03 … CHANGE-08, Sprint 2): deferred Sprint 1 cases.
+  describe('AC-04c / AC-04d manual entries outside the plan (TEST-04c, TEST-04d)', () => {
+    const TUESDAY = new Date('2026-11-10T03:00:00.000Z'); // Bob's Rest Day (plan Mon/Wed/Fri only)
+
+    it('TEST-04c-1: manual entry on a Rest Day → 201, stored, listed in GET /api/entries; the day stays a Rest Day with no score', async () => {
+      await resetEntries();
+      try {
+        clock.set(TUESDAY);
+        const bobAuth = bearer(await login('bob@exercise.test'));
+        const day = await request(app).get('/api/progress/daily?date=2026-11-10').set(bobAuth);
+        expect(day.body, 'fixture: Tuesday must be a Rest Day for Bob').toMatchObject({ isRestDay: true, overallPercent: null });
+
+        const res = await postEntry({ userExerciseId: bobWalkId, durationSec: 600 }, bobAuth);
+        expect(res.status, JSON.stringify(res.body)).toBe(201);
+        expect(res.body.entry).toMatchObject({ kind: 'MANUAL', logDate: '2026-11-10' });
+        expect(await prisma.ledgerEntry.count({ where: { userId: bobId, userExerciseId: bobWalkId } })).toBe(1);
+
+        const listing = await request(app).get('/api/entries?date=2026-11-10').set(bobAuth);
+        expect(listing.status).toBe(200);
+        expect(JSON.stringify(listing.body)).toContain(res.body.entry.id as string);
+
+        const after = await request(app).get('/api/progress/daily?date=2026-11-10').set(bobAuth);
+        expect(after.body).toMatchObject({ isRestDay: true, overallPercent: null, items: [] });
+      } finally {
+        clock.set(NOW);
+      }
+    });
+
+    it('TEST-04d-1: manual entry for an exercise with no plan item on a targeted day → 201 within limits, 400 above the limit; scores unchanged', async () => {
+      await resetEntries();
+      clock.set(NOW);
+      const auth = await aliceAuth();
+      const before = await request(app).get(`/api/progress/daily?date=${TODAY}`).set(auth);
+      expect(before.body.isRestDay, 'fixture: Thursday is a targeted day for Alice').toBe(false);
+
+      const ok = await postEntry({ userExerciseId: unplannedId, durationSec: 600 }, auth);
+      expect(ok.status, JSON.stringify(ok.body)).toBe(201);
+      const listing = await dayListing(auth);
+      expect(JSON.stringify(listing.body)).toContain(ok.body.entry.id as string);
+
+      const snapshot = await dbSnapshot();
+      // rangeMax of the snapshot is 10,800 s; 600 + 10,201 = 10,801.
+      const over = await postEntry({ userExerciseId: unplannedId, durationSec: 10201 }, auth);
+      expect(over.status, JSON.stringify(over.body)).toBe(400);
+      expect(over.body.code).toBe('VALIDATION_ERROR');
+      expect(over.body.fields.map((f: { field: string }) => f.field)).toContain('durationSec');
+      expect(await dbSnapshot()).toEqual(snapshot);
+
+      // "Same limits" includes the exercise snapshot's own Valid Range max (R6), not only the 10,800 s hard cap that
+      // the fixture above shares with its rangeMax (found by a mutation check: ignoring rangeMax passed the lines above).
+      const narrow = await prisma.userExercise.create({
+        data: {
+          userId: aliceId,
+          isCustom: true,
+          name: 'Unplanned Short Stretch',
+          targetBodyPart: 'Legs',
+          unit: 'seconds',
+          trackingMode: 'CARDIO_TIME',
+          metValue: 3.5,
+          rangeMin: 1,
+          rangeMax: 1200,
+        },
+      });
+      createdExercises.push(narrow.id);
+      const atMax = await postEntry({ userExerciseId: narrow.id, durationSec: 1200 }, auth);
+      expect(atMax.status, JSON.stringify(atMax.body)).toBe(201);
+      const narrowSnapshot = await dbSnapshot();
+      const overMax = await postEntry({ userExerciseId: narrow.id, durationSec: 1 }, auth);
+      expect(overMax.status, JSON.stringify(overMax.body)).toBe(400);
+      expect(overMax.body.fields.map((f: { field: string }) => f.field)).toContain('durationSec');
+      expect(await dbSnapshot()).toEqual(narrowSnapshot);
+
+      const after = await request(app).get(`/api/progress/daily?date=${TODAY}`).set(auth);
+      // F-11 R12 lists exercises logged but not planned on the date in `otherActivity` and counts them in
+      // `totalCalories`, by design; the scores (F-06 R3) and every other field must stay identical.
+      const withoutOtherActivity = ({ otherActivity: _other, totalCalories: _total, ...rest }: Record<string, unknown>) => rest;
+      expect(withoutOtherActivity(after.body)).toEqual(withoutOtherActivity(before.body));
+      expect(before.body.otherActivity).toEqual([]);
+      expect(after.body.otherActivity.map((o: { userExerciseId: string }) => o.userExerciseId).sort()).toEqual(
+        [unplannedId, narrow.id].sort(),
+      );
+    });
+  });
+
+  describe('AC-10c Bangkok date boundary at 18:30 UTC (TEST-10c)', () => {
+    it('TEST-10c-1: Clock 2026-11-04T18:30Z (= 2026-11-05 01:30 Bangkok) accepts logDate 2026-11-05 and rejects 2026-11-04 with LOG_DATE_MISMATCH', async () => {
+      await resetEntries();
+      try {
+        clock.set(new Date('2026-11-04T18:30:00.000Z'));
+        const auth = await aliceAuth(); // log in after moving the clock: tokens live 3600 s
+        const squat = exerciseId('Barbell Squat');
+        const accepted = await postEntry({ userExerciseId: squat, sets: 1, totalReps: 5, logDate: '2026-11-05' }, auth);
+        expect(accepted.status, JSON.stringify(accepted.body)).toBe(201);
+        expect(accepted.body.entry.logDate).toBe('2026-11-05');
+
+        clock.set(new Date('2026-11-04T18:30:00.000Z'));
+        const before = await dbSnapshot();
+        const rejected = await postEntry({ userExerciseId: squat, sets: 1, totalReps: 5, logDate: '2026-11-04' }, auth);
+        expect(rejected.status, JSON.stringify(rejected.body)).toBe(400);
+        expect(rejected.body.code).toBe('LOG_DATE_MISMATCH');
+        expect(await dbSnapshot()).toEqual(before);
+      } finally {
+        clock.set(NOW);
+        await resetEntries();
+      }
     });
   });
 
