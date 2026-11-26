@@ -770,10 +770,24 @@ describeWithDatabase('F-01 security and access control (real PostgreSQL)', () =>
         expect(await fullSnapshot()).toEqual(before);
       });
 
-      it("TEST-12b (Sprint 2 routes, control): Bob's own PUT /api/entries/:id with the same body → 200, so the rejections above are not caused by the body", async () => {
-        const res = await send('PUT', `/api/entries/${bobEntryId}`, await bearerOf('bob@exercise.test'));
-        expect(res.status).toBe(200);
-        expect(res.body.entry).toMatchObject({ id: bobEntryId, sets: 2, totalReps: 20 });
+      it("TEST-12b (Sprint 2 routes, control): Bob's own request with the same body → 200 on PUT /api/entries/:id, PUT /api/plan-items/:id and PUT /api/profile, so the rejections above are not caused by the body", async () => {
+        const bobToken = await bearerOf('bob@exercise.test');
+        const entry = await send('PUT', `/api/entries/${bobEntryId}`, bobToken);
+        expect(entry.status, 'PUT /api/entries/:id as Bob').toBe(200);
+        expect(entry.body.entry).toMatchObject({ id: bobEntryId, sets: 2, totalReps: 20 });
+
+        // The PUT inserts a new version of Bob's plan item and appends a WeightLog row for Bob;
+        // both are removed again so the afterAll cleanup and other suites see the earlier state.
+        const weightsBefore = (await prisma.weightLog.findMany({ where: { userId: bobId }, select: { id: true } })).map((w) => w.id);
+        try {
+          const plan = await send('PUT', `/api/plan-items/${bobItemId}`, bobToken);
+          expect(plan.status, 'PUT /api/plan-items/:id as Bob').toBe(200);
+          const profile = await send('PUT', '/api/profile', bobToken);
+          expect(profile.status, 'PUT /api/profile as Bob').toBe(200);
+        } finally {
+          await prisma.planItem.deleteMany({ where: { userExerciseId: bobExerciseId, id: { not: bobItemId } } });
+          await prisma.weightLog.deleteMany({ where: { userId: bobId, id: { notIn: weightsBefore } } });
+        }
       });
     });
   });
