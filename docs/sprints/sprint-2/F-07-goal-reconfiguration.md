@@ -3,7 +3,7 @@
 **Course:**  CPE 334 Software Engineering
 **Feature ID:**  F-07
 **Sprint:**  2 (goal creation is F-03, Sprint 1; history and streak are F-08, Sprint 2)
-**Contract Version:**  0.1.3
+**Contract Version:**  0.1.4
 **SRS Baseline Version:**  1.1.0 (Feature Inventory 1.1.0, RTM 1.1.10, System-Level SDS 1.1.1, Sprint Plan 1.2.0, F-03 contract 0.3.1, F-04 contract 0.3.2, F-05 contract 0.1.1, F-06 contract 0.3.1)
 **Date:**  23 November 2026
 **Status:**  Draft (review-pending). Open questions are in §13; none of them is decided here
@@ -19,6 +19,7 @@
 | **0.1.1** | 23 Nov 2026 | Changes after Onsinee's review of PR #107 (`03e2bb5`): (1) STS fixtures made runnable: time and distance items are created through `POST /api/plan-items`, `MutableClock` instead of `FixedClock`, log in again after moving the Clock, "n reps" = one entry of 1 set; (2) R10 / OQ-1 reason corrected (a not-started item would start early, then the edit is lost); (3) Edit dialog is pre-filled from the **latest** version and available whichever day is selected (§6); (4) confirmation texts say today's progress and streak count are recalculated; End text says today's score still includes the item; (5) check order chain added (R3, TEST-07a-18) and merged-value validation placed inside the transaction (§3.1); (6) AC-07b reading confirmed by the reviewer, OQ-2 closed, P7-6 added; (7) DoD 5/6 split between the F-07 and F-08 merges, TEST-07b-2/07b-3 live in `goal_reconfig.test.ts` and AC-07b is PARTIAL until then; (8) F-05 and F-04 0.3.2 added to header and §11; (9) limitations added: no DELETE for a mistyped future goal, history of an ended exercise splits across two `planKey`s; (10) nits: `loadKg` 3-decimal case, `fields[]` shape for a non-object body, same `userExerciseId` in TEST-07c-2. Not taken: dropping `effectiveFrom` from the body (R4/R5 unchanged; the reviewer's "your call") | Nakagamon | Draft |
 | **0.1.2** | 24 Nov 2026 | Changes after the re-review of PR #107 (`5cd58c9`; F-07 was approved): TEST-07a-14 asserts the `fields` shape for a non-object body; TEST-07a-18 listed in TDD step 4; `createHistoricalEntry` sentence aligned with F-08 §5; reviewer pronouns removed from the text | Nakagamon | Draft |
 | **0.1.3** | 25 Nov 2026 | Implementation notes (issue #70), no behavior change: (1) `insertNextVersion` takes a `build(latest, exercise)` callback that returns the new fields or throws the validation error (the transaction rolls back); the pure `buildNextVersion` of §4.6 does the body-shape check, the R10 check and the merged validation in that order, so R3's order holds; (2) the "wrong type" part of R3's shape stage covers `priorityWeight`, the target fields, `repeatDays`, `endDate` and `effectiveFrom`; range and boundary checks stay in the merged stage; (3) TEST-07a-10 uses custom exercises and TEST-07a-11 sets `rangeMax` on the snapshot (see RTM 1.1.12); (4) TEST-07a-17 was written with the red tests; (5) TEST-07c-2 already passes before the route exists (the tie rule is existing behavior); (6) AC-07b is recorded PARTIAL until F-08 adds TEST-07b-2/07b-3 | Nakagamon | Draft |
+| **0.1.4** | 27 Nov 2026 | Status update only (issue #87): §12 P7-6 is marked applied, because RTM 1.1.27 rewords AC-07b in both BR-11 rows to "the Streak counted from closed days is unchanged; today's contribution follows SRS Q19". No rule, API, AC, STS or DoD change; AC-07b stays PASS at `127c248` (RTM §3.1). | Onsinee (67070501078) | Draft (review-pending) |
 
 *Rule: committed as a specification-only commit before any F-07 implementation; later changes are new versions with a reason, never silent rewrites.*
 
@@ -327,7 +328,7 @@ These items are **proposals for the lead to apply**; this contract does not edit
 | P7-3 | A one-line SRS clarification (Q-style) that "End" is `endDate` on a new version and that `endDate` is the last occurring day (R9), if the reviewers confirm OQ-3 | SRS | Pending review |
 | P7-4 | Rows for F-07 in `contract-approval-register.md` | Register | Pending |
 | P7-5 | UI spec §5 "Edit Plan Item" bullet: the confirmation texts and the not-started message of §6 | UI spec | Pending review |
-| P7-6 | RTM revision row that rewords AC-07b: "... and the Streak counted from closed days is unchanged; today's contribution follows Q19". SRS Q19 already says today stops counting if a same-day edit lowers it below 70% and SDS §3.3's last sentence stays true, so this is a wording clarification of AC-07b, not a new decision (reviewer's reading, PR #107 review) | RTM | Pending (lead applies) |
+| P7-6 | RTM revision row that rewords AC-07b: "... and the Streak counted from closed days is unchanged; today's contribution follows Q19". SRS Q19 already says today stops counting if a same-day edit lowers it below 70% and SDS §3.3's last sentence stays true, so this is a wording clarification of AC-07b, not a new decision (reviewer's reading, PR #107 review) | RTM | Applied in RTM 1.1.27 (issue #87, see 0.1.4) |
 
 --------------------------------------------------------------------------------
 
