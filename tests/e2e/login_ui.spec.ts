@@ -79,6 +79,21 @@ test('regression (#124): a signed-out visitor on an unknown URL sees the "Page n
   await expect(page.getByTestId('error-home')).toBeVisible()
 })
 
+// Issue #124: on a phone the session bar shows the display name and the role (the role may move under the name
+// but must not be hidden), and neither overlaps Log out.
+test('session bar (#124): at 360 px the display name and the role are both readable and clear of Log out', async ({ page }) => {
+  await login(page, PARTICIPANT.email, PARTICIPANT.password)
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
+
+  const name = await page.getByTestId('session-display-name').boundingBox()
+  const role = await page.getByTestId('session-role').boundingBox()
+  const logout = await page.getByTestId('logout-button').boundingBox()
+  expect(name && name.width).toBeGreaterThan(20)
+  expect(role && role.width).toBeGreaterThan(40)
+  expect(role && logout && role.x + role.width).toBeLessThanOrEqual(logout!.x + 0.5)
+  expect(name && logout && name.x + name.width).toBeLessThanOrEqual(logout!.x + 0.5)
+})
+
 test('regression: a transient /api/auth/me failure does not sign the user out', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
   await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
