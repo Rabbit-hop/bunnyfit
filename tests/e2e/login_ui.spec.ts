@@ -68,6 +68,17 @@ test('AC-22b (UI) manager side: a manager visiting a participant-only route also
   await expect(page.getByRole('heading', { name: "You don't have access to this page" })).toBeVisible()
 })
 
+// Review of PR #130 (issue #124): the page title is drawn in the session bar row only when a session header is
+// rendered. A signed-out visitor has no session header, and the title must still be on screen.
+test('regression (#124): a signed-out visitor on an unknown URL sees the "Page not found" title inside the viewport', async ({ page }) => {
+  await page.goto('/this-route-does-not-exist')
+
+  const title = page.getByRole('heading', { name: 'Page not found' })
+  await expect(title).toBeVisible()
+  await expect(title).toBeInViewport({ ratio: 1 })
+  await expect(page.getByTestId('error-home')).toBeVisible()
+})
+
 test('regression: a transient /api/auth/me failure does not sign the user out', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
   await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
