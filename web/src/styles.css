@@ -178,42 +178,36 @@ body {
   padding-top: var(--header-top);
   padding-bottom: 0;
 
-  /* Name, role pill and Log out sit in one row. The left column keeps 7.5rem for the title; the name takes what
-     is left and is cut with an ellipsis, the role pill and Log out never shrink. */
-  display: grid;
-  grid-template-columns: minmax(7.5rem, 1fr) minmax(0, max-content) auto auto;
+  /* Name and role pill share the space between the title and Log out. They sit on one line when they fit and
+     the role pill wraps under the name when they do not (no breakpoint: it depends on the name length).
+     Log out is taken out of the flow at the right edge; the padding reserves its width and the title's. */
+  --logout-room: 5.75rem;
+  --title-room: 7.5rem;
+  display: flex;
+  flex-wrap: wrap;
   align-content: center;
   align-items: center;
-  gap: 0.75rem 0.4rem;
+  justify-content: flex-end;
+  gap: 0.2rem 0.4rem;
+  padding-left: calc(clamp(1rem, 4vw, 3rem) + var(--title-room));
+  padding-right: calc(clamp(1rem, 4vw, 3rem) + var(--logout-room));
 }
 
 .app-shell:has(.page-holder) .session-header > .sr-only {
-  grid-column: 2;
-  justify-self: end;
-  max-width: min(9rem, 30vw);
+  max-width: min(9rem, 40vw);
+  text-align: right;
 }
 
 .app-shell:has(.page-holder) .session-header > .session-role {
-  grid-column: 3;
+  flex: 0 0 auto;
 }
 
 .app-shell:has(.page-holder) .session-header .session-logout {
-  grid-column: 4;
-  margin-left: 0.45rem;
+  position: absolute;
+  right: clamp(1rem, 4vw, 3rem);
+  top: calc(var(--header-top) + (var(--header-h) - 36px) / 2);
+  margin: 0;
   white-space: nowrap;
-}
-
-/* On phones there is no room for title, name, role pill and Log out in one row: the role pill is dropped
-   below 430px (the element stays in the page for screen readers) so the name stays visible */
-@media (max-width: 430px) {
-  .app-shell:has(.page-holder) .session-header > .session-role {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
 }
 
 .page-holder {
