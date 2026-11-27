@@ -224,8 +224,9 @@ body {
   gap: 0.25rem 1rem;
 }
 
-/* Title in the session bar row: the holder starts right under the bar (bar height 3.5rem) */
-.page-holder h2 {
+/* Title in the session bar row: the holder starts right under the bar (bar height 3.5rem).
+   Only when a session header is rendered; a signed-out visitor (404) keeps the title in the normal flow. */
+.app-shell:has(.session-header) .page-holder h2 {
   position: absolute;
   top: -3.5rem;
   left: var(--pad);
@@ -240,7 +241,7 @@ body {
 }
 
 /* The 403 / 404 titles are sentences; they get a smaller size so two lines fit in the bar */
-.page-holder:has(+ .page [data-testid='error-home']) h2 {
+.app-shell:has(.session-header) .page-holder:has(+ .page [data-testid='error-home']) h2 {
   font-size: 1.1rem;
 }
 
