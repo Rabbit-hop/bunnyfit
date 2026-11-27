@@ -79,7 +79,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     const body = (payload ?? {}) as { code?: string; message?: string; fields?: FieldError[] }
     const code = body.code ?? codeFromStatus(response.status)
     const error = new ApiError(response.status, code, body.message ?? '', body.fields ?? [])
-    if (response.status === 401 && token && path !== '/api/auth/logout') {
+    // Only the token this request was sent with may expire the session. After Log out (or a new sign-in)
+    // a late 401 for the old token is not an expiry (#122).
+    if (response.status === 401 && token && getToken() === token && path !== '/api/auth/logout') {
       destroySession()
       window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT))
     }

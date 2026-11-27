@@ -91,3 +91,18 @@ test('regression: a transient /api/auth/me failure does not sign the user out', 
   await expect(page).toHaveURL(/\/today$/)
   await expect(page.getByTestId('session-error')).toHaveCount(0)
 })
+
+// Issue #122 (UAT-S1-02 step 6): ui-spec 3.1 says Log out ends on /login, where the form is shown.
+test('logout lands on the login form and a protected URL then stays on /login', async ({ page }) => {
+  await login(page, PARTICIPANT.email, PARTICIPANT.password)
+  await expect(page).toHaveURL(/\/today$/)
+
+  await page.getByTestId('logout-button').click()
+
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByTestId('login-email')).toBeVisible()
+
+  await page.goto('/today')
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByTestId('login-email')).toBeVisible()
+})

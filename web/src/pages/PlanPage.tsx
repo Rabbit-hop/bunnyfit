@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AddExerciseDialog } from '../components/AddExerciseDialog'
 import { CalendarCard, type CalendarMode } from '../components/CalendarCard'
 import { EditPlanItemDialog, EndPlanItemDialog } from '../components/EditPlanItemDialog'
@@ -131,6 +131,9 @@ export function PlanPage() {
     <section className="plan-page" data-testid="plan-page">
       <header className="page-holder">
         <h2>My Plan</h2>
+        <Link to="/schedule" className="btn btn-secondary" data-testid="plan-schedule-link">
+          Schedule &amp; reminders
+        </Link>
       </header>
 
       {selected && (

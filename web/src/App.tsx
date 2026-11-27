@@ -11,6 +11,7 @@ import { HistoryPage } from './pages/HistoryPage'
 import { MonthlyProgressPage } from './pages/MonthlyProgressPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlanPage } from './pages/PlanPage'
+import { SchedulePage } from './pages/SchedulePage'
 import { TodayPage } from './pages/TodayPage'
 import { WelcomePage } from './pages/WelcomePage'
 
@@ -25,7 +26,8 @@ function Guard({ role, children }: GuardProps) {
     return null
   }
   if (!user) {
-    return <Navigate to={expired ? '/login?reason=expired' : '/welcome'} replace />
+    // ui-spec 3.1: a visitor without a session goes to /login; only `/` shows Welcome (RootRedirect).
+    return <Navigate to={expired ? '/login?reason=expired' : '/login'} replace />
   }
   if (role && user.role !== role) {
     return <Navigate to="/403" replace />
@@ -103,6 +105,14 @@ export default function App() {
             element={
               <Guard role="PARTICIPANT">
                 <PlanPage />
+              </Guard>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <Guard role="PARTICIPANT">
+                <SchedulePage />
               </Guard>
             }
           />
