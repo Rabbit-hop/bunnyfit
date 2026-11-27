@@ -1,10 +1,10 @@
 ### Feature Inventory Specification
 **Project Title:**  Habit and Activity Tracking System (Exercise Domain)
 **Course:**  CPE 334 Software Engineering
-**Document Version:**  1.1.0
+**Document Version:**  1.1.1
 **SRS Baseline Version:**  1.1.0
-**Date:**  6 November 2026
-**Status:**  Approved Baseline (Updated with Resolved Architecture & Design Decisions B1–B8)
+**Date:**  27 November 2026 (1.1.1; 1.1.0: 6 November 2026)
+**Status:**  Approved Baseline 1.1.0; revision 1.1.1 is a Draft, review-pending (Updated with Resolved Architecture & Design Decisions B1–B8)
 
 --------------------------------------------------------------------------------
 
@@ -15,6 +15,7 @@
 | **0.5.0** | 3 Nov 2026 | Added 4-domain exercise structure and ratio-based formulas | Nakagamon (67070501064) & Onsinee (67070501078) | Review |
 | **1.0.0** | 4 Nov 2026 | Finalized baseline v1.0.0. Added F-11 for METs calorie calculation in Sprint 2, updated F-01 with login/logout/me auth endpoints, updated F-02 with Template Copy-on-Select snapshot, updated F-04 with Ledger logging mechanics and Rest Day rules, aligned audit matrix and dependencies. Aligned F-03 Target Sprint strictly to Sprint 1 (F-07 handles Sprint 2 goal reconfiguration), updated F-09 for persisted `ReminderSetting` fields (`label`, `enabled`), aligned FR-05 with calorie display in F-11, added profile GET and PUT endpoints in F-04, aligned NFR-01 benchmarking scope across Sprint 1 and 3, added F-10 system test mapping. Incorporated Design Decisions B1–B8: trackingMode enum (F-02), JWT jti Denylist (F-01), Quick Complete sets/totalReps & No-op handling (F-04), UserExercise snapshot architecture (F-03), historical WeightLog lookup (F-11), backend Rest Day Quick Complete HTTP 400 enforcement (`QUICK_COMPLETE_NOT_AVAILABLE`, F-04). Consistency pass: corrected Max Distance unit (km) in BR-02 audit row and F-11 dependency notation, aligned dependencies (F-08, F-11, F-10), separated F-10 (Monthly Progress Summary) from the cross-cutting responsibility SYS-01 (System Hardening & Final NFR Verification). | Nakagamon (67070501064) & Onsinee (67070501078) | **Approved Baseline** |
 | **1.1.0** | 6 Nov 2026 | Target sprints synchronized with RTM 1.1.0 and the Fri 6 Nov scope checkpoint (CHANGE-03 … CHANGE-08, 14 Tier B AC moved to Sprint 2). Section 2: F-02, F-03, F-04 and F-06 are now "Sprint 1, 2" (their deferred AC — AC-02d, AC-03d, AC-04c–d, AC-06g, AC-10c, AC-15, AC-16a–b, AC-17a–d, AC-21a — are verified in Sprint 2). Section 3: FR-02, FR-03, BR-01, BR-03 → Sprint 1, 2; FR-08 and BR-08 → Sprint 2; BR-07 → Sprint 1, 2, 3; NFR-01 → Sprint 2, 3. No feature, requirement or dependency changed. Review-fix pass (PR #13): NFR-03 mapped to F-04, F-05, SYS-01 and Sprints 1, 2, 3 (AC-23 third case is F-05). | Nakagamon (67070501064) | **Approved Baseline** |
+| **1.1.1** | 27 Nov 2026 | Deliverable 2 Part D (issue #87). New Section 2.1 records the implementation state of every feature on 27 Nov 2026 (contract PR, implementation PR, merged or not), read from GitHub and `git` on that day. **No feature, requirement, dependency or target sprint changed** (Sections 2, 3 and 4 are unchanged). Test results are deliberately not repeated here: RTM Section 3.1 is the only place that records Implemented / Executed / Result per AC. Review-fix pass (PR #127 review at `045c8e2`): the SYS-01 row of Section 2.1 said PR #125 was "open, not merged"; PR #125 was merged on 26 Nov 2026 18:28 UTC (`b59d028`), before that row was written, so the row now says merged. No other change. | Onsinee (67070501078) | Draft (review-pending) |
 
 --------------------------------------------------------------------------------
 
@@ -38,6 +39,24 @@ This **Feature Inventory Specification** document compiles and classifies all fe
 | **F-10** | **Monthly Progress Summary** : Monthly summary report (`GET /api/summary?month=YYYY-MM`) for the Participant's own data: targeted/Rest Day counts, days reaching $\ge 70\%$, monthly average (Targeted Days Only), current Streak, total estimated kcal, and per-exercise totals; consistent with the progress endpoint and rejecting access to other users' summaries. | FR-05, FR-06, BR-07 | F-06, F-08, F-11 | Sprint 3 | System & Integration Test (`tests/system/monthly_summary.test.ts`) |
 | **F-11** | **Estimated Duration & Calorie Calculation via METs** : Automated duration estimation and estimated calories burned calculation system (Estimated Calories Burned via METs) by retrieving body weight from `WeightLog` on the activity date combined with the activity's MET value, displaying results on user screens; when no weight exists the API returns HTTP 200 with calories `null` and `calorieError: "BODY_WEIGHT_REQUIRED"`. | FR-05, FR-08, BR-12 | F-02, F-03, F-04, F-06 | Sprint 2 | Unit Test (`tests/unit/calorie_calc.test.ts`) & API/DB Integration Test (`tests/integration/calorie_weightlog.test.ts`) |
 | **SYS-01** | **System Hardening & Final NFR Verification (system responsibility, not a user feature)** : Extends and finally verifies NFR-01 to NFR-04 on the integrated product: Endpoint Access Matrix covering every protected route added in Sprints 1–3 (401 / 403 / cross-user), per-endpoint p95 latency report, UI validation feedback across Sprint 2–3 features, and data persistence after server restart and GCP redeployment. | NFR-01, NFR-02, NFR-03, NFR-04, BR-04 | F-01 – F-11 | Sprint 3 | `tests/integration/security_access.test.ts`, `tests/performance/latency.test.ts`, `tests/e2e/validation_feedback.spec.ts`, `tests/integration/persistence.test.ts` |
+
+##### 2.1 Implementation State (27 November 2026)
+"Merged" means merged into the sprint integration branch through a reviewed pull request; it says nothing about test results, which are in RTM Section 3.1 (per AC: Implemented, Executed, Result, tested commit). Sprint 1 work is released in tag `sprint1-v1.0.0`; Sprint 2 work is on `staging/sprint-2` and is **not released yet** (release `sprint2-v1.0.0`, issue #80, not done on 27 Nov 2026).
+
+| Feature | Contract | Implementation | State on 27 Nov 2026 |
+| ------ | ------ | ------ | ------ |
+| **F-01** | `docs/sprints/sprint-1/F-01-authentication.md` | Sprint 1 | Merged, released in `sprint1-v1.0.0`; login latency fix PR #111 merged into `staging/sprint-2` |
+| **F-02** | `docs/sprints/sprint-1/F-02-exercise-library.md` | Sprint 1; AC-02d in PR #119; Lab 7 change (category name 1–30, AC-02e) in PR #123 | Sprint 1 part released; PRs #119 and #123 merged into `staging/sprint-2` |
+| **F-03** | `docs/sprints/sprint-1/F-03-goal-setting.md` | Sprint 1 | Merged, released in `sprint1-v1.0.0` |
+| **F-04** | `docs/sprints/sprint-1/F-04-daily-logging.md` | Sprint 1; Profile and body weight (CHANGE-04) in PR #112; AC-04c/d and AC-10c in PR #119 | Sprint 1 part released; PRs #112 and #119 merged into `staging/sprint-2` |
+| **F-05** | `docs/sprints/sprint-2/F-05-entry-modification.md` (PR #106) | PR #110 | Merged into `staging/sprint-2` |
+| **F-06** | `docs/sprints/sprint-1/F-06-progress-display.md` | Sprint 1; monthly progress (AC-06g, AC-15) in PR #119 | Sprint 1 part released; PR #119 merged into `staging/sprint-2` |
+| **F-07** | `docs/sprints/sprint-2/F-07-goal-reconfiguration.md` (PR #107) | PR #115 | Merged into `staging/sprint-2` |
+| **F-08** | `docs/sprints/sprint-2/F-08-history-streak.md` (PR #107) | PR #116 | Merged into `staging/sprint-2` |
+| **F-09** | `docs/sprints/sprint-3/F-09-schedule-reminders.md` (PR #118) | Issue #81 Part 2 | Contract merged; **not implemented** (no routes in `server/routes/registry.ts`) |
+| **F-10** | `docs/sprints/sprint-3/F-10-monthly-summary.md` (PR #103) | Sprint 3 | Contract merged; **not implemented** |
+| **F-11** | `docs/sprints/sprint-2/F-11-calories.md` (PR #105) | PR #117 | Merged into `staging/sprint-2` |
+| **SYS-01** | `docs/sprints/sprint-3/SYS-01-hardening.md` (PR #103) | Sprint 1–3 (access matrix grows each sprint) | Sprint 2 access-matrix rows merged into `staging/sprint-2` (PR #125, issue #78); final NFR verification (AC-21b, AC-24b) is Sprint 3 |
 
 --------------------------------------------------------------------------------
 
