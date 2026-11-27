@@ -1,4 +1,5 @@
 import type { EntryKind, Prisma, PrismaClient } from '@prisma/client';
+import type { CumulativeEntry } from '../domain/entryCalc.js';
 
 /**
  * `LedgerEntry` as returned by the API (F-04 §4.2): never `userId` — the row is
@@ -42,6 +43,11 @@ export interface EntryRepository {
    * (read-only; served by the `LedgerEntry(userId, logDate)` index).
    */
   listEntriesBetween(userId: string, from: string, to: string): Promise<EntryRecord[]>;
+  /**
+   * F-06 §4.2 (monthly, #108): the same rows as `listEntriesBetween`, but only the columns
+   * `cumulativeFor` reads, so a month of entries is not mapped into full API records.
+   */
+  listCumulativeEntriesBetween(userId: string, from: string, to: string): Promise<CumulativeEntry[]>;
   /** Owner of an entry, or null when it does not exist (route ownership check, §4.6). */
   findEntryOwner(id: string): Promise<string | null>;
   /** Inserts one row; the caller supplies `createdAt` from the Clock. */
@@ -66,6 +72,11 @@ export interface EntryValues {
 /** The reads/writes available while an exercise row is locked. */
 export interface EntryScope {
   listDayEntries(userId: string, date: string): Promise<EntryRecord[]>;
+  /**
+   * One user's entries of one exercise on one date, ordered by `createdAt` (#108): the routes that
+   * hold this exercise's lock only sum this exercise (F-04 R7, F-05 R5), so they need no other rows.
+   */
+  listExerciseDayEntries(userId: string, userExerciseId: string, date: string): Promise<EntryRecord[]>;
   insert(input: InsertEntry): Promise<EntryRecord>;
   /** F-05 R8: the entry is re-read inside the lock; null when a concurrent DELETE won. */
   findEntry(id: string): Promise<EntryRecord | null>;
@@ -99,6 +110,14 @@ function createScope(client: EntryClient): EntryScope {
     async listDayEntries(userId, date) {
       const rows = await client.ledgerEntry.findMany({
         where: { userId, logDate: toDate(date) },
+        orderBy: { createdAt: 'asc' },
+      });
+      return rows.map(toEntryRecord);
+    },
+
+    async listExerciseDayEntries(userId, userExerciseId, date) {
+      const rows = await client.ledgerEntry.findMany({
+        where: { userId, userExerciseId, logDate: toDate(date) },
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toEntryRecord);
@@ -156,6 +175,22 @@ export function createPrismaEntryRepository(prisma: PrismaClient): EntryReposito
         orderBy: [{ logDate: 'asc' }, { createdAt: 'asc' }],
       });
       return rows.map(toEntryRecord);
+    },
+
+    async listCumulativeEntriesBetween(userId, from, to) {
+      const rows = await prisma.ledgerEntry.findMany({
+        where: { userId, logDate: { gte: toDate(from), lte: toDate(to) } },
+        select: { userExerciseId: true, logDate: true, sets: true, totalReps: true, durationSec: true, distanceKm: true },
+        orderBy: [{ logDate: 'asc' }, { createdAt: 'asc' }],
+      });
+      return rows.map((row) => ({
+        userExerciseId: row.userExerciseId,
+        logDate: toDay(row.logDate),
+        sets: row.sets,
+        totalReps: row.totalReps,
+        durationSec: row.durationSec,
+        distanceKm: row.distanceKm?.toNumber() ?? null,
+      }));
     },
 
     async findEntryOwner(id) {

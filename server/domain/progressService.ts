@@ -8,7 +8,7 @@ import {
   type DailyWithCalories,
   type OtherActivityInput,
 } from './calorieCalc.js';
-import { cumulativeFor, type Cumulative } from './entryCalc.js';
+import { cumulativeFor, type Cumulative, type CumulativeEntry } from './entryCalc.js';
 import { resolveItems, resolvePlan } from './planResolution.js';
 import { actualOf, calcDaily, calcMonthly, type MonthlyResult } from './progressCalc.js';
 
@@ -115,13 +115,21 @@ export async function monthlyProgress(
   // With no plan item there is no first effectiveFrom: every day is "before the plan" (AC-15), not a Rest Day,
   // so no day is returned and nothing counts as an excluded Rest Day (PR #119 review).
   const dates = firstEffective === null ? [] : datesBetween(from, to);
-  const entries = dates.length === 0 ? [] : await deps.entries.listEntriesBetween(userId, from, to);
+  const entries = dates.length === 0 ? [] : await deps.entries.listCumulativeEntriesBetween(userId, from, to);
+  // #108: each day's sums read only that day's rows instead of scanning the whole range per item.
+  const byDate = new Map<string, CumulativeEntry[]>();
+  for (const entry of entries) {
+    const day = byDate.get(entry.logDate);
+    if (day) day.push(entry);
+    else byDate.set(entry.logDate, [entry]);
+  }
 
   const results = dates.map((date) => {
     const occurring = resolveItems(items, date);
+    const dayEntries = byDate.get(date) ?? [];
     const daily = calcDaily(
       occurring,
-      occurring.map((item) => cumulativeFor(entries, item.userExercise.id, date)),
+      occurring.map((item) => cumulativeFor(dayEntries, item.userExercise.id, date)),
     );
     return { date, isRestDay: daily.isRestDay, overallPercent: daily.overallPercent };
   });
