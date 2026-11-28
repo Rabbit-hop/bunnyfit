@@ -68,6 +68,32 @@ test('AC-22b (UI) manager side: a manager visiting a participant-only route also
   await expect(page.getByRole('heading', { name: "You don't have access to this page" })).toBeVisible()
 })
 
+// Review of PR #130 (issue #124): the page title is drawn in the session bar row only when a session header is
+// rendered. A signed-out visitor has no session header, and the title must still be on screen.
+test('regression (#124): a signed-out visitor on an unknown URL sees the "Page not found" title inside the viewport', async ({ page }) => {
+  await page.goto('/this-route-does-not-exist')
+
+  const title = page.getByRole('heading', { name: 'Page not found' })
+  await expect(title).toBeVisible()
+  await expect(title).toBeInViewport({ ratio: 1 })
+  await expect(page.getByTestId('error-home')).toBeVisible()
+})
+
+// Issue #124: on a phone the session bar shows the display name and the role (the role may move under the name
+// but must not be hidden), and neither overlaps Log out.
+test('session bar (#124): at 360 px the display name and the role are both readable and clear of Log out', async ({ page }) => {
+  await login(page, PARTICIPANT.email, PARTICIPANT.password)
+  await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })
+
+  const name = await page.getByTestId('session-display-name').boundingBox()
+  const role = await page.getByTestId('session-role').boundingBox()
+  const logout = await page.getByTestId('logout-button').boundingBox()
+  expect(name && name.width).toBeGreaterThan(20)
+  expect(role && role.width).toBeGreaterThan(40)
+  expect(role && logout && role.x + role.width).toBeLessThanOrEqual(logout!.x + 0.5)
+  expect(name && logout && name.x + name.width).toBeLessThanOrEqual(logout!.x + 0.5)
+})
+
 test('regression: a transient /api/auth/me failure does not sign the user out', async ({ page }) => {
   await login(page, PARTICIPANT.email, PARTICIPANT.password)
   await expect(page).toHaveURL(/\/today$/, { timeout: 20_000 })

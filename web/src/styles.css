@@ -70,20 +70,45 @@ body {
   padding-bottom: 6.5rem;
 }
 
-/* Session header (logged in): blue bar, rounded bottom */
+/* Session header (logged in): no bar background, the page background shows through (Refs #124) */
 .session-header {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.75rem 1.25rem;
+  gap: 0.75rem 0.4rem;
   padding: 0.75rem clamp(1rem, 4vw, 3rem);
-  background: var(--color-primary);
+  background: transparent;
   border-bottom: none;
-  border-radius: 0 0 24px 24px;
+}
+
+/* Log out is as tall as the .pill buttons (36px); .btn-secondary sets min-height 44px, so this needs the two-class selector */
+.session-header .session-logout {
+  flex-shrink: 0;
+  min-height: 36px;
+  margin-left: 0.85rem;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+}
+
+/* The user name was screen-reader only (.sr-only); show it before the role pill (Refs #124). Same element and
+   test id, only the visual hiding is undone; long names are cut with an ellipsis. */
+.session-header > .sr-only {
+  position: static;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: min(9rem, 30vw);
+  height: auto;
+  overflow: hidden;
+  clip: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Page holder (every logged-in page): a blue block that holds the title and controls,
@@ -92,8 +117,8 @@ body {
   --pad: clamp(1rem, 4vw, 3rem);
   position: relative;
   z-index: 5;
-  margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 3rem;
-  padding: 0.75rem var(--pad) 2.25rem;
+  margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 1rem;
+  padding: 0.75rem var(--pad) 0;
 }
 
 .page-holder > * {
@@ -103,6 +128,8 @@ body {
 
 .page-holder::before,
 .page-holder::after {
+  /* Refs #124: page-holder background (blue block and drip layers) removed */
+  display: none;
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
@@ -138,10 +165,49 @@ body {
   -webkit-mask-position: left bottom, left top;
 }
 
+/* The page title (h2 in .page-holder) sits in this bar's row, so the bar has a fixed height
+   and the holder (z-index 5) is stacked above it (Refs #124). */
 .app-shell:has(.page-holder) .session-header {
+  --header-h: 3.5rem;
+  --header-top: 1rem;
   position: relative;
+  z-index: 0;
+  box-sizing: border-box;
+  min-height: calc(var(--header-top) + var(--header-h));
   border-radius: 0;
-  padding-bottom: 0.25rem;
+  padding-top: var(--header-top);
+  padding-bottom: 0;
+
+  /* Name and role pill share the space between the title and Log out. They sit on one line when they fit and
+     the role pill wraps under the name when they do not (no breakpoint: it depends on the name length).
+     Log out is taken out of the flow at the right edge; the padding reserves its width and the title's. */
+  --logout-room: 5.75rem;
+  --title-room: 7.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem 0.4rem;
+  padding-left: calc(clamp(1rem, 4vw, 3rem) + var(--title-room));
+  padding-right: calc(clamp(1rem, 4vw, 3rem) + var(--logout-room));
+}
+
+.app-shell:has(.page-holder) .session-header > .sr-only {
+  max-width: min(9rem, 40vw);
+  text-align: right;
+}
+
+.app-shell:has(.page-holder) .session-header > .session-role {
+  flex: 0 0 auto;
+}
+
+.app-shell:has(.page-holder) .session-header .session-logout {
+  position: absolute;
+  right: clamp(1rem, 4vw, 3rem);
+  top: calc(var(--header-top) + (var(--header-h) - 36px) / 2);
+  margin: 0;
+  white-space: nowrap;
 }
 
 .page-holder {
@@ -152,9 +218,25 @@ body {
   gap: 0.25rem 1rem;
 }
 
-.page-holder h2 {
+/* Title in the session bar row: the holder starts right under the bar (bar height 3.5rem).
+   Only when a session header is rendered; a signed-out visitor (404) keeps the title in the normal flow. */
+.app-shell:has(.session-header) .page-holder h2 {
+  position: absolute;
+  top: -3.5rem;
+  left: var(--pad);
+  display: flex;
+  align-items: center;
+  height: 3.5rem;
+  /* Titles wider than the reserved space wrap to two lines instead of running under the role and Log out */
+  max-width: 7rem;
   margin: 0;
   font-size: 1.5rem;
+  line-height: 1.15;
+}
+
+/* The 403 / 404 titles are sentences; they get a smaller size so two lines fit in the bar */
+.app-shell:has(.session-header) .page-holder:has(+ .page [data-testid='error-home']) h2 {
+  font-size: 1.1rem;
 }
 
 .page-holder .today-date {
@@ -187,6 +269,7 @@ body {
 }
 
 .session-role {
+  flex-shrink: 0;
   padding: 0.15rem 0.55rem;
   font-size: 0.75rem;
   color: var(--color-text);
@@ -605,9 +688,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 48px;
-  padding: 0 1.5rem;
-  font-size: 1rem;
+  min-height: 40px;
+  padding: 0 1.1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text);
   text-decoration: none;
@@ -1867,8 +1950,9 @@ button.bottom-nav-item {
 }
 
 .pill {
-  min-height: 40px;
-  padding: 0 1rem;
+  min-height: 36px;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
   border-radius: 999px;
 }
 
@@ -1884,12 +1968,12 @@ button.bottom-nav-item {
 }
 
 .entries-toggle {
-  min-height: 32px;
+  min-height: 36px;
   margin-top: 0.35rem;
-  padding: 0.25rem 0;
+  padding: 0.25rem 0.5rem 0.25rem 0;
   font: inherit;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  color: var(--color-text);
   text-decoration: underline;
   background: none;
   border: 0;
@@ -1898,6 +1982,18 @@ button.bottom-nav-item {
 
 .item-actions .entries-toggle {
   margin: 0 0 0 auto;
+}
+
+/* Every button on Today is 36px tall like History. .item-actions .btn sets 44px with the same specificity as a
+   .btn.pill pair, so the pill buttons inside the cards are named here (Refs #124) */
+.item-actions .pill {
+  min-height: 36px;
+}
+
+/* The last "Entries" button sits partly inside the card's bottom padding, so the space under the text
+   matches the space above the icon */
+.item-card > .entries-toggle:last-child {
+  margin-bottom: -0.6rem;
 }
 
 .week-row-card .week-title {
@@ -1909,25 +2005,90 @@ button.bottom-nav-item {
 
 /* Today: everything below the title sits in one soft-blue panel, like the other pages */
 .today-panel {
-  padding: clamp(0.75rem, 4vw, 1.5rem);
+  padding: 0;
+  /* Refs #124: no panel behind the cards, so they are not boxed twice */
+  background: transparent;
+  border: 0;
 }
 
-/* The date, week row and progress card sit on the page; the soft-blue panel holds only the activities */
+/* Refs #124: two groups, both transparent with no padding. Group 1 (.today-top): date, chips, week row,
+   progress card. Group 2 (.today-panel after it): Today's activities and the exercise cards. No markup change. */
+.today-page .page-holder {
+  margin-bottom: 1rem;
+}
+
 .today-top {
-  display: flex;
-  flex-direction: column;
+  /* Two columns so the body weight and the streak sit side by side in one row under the date */
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.today-top + .today-panel {
+  padding: 0;
+  background: transparent;
+  border: 0;
 }
 
 .today-top > * {
   margin: 0;
+  grid-column: 1 / -1;
+}
+
+/* Body weight (blue) then streak (pink), side by side under the date; same size and weight (Refs #124) */
+.today-top > .streak-badge,
+.today-top > .weight-chip {
+  grid-row: 2;
+  align-self: start;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.today-top > .weight-chip {
+  grid-column: 1;
+  justify-self: start;
+  background: var(--color-primary);
+}
+
+.today-top > .streak-badge {
+  grid-column: 2;
+  justify-self: start;
+  background: var(--color-pink-bar);
 }
 
 .today-top .today-date {
-  padding: 0 0.25rem;
+  padding: 0;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+/* Refs #124: one colour and line height for the secondary lines on Today (they were dark in one place and
+   muted in another), and a darker bar track so the fill stands out */
+.today-page .item-target,
+.today-page .item-actual,
+.today-page .item-kcal,
+.today-page .overall-score,
+.today-page .overall-kcal {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.today-page .bar {
+  background: #c4d0f0;
+}
+
+/* Week days get a thin outline so the empty days read as buttons on the white card */
+.today-page .week-row-card .cal-day {
+  border: 1px solid var(--color-border);
+}
+
+.today-page .week-row-card .cal-day-selected {
+  border-color: var(--color-text);
 }
 
 .panel-head {
@@ -1947,9 +2108,9 @@ button.bottom-nav-item {
   background: var(--color-primary);
 }
 
-/* Activity cards let the panel show through (65 % white) */
+/* Activity cards sit directly on the page, so they are solid white (was 65 % white over the panel) */
 .today-panel .item-card {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--color-surface);
 }
 
 /* F-05: edit and delete buttons on today's entries */
@@ -1996,7 +2157,7 @@ button.bottom-nav-item {
   margin: 0.25rem 0 0.5rem;
   padding: 0.2rem 0.75rem;
   border-radius: 999px;
-  background: #e1e8ff;
+  background: var(--color-surface);
   color: inherit;
   font-size: 0.85rem;
   text-decoration: none;
